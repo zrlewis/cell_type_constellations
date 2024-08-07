@@ -53,15 +53,17 @@ def create_mixture_matrices(
     idx_to_labels = dict()
     for level in taxonomy_tree.hierarchy:
         label_to_idx[level] = dict()
-        idx_to_labels[level] = dict()
+        idx_to_labels[level] = []
         for idx, node in enumerate(taxonomy_tree.nodes_at_level(level)):
             label_to_idx[level][node] = idx
-            idx_to_labels[level][idx] = {
-                'level': level,
-                'level_name': taxonomy_tree.level_to_name(level),
-                'label': node,
-                'name': taxonomy_tree.label_to_name(level=level, label=node)
-            }
+            idx_to_labels[level].append(
+                {
+                    'level': level,
+                    'level_name': taxonomy_tree.level_to_name(level),
+                    'label': node,
+                    'name': taxonomy_tree.label_to_name(level=level, label=node)
+                }
+            )
             idx += 1
 
     print(f'=======CREATED TAXONOMY MAPPINGS {time.time()-t0:.2e}=======')
@@ -78,15 +80,22 @@ def create_mixture_matrices(
     print(f'=======CREATED NEIGHBOR ARRAY {time.time()-t0:.2e}=======')
 
     mixture_matrices = dict()
+    cluster_centroids = dict()
     for level in taxonomy_tree.hierarchy:
         n_nodes = len(taxonomy_tree.nodes_at_level(level))
         matrix = np.zeros((n_nodes, n_nodes), dtype=int)
+        centroids = np.zeros((n_nodes, 2), dtype=float)
 
         # a numpy array of every cell's taxon_idx
         cell_idx = np.array([
             label_to_idx[level][alias_to_parentage[a][level]['label']]
             for a in cluster_aliases
         ])
+
+        for unq_cell in np.unique(cell_idx):
+            cell_mask = (cell_idx==unq_cell)
+            this_centroid = np.mean(umap_coords[cell_mask, :], axis=0)
+            centroids[unq_cell, :] = this_centroid
 
         for i_nn in range(k_nn):
             raw_neighbor_array = full_neighbor_array[:, i_nn]
@@ -110,9 +119,10 @@ def create_mixture_matrices(
                     matrix[i_cell, i_neighbor] += ct
 
         mixture_matrices[level] = matrix
+        cluster_centroids[level] = centroids
         print(f'=======CREATED {level} MIXTURE MATRIX {time.time()-t0:.2e}=======')
 
-    return mixture_matrices
+    return cluster_centroids, mixture_matrices
 
 
 def _get_alias_to_parentage(taxonomy_tree):
