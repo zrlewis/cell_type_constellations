@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cell_type_constellations"
+version = "0.0.1"
+description = "prototype tools for generating constellation plots"
+dependencies = [
+    "numpy"
+]
+requires-python = ">=3.8"
+authors = [
+  {name = "Scott Daniel", email = "scott.daniel@allenintitute.org"},
+]
+readme = "README.md"
+license = {file = "LICENSE"}
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python"
+]
