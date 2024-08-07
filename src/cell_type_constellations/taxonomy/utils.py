@@ -1,7 +1,6 @@
 import copy
 import itertools
 import numpy as np
-import warnings
 
 
 def compute_row_order(
@@ -226,8 +225,6 @@ def validate_taxonomy_tree(
         all_rows += list(taxonomy_tree[leaf_level][leaf_node])
 
     if len(all_rows) == 0:
-        warnings.warn("This taxonomy has no mapping from leaf_node -> rows "
-                      "in the cell by gene matrix")
         return
 
     unq_values, unq_ct = np.unique(all_rows, return_counts=True)
