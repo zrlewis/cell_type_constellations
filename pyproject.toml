@@ -7,7 +7,9 @@ name = "cell_type_constellations"
 version = "0.0.1"
 description = "prototype tools for generating constellation plots"
 dependencies = [
-    "numpy"
+    "matplotlib",
+    "numpy",
+    "pandas"
 ]
 requires-python = ">=3.8"
 authors = [
