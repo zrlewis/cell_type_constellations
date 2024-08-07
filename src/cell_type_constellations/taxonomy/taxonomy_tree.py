@@ -342,7 +342,9 @@ class TaxonomyTree(object):
             raise RuntimeError(
                 f"{this_level} is not a valid level in this taxonomy;\n"
                 f"valid levels are:\n {self.hierarchy}")
-        return list(self._data[this_level].keys())
+        result = list(self._data[this_level].keys())
+        result.sort()
+        return result
 
     def parents(self, level, node):
         """
