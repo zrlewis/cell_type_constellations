@@ -81,10 +81,12 @@ def create_mixture_matrices(
 
     mixture_matrices = dict()
     cluster_centroids = dict()
+    n_cells_lookup = dict()
     for level in taxonomy_tree.hierarchy:
         n_nodes = len(taxonomy_tree.nodes_at_level(level))
         matrix = np.zeros((n_nodes, n_nodes), dtype=int)
         centroids = np.zeros((n_nodes, 2), dtype=float)
+        n_cells = np.zeros(n_nodes, dtype=int)
 
         # a numpy array of every cell's taxon_idx
         cell_idx = np.array([
@@ -94,6 +96,7 @@ def create_mixture_matrices(
 
         for unq_cell in np.unique(cell_idx):
             cell_mask = (cell_idx==unq_cell)
+            n_cells[unq_cell] = cell_mask.sum()
             this_centroid = np.mean(umap_coords[cell_mask, :], axis=0)
             centroids[unq_cell, :] = this_centroid
 
@@ -120,9 +123,10 @@ def create_mixture_matrices(
 
         mixture_matrices[level] = matrix
         cluster_centroids[level] = centroids
+        n_cells_lookup[level] = n_cells
         print(f'=======CREATED {level} MIXTURE MATRIX {time.time()-t0:.2e}=======')
 
-    return cluster_centroids, mixture_matrices
+    return cluster_centroids, n_cells_lookup, mixture_matrices, idx_to_labels
 
 
 def _get_alias_to_parentage(taxonomy_tree):
