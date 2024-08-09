@@ -363,6 +363,48 @@ def create_constellation_cache(
 
 
 
+def choose_connections(
+        mixture_matrix,
+        n_cells,
+        k_nn):
+
+    if mixture_matrix.shape != (n_cells.shape[0], n_cells.shape[0]):
+        raise RuntimeError(
+             f"mixture matrix shape: {mixture_matrix.shape}\n"
+             f"n_cells shape: {n_cells.shape}"
+        )
+
+    mixture_matrix = np.copy(mixture_matrix)
+    for ii in range(mixture_matrix.shape[0]):
+        mixture_matrix[ii, ii] = 0
+
+    n_nodes = len(n_cells)
+    normalized = (mixture_matrix.transpose()/(15*n_cells)).transpose()
+    src_rank = np.argsort(np.argsort(mixture_matrix, axis=1), axis=1)
+    dst_rank = np.argsort(np.argsort(mixture_matrix, axis=0), axis=0)
+
+    rank_mask = np.logical_or(
+                    src_rank >= (n_nodes-4),
+                    dst_rank >= (n_nodes-4)
+                )
+
+    freq_mask = np.logical_or(
+                    normalized>0.02,
+                    np.logical_and(
+                        normalized>0.002,
+                        mixture_matrix>300
+                    )
+                )
+
+    valid = np.where(
+        np.logical_and(
+            freq_mask,
+            rank_mask
+        )
+    )
+    return valid
+
+
 def _get_umap_coords(cell_metadata_path):
 
     cell_metadata = pd.read_csv(cell_metadata_path)
