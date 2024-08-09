@@ -342,6 +342,15 @@ def create_constellation_cache(
         dur = time.time()-t0
         print(f'=====processed {level} after {dur:.2e} seconds=======')
 
+    # get color_lookup
+    annotation = pd.read_csv(cluster_annotation_path)
+    label_to_color = {
+        l:c for l, c in
+        zip(annotation.label.values,
+            annotation.color_hex_triplet.values)
+    }
+    del annotation
+
     with h5py.File('prototype_constellation_data_v2.h5', 'w') as dst:
         n_grp = dst.create_group('n_cells')
         mm_grp = dst.create_group('mixture_matrix')
@@ -355,6 +364,9 @@ def create_constellation_cache(
         )
         dst.create_dataset(
             'k_nn', data=k_nn)
+        dst.create_dataset(
+            'label_to_color', data=json.dumps(label_to_color).encode('utf-8')
+        )
         for level in cell_filter.taxonomy_tree.hierarchy:
             for grp, lookup in [(n_grp, n_cells_lookup),
                                 (mm_grp, mixture_matrix_lookup),
