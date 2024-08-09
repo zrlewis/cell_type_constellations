@@ -1,3 +1,5 @@
+import h5py
+import json
 import numpy as np
 import pandas as pd
 import scipy.spatial
@@ -283,6 +285,82 @@ def _get_alias_to_parentage(taxonomy_tree):
         results[alias] = formatted
 
     return results
+
+
+def create_constellation_cache(
+        cell_metadata_path,
+        cluster_annotation_path,
+        cluster_membership_path,
+        hierarchy,
+        k_nn,
+        dst_path):
+
+    cell_filter = CellFilter.from_data_release(
+        cluster_annotation_path=cluster_annotation_path,
+        cluster_membership_path=cluster_membership_path,
+        hierarchy=hierarchy)
+
+    cell_set = CellSet(cell_metadata_path)
+
+    t0 = time.time()
+    mixture_matrix_lookup = dict()
+    centroid_lookup = dict()
+    n_cells_lookup = dict()
+    idx_to_label = dict()
+    for level in cell_filter.taxonomy_tree.hierarchy:
+
+        mixture_matrix_lookup[level] = create_mixture_matrix(
+            cell_set=cell_set,
+            cell_filter=cell_filter,
+            level=level,
+            k_nn=k_nn)
+
+        n_nodes = len(cell_filter.taxonomy_tree.nodes_at_level(level))
+        centroid_lookup[level] = [None]*n_nodes
+        n_cells_lookup[level] = [None]*n_nodes
+        idx_to_label[level] = [None]*n_nodes
+
+        for node in cell_filter.taxonomy_tree.nodes_at_level(level):
+
+            node_idx = cell_filter.idx_from_label(
+                level=level,
+                node=node)
+
+            alias_array = cell_filter.alias_array_from_idx(
+                level=level,
+                idx=node_idx)
+
+            centroid_lookup[level][node_idx] = cell_set.centroid_from_alias_array(
+                alias_array=alias_array)
+
+            idx_to_label[level][node_idx] = cell_filter.name_from_idx(
+                level=level,
+                idx=node_idx)
+
+            n_cells_lookup[level][node_idx] = cell_set.n_cells_from_alias_array(
+                alias_array=alias_array)
+        dur = time.time()-t0
+        print(f'=====processed {level} after {dur:.2e} seconds=======')
+
+    with h5py.File('prototype_constellation_data_v2.h5', 'w') as dst:
+        n_grp = dst.create_group('n_cells')
+        mm_grp = dst.create_group('mixture_matrix')
+        centroid_grp = dst.create_group('centroid')
+        dst.create_dataset(
+            'idx_to_label',
+            data=json.dumps(idx_to_label).encode('utf-8'))
+        dst.create_dataset(
+            'taxonomy_tree',
+            data=cell_filter.taxonomy_tree.to_str(drop_cells=True).encode('utf-8')
+        )
+        dst.create_dataset(
+            'k_nn', data=k_nn)
+        for level in cell_filter.taxonomy_tree.hierarchy:
+            for grp, lookup in [(n_grp, n_cells_lookup),
+                                (mm_grp, mixture_matrix_lookup),
+                                (centroid_grp, centroid_lookup)]:
+                grp.create_dataset(level, data=np.array(lookup[level]))
+
 
 
 def _get_umap_coords(cell_metadata_path):
