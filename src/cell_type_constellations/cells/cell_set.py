@@ -44,6 +44,19 @@ class CellSet(object):
              query_data=self.umap_coords[query_mask, :],
              k_nn=k_nn)
 
+    def centroid_from_alias_array(self, alias_array):
+        mask = np.zeros(self._cluster_aliases.shape, dtype=bool)
+        for alias in alias_array:
+            mask[self._cluster_aliases==alias] = True
+        return np.mean(self._umap_coords[mask, :], axis=0)
+
+    def n_cells_from_alias_array(self, alias_array):
+        mask = np.zeros(self._cluster_aliases.shape, dtype=bool)
+        for alias in alias_array:
+            mask[self._cluster_aliases==alias] = True
+        return int(mask.sum())
+
+
 
 class CellFilter(object):
 
@@ -159,8 +172,16 @@ class CellFilter(object):
         """
         Returns a dict with 'name' and 'label' fields
         """
-        result = self._idx_to_name[level][idx]
+        result = {
+            'label': self._idx_to_name[level]['label'][idx],
+            'name': self._idx_to_name[level]['name'][idx]
+        }
         return result
+
+    def alias_array_from_idx(self, level, idx):
+        naming = self.name_from_idx(level=level, idx=idx)
+        alias = self._parentage_to_alias[level][naming['label']]
+        return alias
 
 
 def get_neighbor_linkage(
