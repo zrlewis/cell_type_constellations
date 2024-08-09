@@ -49,7 +49,7 @@ class ConstellationCache_HDF5(object):
         }
 
     def labels(self, level):
-        return list(self.label_to_idx[level].keys())
+        return [el['label'] for el in self.idx_to_label[level]]
 
     def centroid_from_label(self, level, label):
         idx = self.label_to_idx[level][label]
@@ -61,3 +61,12 @@ class ConstellationCache_HDF5(object):
     def n_cells_from_label(self, level, label):
         idx = self.label_to_idx[level][label]
         return self.n_cells_lookup[level][idx]
+
+    def color(self, level, label, color_by_level):
+        if color_by_level == level:
+            return self.label_to_color[label]
+        parentage = self.taxonomy_tree.parents(
+            level=level,
+            node=label
+        )
+        return self.label_to_color[parentage[color_by_level]]
