@@ -16,6 +16,8 @@ class Centroid(object):
         self._name = name
         self._label = label
 
+        self._pixel_coords = None
+
     @property
     def x(self):
         return self._x
@@ -47,3 +49,10 @@ class Centroid(object):
     @property
     def label(self):
         return self._label
+
+    def set_pixel_coords(self, x, y, radius):
+        self._pixel_coords = {
+            'x': x,
+            'y': y,
+            'radius': radius
+        }

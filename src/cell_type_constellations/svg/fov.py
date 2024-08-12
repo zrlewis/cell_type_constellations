@@ -95,6 +95,11 @@ class ConstellationPlot(object):
                      x=centroid.x,
                      y=centroid.y)
 
+        centroid.set_pixel_coords(
+            x=x_pix,
+            y=y_pix,
+            radius=radius)
+
         url = (
             f"http://35.92.115.7:8883/display_entity?entity_id={centroid.label}"
         )
