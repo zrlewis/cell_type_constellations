@@ -20,6 +20,10 @@ def render_svg(
 
     label_list = constellation_cache.labels(taxonomy_level)
     for label in label_list:
+
+        name = constellation_cache.taxonomy_tree.label_to_name(
+            level=taxonomy_level, label=label)
+
         xy = constellation_cache.centroid_from_label(
             level=taxonomy_level,
             label=label)
@@ -35,7 +39,9 @@ def render_svg(
             x=xy[0],
             y=xy[1],
             color=color,
-            n_cells=n_cells)
+            n_cells=n_cells,
+            label=label,
+            name=name)
 
         plot.add_element(this)
 

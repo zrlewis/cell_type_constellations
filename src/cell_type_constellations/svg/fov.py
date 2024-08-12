@@ -95,10 +95,19 @@ class ConstellationPlot(object):
                      x=centroid.x,
                      y=centroid.y)
 
-        result = (
-            f"""    <circle r="{radius}px" cx="{x_pix}px" cy="{y_pix}px" """
+        url = (
+            f"http://35.92.115.7:8883/display_entity?entity_id={centroid.label}"
+        )
+        result = f"""    <a href="{url}">\n"""
+
+        result += (
+            f"""        <circle r="{radius}px" cx="{x_pix}px" cy="{y_pix}px" """
             f"""fill="{color}"/>\n"""
         )
+        result += """        <title>\n"""
+        result += f"""        {centroid.name}\n"""
+        result += """        </title>\n"""
+        result += "    </a>\n"
         return result
 
     def _convert_to_pixel_coords(

@@ -5,12 +5,16 @@ class Centroid(object):
             x,
             y,
             n_cells,
-            color):
+            color,
+            label,
+            name):
 
         self._x = x
         self._y = y
         self._color = color
         self._n_cells = n_cells
+        self._name = name
+        self._label = label
 
     @property
     def x(self):
@@ -35,3 +39,11 @@ class Centroid(object):
     @property
     def y_values(self):
         return [self._y]
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def label(self):
+        return self._label
