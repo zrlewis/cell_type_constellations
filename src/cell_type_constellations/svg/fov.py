@@ -176,8 +176,7 @@ class ConstellationPlot(object):
                 "Have not set max_connection_ratio"
             )
 
-        (pts,
-         debug_pts) = _intersection_points(
+        pts = _intersection_points(
                 connection=this_connection,
                 max_connection_ratio=self.max_connection_ratio)
 
@@ -197,6 +196,8 @@ def _intersection_points(
         connection,
         max_connection_ratio):
 
+    min_width = 0.25
+
     src_centroid = connection.src
     dst_centroid = connection.dst
     n_src = connection.src_neighbors
@@ -204,6 +205,20 @@ def _intersection_points(
 
     src_theta = 0.5*np.pi*(n_src/(src_centroid.n_cells*max_connection_ratio))
     dst_theta = 0.5*np.pi*(n_dst/(dst_centroid.n_cells*max_connection_ratio))
+
+    if min_width < 2.0*src_centroid.pixel_r:
+        actual_width = 2.0*src_centroid.pixel_r*np.abs(np.sin(src_theta))
+        if actual_width < min_width:
+            new_theta = np.asin(0.5*min_width/src_centroid.pixel_r)
+            new_theta = np.sign(src_theta)*new_theta
+            src_theta = new_theta
+
+    if min_width < 2.0*dst_centroid.pixel_r:
+        actual_width = 2.0*dst_centroid.pixel_r*np.abs(np.sin(dst_theta))
+        if actual_width < min_width:
+            new_theta = np.asin(0.5*min_width/dst_centroid.pixel_r)
+            new_theta = np.sign(dst_theta)*new_theta
+            dst_theta = new_theta
 
     src_pt = src_centroid.pixel_pt
     dst_pt = dst_centroid.pixel_pt
@@ -215,13 +230,15 @@ def _intersection_points(
     src_mid = src_centroid.pixel_r*connection/norm
     dst_mid = -dst_centroid.pixel_r*connection/norm
 
-    points = []
-    points.append(src_pt + rot(src_mid, src_theta))
-    points.append(dst_pt + rot(dst_mid, -dst_theta))
-    points.append(dst_pt + rot(dst_mid, dst_theta))
-    points.append(src_pt + rot(src_mid, -src_theta))
+    src0 = src_pt + rot(src_mid, src_theta)
+    src1 = src_pt + rot(src_mid, -src_theta)
 
-    return points, [src_pt, dst_pt]
+    dst0 = dst_pt + rot(dst_mid, -dst_theta)
+    dst1 = dst_pt + rot(dst_mid, dst_theta)
+
+    points = [src0, dst0, dst1, src1]
+
+    return points
 
 
 def rot(vec, theta):
