@@ -19,6 +19,7 @@ class Connection(object):
         self.src_neighbors = src_neighbors
         self.dst_neighbors = dst_neighbors
         self.rendering_corners = None
+        self.bezier_control_points = None
 
     @property
     def x_values(self):
@@ -36,6 +37,20 @@ class Connection(object):
             n_src=self.src_neighbors,
             n_dst=self.dst_neighbors,
             max_connection_ratio=max_connection_ratio)
+
+        (ctrl0,
+         ctrl1) = get_bezier_control_points(
+                    src=self.rendering_corners[0],
+                    dst=self.rendering_corners[1],
+                    sgn=-1.0)
+
+        (ctrl2,
+         ctrl3) = get_bezier_control_points(
+                     src=self.rendering_corners[2],
+                     dst=self.rendering_corners[3],
+                     sgn=1.0)
+
+        self.bezier_control_points = [[ctrl0, ctrl1], [ctrl2, ctrl3]]
 
 
 def _intersection_points(
@@ -83,3 +98,12 @@ def _intersection_points(
     points = [src0, dst0, dst1, src1]
 
     return points
+
+
+
+def get_bezier_control_points(src, dst, sgn):
+    mid_pt = 0.5*(src + dst)
+    connection = src-dst
+    orthogonal = rot(connection, 0.5*np.pi)
+    ctrl0 = mid_pt+sgn*0.1*orthogonal
+    return ctrl0, ctrl0

@@ -179,12 +179,21 @@ class ConstellationPlot(object):
     def _render_connection(self, this_connection):
 
         pts = this_connection.rendering_corners
+        ctrl = this_connection.bezier_control_points
 
         result = "    <path "
         result +=f"""d="M {pts[0][0]} {pts[0][1]}"""
-        result += get_bezier_curve(src=pts[0], dst=pts[1], sgn=-1.0)
+        result += get_bezier_curve(
+                    src=pts[0],
+                    dst=pts[1],
+                    ctrl0=ctrl[0][0],
+                    ctrl1=ctrl[0][1])
         result += f"L {pts[2][0]} {pts[2][1]} "
-        result += get_bezier_curve(src=pts[2], dst=pts[3], sgn=+1.0)
+        result += get_bezier_curve(
+                    src=pts[2],
+                    dst=pts[3],
+                    ctrl0=ctrl[1][0],
+                    ctrl1=ctrl[1][1])
         result += f"""L {pts[0][0]} {pts[0][1]}" """
         result += f"""stroke="transparent" fill="gray"/>\n"""
 
@@ -192,19 +201,7 @@ class ConstellationPlot(object):
 
 
 
-
-def get_bezier_control_points(src, dst, sgn):
-    mid_pt = 0.5*(src + dst)
-    connection = src-dst
-    orthogonal = rot(connection, 0.5*np.pi)
-    ctrl0 = mid_pt+sgn*0.1*orthogonal
-    return ctrl0, ctrl0
-
-
-def get_bezier_curve(src, dst, sgn):
-
-    (ctrl0,
-     ctrl1) = get_bezier_control_points(src=src, dst=dst, sgn=sgn)
+def get_bezier_curve(src, dst, ctrl0, ctrl1):
 
     result = f"C {ctrl0[0]} {ctrl0[1]} {ctrl1[0]} {ctrl1[1]} "
     result += f"{dst[0]} {dst[1]}"
