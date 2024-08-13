@@ -118,8 +118,12 @@ class ConstellationPlot(object):
         coordinates (i.e. not image coordinates)
         """
 
+        logarithmic_r = np.log2(1.0+centroid.n_cells/max_n_cells)
+        logarithmic_r *= self.max_radius
+
         radius = max(self.min_radius,
-                     centroid.n_cells*self.max_radius/max_n_cells)
+                     logarithmic_r)
+
         color = centroid.color
 
         (x_pix,
