@@ -228,14 +228,13 @@ def get_bezier_control_points(
         connection_list):
 
     n_conn = len(connection_list)
-    background = np.zeros((3*n_conn-1, 2), dtype=float)
-    mid_pts = np.zeros((n_conn, 2), dtype=float)
+    background = np.zeros((3*n_conn, 2), dtype=float)
     orthogonals = np.zeros((n_conn, 2), dtype=float)
     distances = np.zeros(n_conn, dtype=float)
     for i_conn, conn in enumerate(connection_list):
         background[i_conn*2, :] = conn.src.pixel_pt
         background[1+i_conn*2, :] = conn.dst.pixel_pt
-        mid_pts[i_conn, :] = 0.5*(conn.src.pixel_pt+conn.dst.pixel_pt)
+        background[2*n_conn+i_conn, :] = 0.5*(conn.src.pixel_pt+conn.dst.pixel_pt)
         dd = conn.dst.pixel_pt-conn.src.pixel_pt
         distances[i_conn] = np.sqrt(
             (dd**2).sum()
@@ -245,17 +244,18 @@ def get_bezier_control_points(
 
     max_displacement = 0.05
     n_iter = 3
-    mask = np.ones(n_conn, dtype=bool)
+    mask = np.ones(3*n_conn, dtype=bool)
     n_tot = 0
     n_adj = 0
     for i_iter in range(n_iter):
         for i_conn in range(n_conn):
-            mask[i_conn] = False
-            test_pt = mid_pts[i_conn, :]
-            background[2*n_conn:, :] = mid_pts[mask, :]
+            mask[2*n_conn+i_conn] = False
+            mask[i_conn*2] = False
+            mask[1+i_conn*2] = False
+            test_pt = background[2*n_conn+i_conn, :]
             force = compute_force(
                 test_pt=test_pt,
-                background_points=background
+                background_points=background[mask, :]
             )
             ortho_force = np.dot(force, orthogonals[i_conn, :])
             force = 100.0*ortho_force*orthogonals[i_conn, :]
@@ -265,12 +265,14 @@ def get_bezier_control_points(
                 force = max_displacement*distances[i_conn]*force/displacement
                 n_adj += 1
 
-            mid_pts[i_conn, :] = test_pt + force
-            mask[i_conn] = True
+            background[2*n_conn+i_conn, :] = test_pt + force
+            mask[2*n_conn+i_conn] = True
+            mask[i_conn*2] = True
+            mask[1+2*i_conn] =True
             n_tot += 1
         print(f'adj {n_adj} of {n_tot}')
 
-    return mid_pts
+    return background[2*n_conn: , :]
 
 
 def compute_force(
