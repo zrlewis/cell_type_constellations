@@ -391,7 +391,7 @@ def choose_connections(
         mixture_matrix[ii, ii] = 0
 
     n_nodes = len(n_cells)
-    normalized = (mixture_matrix.transpose()/(15*n_cells)).transpose()
+    normalized = (mixture_matrix.transpose()/(k_nn*n_cells)).transpose()
     src_rank = np.argsort(np.argsort(mixture_matrix, axis=1), axis=1)
     dst_rank = np.argsort(np.argsort(mixture_matrix, axis=0), axis=0)
 
