@@ -230,15 +230,18 @@ def get_bezier_control_points(
     n_conn = len(connection_list)
     background = np.zeros((3*n_conn-1, 2), dtype=float)
     mid_pts = np.zeros((n_conn, 2), dtype=float)
+    orthogonals = np.zeros((n_conn, 2), dtype=float)
     distances = np.zeros(n_conn, dtype=float)
     for i_conn, conn in enumerate(connection_list):
         background[i_conn*2, :] = conn.src.pixel_pt
         background[1+i_conn*2, :] = conn.dst.pixel_pt
         mid_pts[i_conn, :] = 0.5*(conn.src.pixel_pt+conn.dst.pixel_pt)
-        dd = conn.src.pixel_pt-conn.dst.pixel_pt
+        dd = conn.dst.pixel_pt-conn.src.pixel_pt
         distances[i_conn] = np.sqrt(
             (dd**2).sum()
         )
+        dd = dd/distances[i_conn]
+        orthogonals[i_conn, :] = rot(dd, 0.5*np.pi)
 
     max_displacement = 0.05
     n_iter = 3
@@ -254,12 +257,14 @@ def get_bezier_control_points(
                 test_pt=test_pt,
                 background_points=background
             )
-            force *= 200.0
+            ortho_force = np.dot(force, orthogonals[i_conn, :])
+            force = 100.0*ortho_force*orthogonals[i_conn, :]
 
             displacement = np.sqrt((force**2).sum())
             if displacement > max_displacement*distances[i_conn]:
                 force = max_displacement*distances[i_conn]*force/displacement
                 n_adj += 1
+
             mid_pts[i_conn, :] = test_pt + force
             mask[i_conn] = True
             n_tot += 1
