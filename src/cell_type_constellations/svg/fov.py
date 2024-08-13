@@ -142,7 +142,7 @@ class ConstellationPlot(object):
             f"""fill="{color}"/>\n"""
         )
         result += """        <title>\n"""
-        result += f"""        {centroid.name}\n"""
+        result += f"""        {centroid.name}: {centroid.n_cells:.2e} cells\n"""
         result += """        </title>\n"""
         result += "    </a>\n"
         return result
