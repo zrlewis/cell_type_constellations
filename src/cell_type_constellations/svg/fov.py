@@ -195,10 +195,17 @@ class ConstellationPlot(object):
 
     def _render_connection(self, this_connection):
 
+        title = (
+            f"{this_connection.src.name} ({this_connection.src_neighbors:.2e} neighbors) "
+            "-> "
+            f"{this_connection.dst.name} ({this_connection.dst_neighbors:.2e} neighbors)"
+        )
+
         pts = this_connection.rendering_corners
         ctrl = this_connection.bezier_control_points
 
-        result = "    <path "
+        result = """    <a href="">\n"""
+        result += "        <path "
         result +=f"""d="M {pts[0][0]} {pts[0][1]} """
         result += get_bezier_curve(
                     src=pts[0],
@@ -213,6 +220,10 @@ class ConstellationPlot(object):
                     ctrl1=ctrl[1][1])
         result += f"""L {pts[0][0]} {pts[0][1]}" """
         result += f"""stroke="transparent" fill="gray"/>\n"""
+        result += "        <title>\n"
+        result += f"        {title}\n"
+        result += "        </title>\n"
+        result += "    </a>"
 
         return result
 
