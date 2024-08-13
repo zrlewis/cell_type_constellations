@@ -18,11 +18,13 @@ def render_svg(
         taxonomy_level,
         color_by_level,
         height=800,
-        max_radius=20):
+        max_radius=20,
+        min_radius=5):
 
     plot = ConstellationPlot(
         height=height,
-        max_radius=max_radius)
+        max_radius=max_radius,
+        min_radius=min_radius)
 
     centroid_list = []
     for label in constellation_cache.labels(taxonomy_level):

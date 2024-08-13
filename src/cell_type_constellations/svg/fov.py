@@ -14,10 +14,12 @@ class ConstellationPlot(object):
     def __init__(
             self,
             height,
-            max_radius):
+            max_radius,
+            min_radius):
 
         self.elements = []
         self._max_radius = max_radius
+        self._min_radius = min_radius
         self._height = height
         self._origin = None
         self.pixel_origin = np.array([max_radius, max_radius])
@@ -33,6 +35,10 @@ class ConstellationPlot(object):
     @property
     def max_radius(self):
         return self._max_radius
+
+    @property
+    def min_radius(self):
+        return self._min_radius
 
     def add_element(self, new_element):
         self.elements.append(new_element)
@@ -112,7 +118,8 @@ class ConstellationPlot(object):
         coordinates (i.e. not image coordinates)
         """
 
-        radius = max(1, centroid.n_cells*self.max_radius/max_n_cells)
+        radius = max(self.min_radius,
+                     centroid.n_cells*self.max_radius/max_n_cells)
         color = centroid.color
 
         (x_pix,
