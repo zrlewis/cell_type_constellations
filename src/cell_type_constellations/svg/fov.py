@@ -103,21 +103,17 @@ class ConstellationPlot(object):
                 max_connection_ratio = rr
             connection_list.append(el)
 
-
-        for conn in connection_list:
-            conn.set_rendering_corners(
-                max_connection_ratio=max_connection_ratio)
-        print(f'n_conn {len(connection_list)}')
-
         t0 = time.time()
         bezier_controls = get_bezier_control_points(connection_list=connection_list)
         dur = time.time()-t0
         print(f'relaxation took {dur:.2e} seconds')
+
+        for conn in connection_list:
+            conn.set_rendering_corners(
+                max_connection_ratio=max_connection_ratio)
+
         for conn, bez in zip(connection_list, bezier_controls):
             conn.set_bezier_controls(bez)
-
-
-        print(f'n_conn {len(connection_list)}')
 
         connection_code = ""
         for conn in connection_list:
