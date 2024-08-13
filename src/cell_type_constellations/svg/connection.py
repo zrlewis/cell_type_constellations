@@ -39,7 +39,7 @@ class Connection(object):
     def dst_neighbor_fraction(self):
         return self.dst_neighbors/(self.dst.n_cells*self.k_nn)
 
-    def set_rendering_corners(self, max_connection_ratio):
+    def _find_mid_pt(self):
 
         src_pt = self.src.pixel_pt
         dst_pt = self.dst.pixel_pt
@@ -48,17 +48,39 @@ class Connection(object):
 
         norm = np.sqrt((connection**2).sum())
 
-        src_mid = self.src.pixel_r*connection/norm
-        dst_mid = -self.dst.pixel_r*connection/norm
+        self._src_mid = self.src.pixel_r*connection/norm
+        self._dst_mid = -self.dst.pixel_r*connection/norm
+
+    @property
+    def src_mid(self):
+        """
+        mid point of connection's intersection with circumference
+        of src circle (relative to src center)
+        """
+        if not hasattr(self, '_src_mid'):
+            self._find_mid_pt()
+        return self._src_mid
+
+    @property
+    def dst_mid(self):
+        """
+        mid point of connection's intersection with circumference
+        of src circle (relative to src center)
+        """
+        if not hasattr(self, '_dst_mid'):
+            self._find_mid_pt()
+        return self._dst_mid
+
+    def set_rendering_corners(self, max_connection_ratio):
 
         self.rendering_corners = _intersection_points(
             src_pt=self.src.pixel_pt,
-            src_mid=src_mid,
+            src_mid=self.src_mid,
             src_n_cells=self.src.n_cells,
             src_n_neighbors=self.src_neighbors,
             src_r=self.src.pixel_r,
             dst_pt=self.dst.pixel_pt,
-            dst_mid=dst_mid,
+            dst_mid=self.dst_mid,
             dst_n_cells=self.dst.n_cells,
             dst_n_neighbors=self.dst_neighbors,
             dst_r=self.dst.pixel_r,
