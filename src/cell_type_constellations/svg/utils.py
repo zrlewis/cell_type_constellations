@@ -83,19 +83,19 @@ def render_svg(
             continue
         loaded_connections.add(pair)
 
-        n0 = mixture_matrix[i0, i1]
-        n1 = mixture_matrix[i1, i0]
+        n0 = mixture_matrix[i0, i1]/centroid_list[i0].n_cells
+        n1 = mixture_matrix[i1, i0]/centroid_list[i1].n_cells
 
         if n0 > n1:
             i_src = i0
             i_dst = i1
-            n_src = n0
-            n_dst = n1
+            n_src = mixture_matrix[i0, i1]
+            n_dst = mixture_matrix[i1, i0]
         else:
             i_src = i1
             i_dst = i0
-            n_src = n1
-            n_dst = n0
+            n_src = mixture_matrix[i1, i0]
+            n_dst = mixture_matrix[i0, i1]
 
         src = centroid_list[i_src]
         dst = centroid_list[i_dst]
@@ -103,7 +103,8 @@ def render_svg(
             src_centroid=src,
             dst_centroid=dst,
             src_neighbors=n_src,
-            dst_neighbors=n_dst
+            dst_neighbors=n_dst,
+            k_nn=constellation_cache.k_nn
         )
 
         plot.add_element(conn)

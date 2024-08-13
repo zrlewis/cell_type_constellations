@@ -196,9 +196,11 @@ class ConstellationPlot(object):
     def _render_connection(self, this_connection):
 
         title = (
-            f"{this_connection.src.name} ({this_connection.src_neighbors:.2e} neighbors) "
+            f"{this_connection.src.name} "
+            f"({this_connection.src_neighbor_fraction:.2e} of neighbors) "
             "-> "
-            f"{this_connection.dst.name} ({this_connection.dst_neighbors:.2e} neighbors)"
+            f"{this_connection.dst.name} "
+            f"({this_connection.dst_neighbor_fraction:.2e} of neighbors)"
         )
 
         pts = this_connection.rendering_corners

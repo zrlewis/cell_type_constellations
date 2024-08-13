@@ -12,7 +12,8 @@ class Connection(object):
             src_centroid,
             dst_centroid,
             src_neighbors,
-            dst_neighbors):
+            dst_neighbors,
+            k_nn):
 
         self.src = src_centroid
         self.dst = dst_centroid
@@ -20,6 +21,7 @@ class Connection(object):
         self.dst_neighbors = dst_neighbors
         self.rendering_corners = None
         self.bezier_control_points = None
+        self.k_nn = k_nn
 
     @property
     def x_values(self):
@@ -28,6 +30,14 @@ class Connection(object):
     @property
     def y_values(self):
         return []
+
+    @property
+    def src_neighbor_fraction(self):
+        return self.src_neighbors/(self.src.n_cells*self.k_nn)
+
+    @property
+    def dst_neighbor_fraction(self):
+        return self.dst_neighbors/(self.dst.n_cells*self.k_nn)
 
     def set_rendering_corners(self, max_connection_ratio):
 
