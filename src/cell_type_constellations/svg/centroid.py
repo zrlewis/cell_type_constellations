@@ -1,3 +1,6 @@
+import numpy as np
+
+
 class Centroid(object):
 
     def __init__(
@@ -50,9 +53,40 @@ class Centroid(object):
     def label(self):
         return self._label
 
+    @property
+    def pixel_x(self):
+        if self._pixel_coords is None:
+            self._raise_pixel_not_set()
+        return self._pixel_coords['x']
+
+    @property
+    def pixel_y(self):
+        if self._pixel_coords is None:
+            self._raise_pixel_not_set()
+        return self._pixel_coords['y']
+
+    @property
+    def pixel_r(self):
+        if self._pixel_coords is None:
+            self._raise_pixel_not_set()
+        return self._pixel_coords['radius']
+
     def set_pixel_coords(self, x, y, radius):
         self._pixel_coords = {
             'x': x,
             'y': y,
             'radius': radius
         }
+
+    def _raise_pixel_not_set(self):
+        raise RuntimeError(
+            f"centroid for {self.label} ({self.name}) "
+            "does not yet have pixel coordinates assigned to it"
+        )
+
+    @property
+    def pixel_pt(self):
+        return np.array([
+            self.pixel_x,
+            self.pixel_y
+        ])

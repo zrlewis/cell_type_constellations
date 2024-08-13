@@ -45,6 +45,10 @@ def render_svg(
 
         plot.add_element(this)
 
+    # use cell_set.choose_connections to select connections
+    # each connection only needs to go in one direction
+    # set n_neighbors assuming that the given node is src
+
 
     with open(dst_path, 'w') as dst:
         dst.write(plot.render())

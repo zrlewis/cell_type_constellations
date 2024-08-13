@@ -4,6 +4,10 @@ from cell_type_constellations.svg.centroid import (
     Centroid
 )
 
+from cell_type_constellations.svg.connection import (
+    Connection
+)
+
 
 class ConstellationPlot(object):
 
@@ -20,6 +24,7 @@ class ConstellationPlot(object):
         self.pixel_extent = np.array([height-2*max_radius, height-2*max_radius])
         self.world_origin = None
         self.world_extent = None
+        self.max_connection_ratio = None
 
     @property
     def height(self):
@@ -67,13 +72,33 @@ class ConstellationPlot(object):
             if isinstance(el, Centroid)
         ])
 
+        centroid_code = ""
         for el in self.elements:
             if isinstance(el, Centroid):
-                result += self._render_centroid(
+                centroid_code += self._render_centroid(
                     centroid=el,
                     max_n_cells=max_n_cells,
                     x_bounds=x_bounds,
                     y_bounds=y_bounds)
+
+        max_connection_ratio = None
+        for el in self.elements:
+            if not isinstance(el, Connection):
+                continue
+            r0 = el.src_neighbors/el.src.n_cells
+            r1 = el.dst_neighbors/el.dst.n_cells
+            rr = max(r0, r1)
+            if max_connection_ratio is None or rr > max_connection_ratio:
+                max_connection_ratio = rr
+        self.max_connection_ratio = max_connection_ratio
+
+        connection_code = ""
+        for el in self.elements:
+            if isinstance(el, Connection):
+                connection_code += self._render_connection(el)
+
+        result = connection_code + centroid_code
+
         return result
 
     def _render_centroid(
@@ -132,3 +157,88 @@ class ConstellationPlot(object):
             + self.pixel_extent[1]*(self.world_origin[1]+self.world_extent[1]-y)/self.world_extent[1]
         )
         return x_pix, y_pix
+
+
+    def _render_connection(self, this_connection):
+        if self.max_connection_ratio is None:
+            raise RuntimeError(
+                "Have not set max_connection_ratio"
+            )
+
+        (pts,
+         debug_pts) = _intersection_points(
+                connection=this_connection,
+                max_connection_ratio=self.max_connection_ratio)
+
+
+        result = "    <path "
+        result +=f"""d="M {pts[0][0]} {pts[0][1]}"""
+        result += get_bezier_curve(src=pts[0], dst=pts[1], sgn=-1.0)
+        result += f"L {pts[2][0]} {pts[2][1]} "
+        result += get_bezier_curve(src=pts[2], dst=pts[3], sgn=+1.0)
+        result += f"""L {pts[0][0]} {pts[0][1]}" """
+        result += f"""stroke="transparent" fill="gray"/>\n"""
+
+        result += "    <path "
+        result += f"""d="M {debug_pts[0][0]} {debug_pts[0][1]} """
+        result += f"""L {debug_pts[1][0]} {debug_pts[1][1]}" stroke="yellow" """
+        result += """/>\n"""
+
+        return result
+
+
+def _intersection_points(
+        connection,
+        max_connection_ratio):
+
+    src_centroid = connection.src
+    dst_centroid = connection.dst
+    n_src = connection.src_neighbors
+    n_dst = connection.dst_neighbors
+
+    src_theta = 0.5*np.pi*(n_src/(src_centroid.n_cells*max_connection_ratio))
+    dst_theta = 0.5*np.pi*(n_dst/(dst_centroid.n_cells*max_connection_ratio))
+
+    src_pt = src_centroid.pixel_pt
+    dst_pt = dst_centroid.pixel_pt
+
+    connection = dst_pt-src_pt
+
+    norm = np.sqrt((connection**2).sum())
+
+    src_mid = src_centroid.pixel_r*connection/norm
+    dst_mid = -dst_centroid.pixel_r*connection/norm
+
+    points = []
+    points.append(src_pt + rot(src_mid, src_theta))
+    points.append(dst_pt + rot(dst_mid, -dst_theta))
+    points.append(dst_pt + rot(dst_mid, dst_theta))
+    points.append(src_pt + rot(src_mid, -src_theta))
+
+    return points, [src_pt, dst_pt]
+
+
+def rot(vec, theta):
+    arr = np.array(
+        [[np.cos(theta), -np.sin(theta)],
+         [np.sin(theta), np.cos(theta)]]
+    )
+    return np.dot(arr, vec)
+
+
+def get_bezier_control_points(src, dst, sgn):
+    mid_pt = 0.5*(src + dst)
+    connection = src-dst
+    orthogonal = rot(connection, 0.5*np.pi)
+    ctrl0 = mid_pt+sgn*0.1*orthogonal
+    return ctrl0, ctrl0
+
+
+def get_bezier_curve(src, dst, sgn):
+
+    (ctrl0,
+     ctrl1) = get_bezier_control_points(src=src, dst=dst, sgn=sgn)
+
+    result = f"C {ctrl0[0]} {ctrl0[1]} {ctrl1[0]} {ctrl1[1]} "
+    result += f"{dst[0]} {dst[1]}"
+    return result
