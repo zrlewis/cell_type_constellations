@@ -38,20 +38,6 @@ class Connection(object):
             n_dst=self.dst_neighbors,
             max_connection_ratio=max_connection_ratio)
 
-        #(ctrl0,
-        # ctrl1) = get_bezier_control_points(
-        #            src=self.rendering_corners[0],
-        #            dst=self.rendering_corners[1],
-        #            sgn=-1.0)
-
-        #(ctrl2,
-        # ctrl3) = get_bezier_control_points(
-        #             src=self.rendering_corners[2],
-        #             dst=self.rendering_corners[3],
-        #             sgn=1.0)
-
-        #self.bezier_control_points = [[ctrl0, ctrl1], [ctrl2, ctrl3]]
-
     def set_bezier_controls(self, thermal_control):
         mid_pt = 0.5*(self.src.pixel_pt+self.dst.pixel_pt)
         dd = thermal_control-mid_pt
