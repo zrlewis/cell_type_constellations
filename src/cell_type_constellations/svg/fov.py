@@ -11,6 +11,8 @@ from cell_type_constellations.svg.connection import (
     Connection
 )
 
+import time
+
 
 class ConstellationPlot(object):
 
@@ -101,13 +103,28 @@ class ConstellationPlot(object):
                 max_connection_ratio = rr
             connection_list.append(el)
 
+
         for conn in connection_list:
             conn.set_rendering_corners(
                 max_connection_ratio=max_connection_ratio)
+        print(f'n_conn {len(connection_list)}')
+
+        t0 = time.time()
+        bezier_controls = get_bezier_control_points(connection_list=connection_list)
+        dur = time.time()-t0
+        print(f'relaxation took {dur:.2e} seconds')
+        for conn, bez in zip(connection_list, bezier_controls):
+            conn.set_bezier_controls(bez)
+
+
+        print(f'n_conn {len(connection_list)}')
 
         connection_code = ""
         for conn in connection_list:
             connection_code += self._render_connection(conn)
+
+        print(f'n_conn {len(connection_list)}')
+
 
         result = connection_code + centroid_code
 
@@ -182,7 +199,7 @@ class ConstellationPlot(object):
         ctrl = this_connection.bezier_control_points
 
         result = "    <path "
-        result +=f"""d="M {pts[0][0]} {pts[0][1]}"""
+        result +=f"""d="M {pts[0][0]} {pts[0][1]} """
         result += get_bezier_curve(
                     src=pts[0],
                     dst=pts[1],
@@ -200,9 +217,64 @@ class ConstellationPlot(object):
         return result
 
 
-
 def get_bezier_curve(src, dst, ctrl0, ctrl1):
 
     result = f"C {ctrl0[0]} {ctrl0[1]} {ctrl1[0]} {ctrl1[1]} "
-    result += f"{dst[0]} {dst[1]}"
+    result += f"{dst[0]} {dst[1]} "
     return result
+
+
+def get_bezier_control_points(
+        connection_list):
+
+    n_conn = len(connection_list)
+    background = np.zeros((3*n_conn-1, 2), dtype=float)
+    mid_pts = np.zeros((n_conn, 2), dtype=float)
+    distances = np.zeros(n_conn, dtype=float)
+    for i_conn, conn in enumerate(connection_list):
+        background[i_conn*2, :] = conn.src.pixel_pt
+        background[1+i_conn*2, :] = conn.dst.pixel_pt
+        mid_pts[i_conn, :] = 0.5*(conn.src.pixel_pt+conn.dst.pixel_pt)
+        dd = conn.src.pixel_pt-conn.dst.pixel_pt
+        distances[i_conn] = np.sqrt(
+            (dd**2).sum()
+        )
+
+    max_displacement = 0.05
+    n_iter = 3
+    mask = np.ones(n_conn, dtype=bool)
+    n_tot = 0
+    n_adj = 0
+    for i_iter in range(n_iter):
+        for i_conn in range(n_conn):
+            mask[i_conn] = False
+            test_pt = mid_pts[i_conn, :]
+            background[2*n_conn:, :] = mid_pts[mask, :]
+            force = compute_force(
+                test_pt=test_pt,
+                background_points=background
+            )
+            force *= 200.0
+
+            displacement = np.sqrt((force**2).sum())
+            if displacement > max_displacement*distances[i_conn]:
+                force = max_displacement*distances[i_conn]*force/displacement
+                n_adj += 1
+            mid_pts[i_conn, :] = test_pt + force
+            mask[i_conn] = True
+            n_tot += 1
+        print(f'adj {n_adj} of {n_tot}')
+
+    return mid_pts
+
+
+def compute_force(
+        test_pt,
+        background_points,
+        eps=0.001):
+
+    vectors = test_pt-background_points
+    rsq = (vectors**2).sum(axis=1)
+    rsq = np.where(rsq>eps, rsq, eps)
+    force = (vectors.transpose()/np.power(rsq, 1.5)).sum(axis=1)
+    return force

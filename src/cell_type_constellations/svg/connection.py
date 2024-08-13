@@ -38,20 +38,26 @@ class Connection(object):
             n_dst=self.dst_neighbors,
             max_connection_ratio=max_connection_ratio)
 
-        (ctrl0,
-         ctrl1) = get_bezier_control_points(
-                    src=self.rendering_corners[0],
-                    dst=self.rendering_corners[1],
-                    sgn=-1.0)
+        #(ctrl0,
+        # ctrl1) = get_bezier_control_points(
+        #            src=self.rendering_corners[0],
+        #            dst=self.rendering_corners[1],
+        #            sgn=-1.0)
 
-        (ctrl2,
-         ctrl3) = get_bezier_control_points(
-                     src=self.rendering_corners[2],
-                     dst=self.rendering_corners[3],
-                     sgn=1.0)
+        #(ctrl2,
+        # ctrl3) = get_bezier_control_points(
+        #             src=self.rendering_corners[2],
+        #             dst=self.rendering_corners[3],
+        #             sgn=1.0)
 
-        self.bezier_control_points = [[ctrl0, ctrl1], [ctrl2, ctrl3]]
+        #self.bezier_control_points = [[ctrl0, ctrl1], [ctrl2, ctrl3]]
 
+    def set_bezier_controls(self, thermal_control):
+        mid_pt = 0.5*(self.src.pixel_pt+self.dst.pixel_pt)
+        dd = thermal_control-mid_pt
+        ctrl0 = dd+0.5*(self.rendering_corners[0]+self.rendering_corners[1])
+        ctrl1 = dd+0.5*(self.rendering_corners[2]+self.rendering_corners[3])
+        self.bezier_control_points = [[ctrl0, ctrl0], [ctrl1, ctrl1]]
 
 def _intersection_points(
         src_centroid,
@@ -98,12 +104,3 @@ def _intersection_points(
     points = [src0, dst0, dst1, src1]
 
     return points
-
-
-
-def get_bezier_control_points(src, dst, sgn):
-    mid_pt = 0.5*(src + dst)
-    connection = src-dst
-    orthogonal = rot(connection, 0.5*np.pi)
-    ctrl0 = mid_pt+sgn*0.1*orthogonal
-    return ctrl0, ctrl0

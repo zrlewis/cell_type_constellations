@@ -53,8 +53,9 @@ def render_svg(
             label=label,
             name=name)
 
-        plot.add_element(this)
         centroid_list.append(this)
+
+        plot.add_element(this)
 
     # use cell_set.choose_connections to select connections
     # each connection only needs to go in one direction
