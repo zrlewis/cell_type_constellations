@@ -70,3 +70,9 @@ class ConstellationCache_HDF5(object):
             node=label
         )
         return self.label_to_color[parentage[color_by_level]]
+
+    def mixture_matrix_from_level(self, level):
+        return self.mixture_matrix_lookup[level]
+
+    def n_cells_from_level(self, level):
+        return self.n_cells_lookup[level]
