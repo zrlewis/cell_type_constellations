@@ -1,5 +1,8 @@
 import numpy as np
 
+from cell_type_constellations.utils.geometry import(
+    rot
+)
 from cell_type_constellations.svg.centroid import (
     Centroid
 )
@@ -26,7 +29,6 @@ class ConstellationPlot(object):
         self.pixel_extent = np.array([height-2*max_radius, height-2*max_radius])
         self.world_origin = None
         self.world_extent = None
-        self.max_connection_ratio = None
 
     @property
     def height(self):
@@ -88,6 +90,7 @@ class ConstellationPlot(object):
                     y_bounds=y_bounds)
 
         max_connection_ratio = None
+        connection_list = []
         for el in self.elements:
             if not isinstance(el, Connection):
                 continue
@@ -96,12 +99,15 @@ class ConstellationPlot(object):
             rr = max(r0, r1)
             if max_connection_ratio is None or rr > max_connection_ratio:
                 max_connection_ratio = rr
-        self.max_connection_ratio = max_connection_ratio
+            connection_list.append(el)
+
+        for conn in connection_list:
+            conn.set_rendering_corners(
+                max_connection_ratio=max_connection_ratio)
 
         connection_code = ""
-        for el in self.elements:
-            if isinstance(el, Connection):
-                connection_code += self._render_connection(el)
+        for conn in connection_list:
+            connection_code += self._render_connection(conn)
 
         result = connection_code + centroid_code
 
@@ -171,15 +177,8 @@ class ConstellationPlot(object):
 
 
     def _render_connection(self, this_connection):
-        if self.max_connection_ratio is None:
-            raise RuntimeError(
-                "Have not set max_connection_ratio"
-            )
 
-        pts = _intersection_points(
-                connection=this_connection,
-                max_connection_ratio=self.max_connection_ratio)
-
+        pts = this_connection.rendering_corners
 
         result = "    <path "
         result +=f"""d="M {pts[0][0]} {pts[0][1]}"""
@@ -192,61 +191,6 @@ class ConstellationPlot(object):
         return result
 
 
-def _intersection_points(
-        connection,
-        max_connection_ratio):
-
-    min_width = 0.25
-
-    src_centroid = connection.src
-    dst_centroid = connection.dst
-    n_src = connection.src_neighbors
-    n_dst = connection.dst_neighbors
-
-    src_theta = 0.5*np.pi*(n_src/(src_centroid.n_cells*max_connection_ratio))
-    dst_theta = 0.5*np.pi*(n_dst/(dst_centroid.n_cells*max_connection_ratio))
-
-    if min_width < 2.0*src_centroid.pixel_r:
-        actual_width = 2.0*src_centroid.pixel_r*np.abs(np.sin(src_theta))
-        if actual_width < min_width:
-            new_theta = np.asin(0.5*min_width/src_centroid.pixel_r)
-            new_theta = np.sign(src_theta)*new_theta
-            src_theta = new_theta
-
-    if min_width < 2.0*dst_centroid.pixel_r:
-        actual_width = 2.0*dst_centroid.pixel_r*np.abs(np.sin(dst_theta))
-        if actual_width < min_width:
-            new_theta = np.asin(0.5*min_width/dst_centroid.pixel_r)
-            new_theta = np.sign(dst_theta)*new_theta
-            dst_theta = new_theta
-
-    src_pt = src_centroid.pixel_pt
-    dst_pt = dst_centroid.pixel_pt
-
-    connection = dst_pt-src_pt
-
-    norm = np.sqrt((connection**2).sum())
-
-    src_mid = src_centroid.pixel_r*connection/norm
-    dst_mid = -dst_centroid.pixel_r*connection/norm
-
-    src0 = src_pt + rot(src_mid, src_theta)
-    src1 = src_pt + rot(src_mid, -src_theta)
-
-    dst0 = dst_pt + rot(dst_mid, -dst_theta)
-    dst1 = dst_pt + rot(dst_mid, dst_theta)
-
-    points = [src0, dst0, dst1, src1]
-
-    return points
-
-
-def rot(vec, theta):
-    arr = np.array(
-        [[np.cos(theta), -np.sin(theta)],
-         [np.sin(theta), np.cos(theta)]]
-    )
-    return np.dot(arr, vec)
 
 
 def get_bezier_control_points(src, dst, sgn):
