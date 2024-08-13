@@ -75,10 +75,12 @@ def render_svg(
 
     loaded_connections = set()
     for i0, i1 in zip(*valid_connections):
+
         pair = tuple(sorted((i0, i1)))
 
         if pair in loaded_connections:
             continue
+        loaded_connections.add(pair)
 
         n0 = mixture_matrix[i0, i1]
         n1 = mixture_matrix[i1, i0]
