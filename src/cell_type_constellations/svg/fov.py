@@ -281,5 +281,5 @@ def compute_force(
     vectors = test_pt-background_points
     rsq = (vectors**2).sum(axis=1)
     rsq = np.where(rsq>eps, rsq, eps)
-    force = (vectors.transpose()/np.power(rsq, 1.5)).sum(axis=1)
+    force = (vectors.transpose()/np.power(rsq, 2.0)).sum(axis=1)
     return force
