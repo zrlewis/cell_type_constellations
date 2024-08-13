@@ -179,11 +179,6 @@ class ConstellationPlot(object):
         result += f"""L {pts[0][0]} {pts[0][1]}" """
         result += f"""stroke="transparent" fill="gray"/>\n"""
 
-        result += "    <path "
-        result += f"""d="M {debug_pts[0][0]} {debug_pts[0][1]} """
-        result += f"""L {debug_pts[1][0]} {debug_pts[1][1]}" stroke="yellow" """
-        result += """/>\n"""
-
         return result
 
 
