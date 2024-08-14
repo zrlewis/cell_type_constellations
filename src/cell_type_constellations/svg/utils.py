@@ -19,9 +19,10 @@ def render_svg(
         color_by_level,
         height=800,
         max_radius=20,
-        min_radius=5):
+        min_radius=5,
+        load_connections=True):
 
-    plot = ConstellationPlot(
+    plot_obj = ConstellationPlot(
         height=height,
         max_radius=max_radius,
         min_radius=min_radius)
@@ -55,8 +56,26 @@ def render_svg(
 
         centroid_list.append(this)
 
-        plot.add_element(this)
+        plot_obj.add_element(this)
 
+    if load_connections:
+        plot_obj = _load_connections(
+                    constellation_cache=constellation_cache,
+                    centroid_list=centroid_list,
+                    taxonomy_level=taxonomy_level,
+                    plot_obj=plot_obj)
+
+
+    with open(dst_path, 'w') as dst:
+        dst.write(plot_obj.render())
+
+
+
+def _load_connections(
+        constellation_cache,
+        centroid_list,
+        taxonomy_level,
+        plot_obj):
     # use cell_set.choose_connections to select connections
     # each connection only needs to go in one direction
     # set n_neighbors assuming that the given node is src
@@ -107,7 +126,5 @@ def render_svg(
             k_nn=constellation_cache.k_nn
         )
 
-        plot.add_element(conn)
-
-    with open(dst_path, 'w') as dst:
-        dst.write(plot.render())
+        plot_obj.add_element(conn)
+    return plot_obj
