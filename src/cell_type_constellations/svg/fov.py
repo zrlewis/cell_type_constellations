@@ -11,6 +11,10 @@ from cell_type_constellations.svg.connection import (
     Connection
 )
 
+from cell_type_constellations.svg.hull import (
+    Hull
+)
+
 import time
 
 
@@ -77,10 +81,21 @@ class ConstellationPlot(object):
 
         centroid_code = self._render_all_centroids()
         connection_code = self._render_all_connections()
-        result = connection_code + centroid_code
+        hull_code = self._render_all_hulls()
+        result = connection_code + hull_code + centroid_code
 
         return result
 
+
+    def _render_all_hulls(self):
+        hull_list = [
+            el for el in self.elements
+            if isinstance(el, Hull)
+        ]
+        hull_code = ""
+        for this_hull in hull_list:
+            hull_code += this_hull.render()
+        return hull_code
 
     def _render_all_connections(self):
 
