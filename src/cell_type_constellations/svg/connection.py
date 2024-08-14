@@ -72,27 +72,6 @@ class Connection(object):
             self._find_mid_pt()
         return self._dst_mid
 
-    def apply_force_to_mid_pt(self, force, which):
-        assert which in ('src', 'dst')
-        if which == 'src':
-            center = self.src.pixel_pt
-            base = self.src_mid + center
-            radius = self.src.pixel_r
-        else:
-            center = self.dst.pixel_pt
-            base = self.dst_mid + center
-            radius = self.dst.pixel_r
-
-        base += force
-        base -= center
-        norm = np.sqrt((base**2).sum())
-        base = base/norm
-        base *= radius
-        if which == 'src':
-            self._src_mid = base
-        else:
-            self._dst_mid = base
-
     def set_rendering_corners(self, max_connection_ratio):
 
         self.rendering_corners = _intersection_points(
@@ -116,6 +95,16 @@ class Connection(object):
 
 
     def set_bezier_controls(self, thermal_control):
+        d0 = thermal_control-self.src.pixel_pt
+        d0 = d0/np.sqrt((d0**2).sum())
+        new_mid = self.src.pixel_pt+self.src.pixel_r*d0
+        self._src_mid = new_mid-self.src.pixel_pt
+
+        d0 = thermal_control-self.dst.pixel_pt
+        d0 = d0/np.sqrt((d0**2).sum())
+        new_mid = self.dst.pixel_pt+self.dst.pixel_r*d0
+        self._src_mid = new_mid-self.dst.pixel_pt
+
         mid_pt = 0.5*(self.src.pixel_pt+self.src_mid+self.dst.pixel_pt+self.dst_mid)
         dd = thermal_control-mid_pt
         ctrl0 = dd+0.5*(self.rendering_corners[0]+self.rendering_corners[1])
