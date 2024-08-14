@@ -12,20 +12,45 @@ from cell_type_constellations.cells.cell_set import (
 )
 
 
-def render_svg(
+def render_connection_svg(
         dst_path,
         constellation_cache,
         taxonomy_level,
         color_by_level,
         height=800,
         max_radius=20,
-        min_radius=5,
-        load_connections=True):
+        min_radius=5):
+
 
     plot_obj = ConstellationPlot(
         height=height,
         max_radius=max_radius,
         min_radius=min_radius)
+
+    (plot_obj,
+     centroid_list) = _load_centroids(
+         constellation_cache=constellation_cache,
+         plot_obj=plot_obj,
+         taxonomy_level=taxonomy_level,
+         color_by_level=color_by_level)
+
+    plot_obj = _load_connections(
+                constellation_cache=constellation_cache,
+                centroid_list=centroid_list,
+                taxonomy_level=taxonomy_level,
+                plot_obj=plot_obj)
+
+
+    with open(dst_path, 'w') as dst:
+        dst.write(plot_obj.render())
+
+
+
+def _load_centroids(
+        constellation_cache,
+        plot_obj,
+        taxonomy_level,
+        color_by_level):
 
     centroid_list = []
     for label in constellation_cache.labels(taxonomy_level):
@@ -58,17 +83,7 @@ def render_svg(
 
         plot_obj.add_element(this)
 
-    if load_connections:
-        plot_obj = _load_connections(
-                    constellation_cache=constellation_cache,
-                    centroid_list=centroid_list,
-                    taxonomy_level=taxonomy_level,
-                    plot_obj=plot_obj)
-
-
-    with open(dst_path, 'w') as dst:
-        dst.write(plot_obj.render())
-
+    return plot_obj, centroid_list
 
 
 def _load_connections(
