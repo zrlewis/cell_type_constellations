@@ -99,7 +99,7 @@ class Connection(object):
         dd = thermal_control-mid_pt
         ctrl0 = dd+0.5*(self.rendering_corners[0]+self.rendering_corners[1])
         ctrl1 = dd+0.5*(self.rendering_corners[2]+self.rendering_corners[3])
-        self.bezier_control_points = [[ctrl0, ctrl0], [ctrl1, ctrl1]]
+        self.bezier_control_points = [ctrl0, ctrl1]
 
 def _intersection_points(
         src_pt,

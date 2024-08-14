@@ -227,14 +227,12 @@ class ConstellationPlot(object):
         result += get_bezier_curve(
                     src=pts[0],
                     dst=pts[1],
-                    ctrl0=ctrl[0][0],
-                    ctrl1=ctrl[0][1])
+                    ctrl=ctrl[0])
         result += f"L {pts[2][0]} {pts[2][1]} "
         result += get_bezier_curve(
                     src=pts[2],
                     dst=pts[3],
-                    ctrl0=ctrl[1][0],
-                    ctrl1=ctrl[1][1])
+                    ctrl=ctrl[1])
         result += f"""L {pts[0][0]} {pts[0][1]}" """
         result += f"""stroke="transparent" fill="#bbbbbb"/>\n"""
         result += "        <title>\n"
@@ -245,9 +243,9 @@ class ConstellationPlot(object):
         return result
 
 
-def get_bezier_curve(src, dst, ctrl0, ctrl1):
+def get_bezier_curve(src, dst, ctrl):
 
-    result = f"C {ctrl0[0]} {ctrl0[1]} {ctrl1[0]} {ctrl1[1]} "
+    result = f"Q {ctrl[0]} {ctrl[1]} "
     result += f"{dst[0]} {dst[1]} "
     return result
 
