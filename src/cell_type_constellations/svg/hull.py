@@ -1,3 +1,4 @@
+import numpy as np
 from scipy.spatial import ConvexHull
 
 from cell_type_constellations.utils.geometry import rot
@@ -16,10 +17,18 @@ class Hull(object):
 
     def render(self):
         pts = np.array(
-            [c.pixel_pt for c in self.centroid_lsit]
+            [c.pixel_pt for c in self.centroid_list]
         )
 
         return _path_from_hull(pts=pts, stroke_color=self.color)
+
+    @property
+    def x_values(self):
+        return []
+
+    @property
+    def y_values(self):
+        return []
 
 
 def _path_from_hull(pts, stroke_color='green'):

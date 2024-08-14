@@ -7,6 +7,9 @@ from cell_type_constellations.svg.centroid import (
 from cell_type_constellations.svg.connection import (
     Connection
 )
+from cell_type_constellations.svg.hull import (
+    Hull
+)
 from cell_type_constellations.cells.cell_set import (
     choose_connections
 )
@@ -40,6 +43,36 @@ def render_connection_svg(
                 taxonomy_level=taxonomy_level,
                 plot_obj=plot_obj)
 
+    with open(dst_path, 'w') as dst:
+        dst.write(plot_obj.render())
+
+
+def render_hull_svg(
+        dst_path,
+        constellation_cache,
+        taxonomy_level,
+        height=800,
+        max_radius=20,
+        min_radius=5):
+
+
+    plot_obj = ConstellationPlot(
+        height=height,
+        max_radius=max_radius,
+        min_radius=min_radius)
+
+    (plot_obj,
+     centroid_list) = _load_centroids(
+         constellation_cache=constellation_cache,
+         plot_obj=plot_obj,
+         taxonomy_level=constellation_cache.taxonomy_tree.leaf_level,
+         color_by_level=taxonomy_level)
+
+    plot_obj = _load_hulls(
+        constellation_cache=constellation_cache,
+        centroid_list=centroid_list,
+        plot_obj=plot_obj,
+        taxonomy_level=taxonomy_level)
 
     with open(dst_path, 'w') as dst:
         dst.write(plot_obj.render())
@@ -142,4 +175,32 @@ def _load_connections(
         )
 
         plot_obj.add_element(conn)
+    return plot_obj
+
+
+def _load_hulls(
+        constellation_cache,
+        centroid_list,
+        plot_obj,
+        taxonomy_level):
+
+    parent_to_children = dict()
+    for centroid in centroid_list:
+        child = centroid.label
+        parentage = constellation_cache.taxonomy_tree.parents(
+                level=constellation_cache.taxonomy_tree.leaf_level,
+                node=child)
+        parent = parentage[taxonomy_level]
+        if parent not in parent_to_children:
+            parent_to_children[parent] = []
+        parent_to_children[parent].append(centroid)
+
+    for parent in parent_to_children:
+        if len(parent_to_children[parent]) < 3:
+            continue
+        this = Hull(
+            centroid_list=parent_to_children[parent],
+            color=constellation_cache.color_from_label(parent)
+        )
+        plot_obj.add_element(this)
     return plot_obj

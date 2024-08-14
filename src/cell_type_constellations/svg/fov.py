@@ -110,6 +110,8 @@ class ConstellationPlot(object):
             if max_connection_ratio is None or rr > max_connection_ratio:
                 max_connection_ratio = rr
             connection_list.append(el)
+        if len(connection_list) == 0:
+            return ""
 
         t0 = time.time()
         bezier_controls = get_bezier_control_points(connection_list=connection_list)
