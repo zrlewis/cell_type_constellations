@@ -60,7 +60,6 @@ class ConstellationPlot(object):
         return result
 
     def _render_elements(self):
-        result = ""
 
         x_values = np.concatenate(
             [el.x_values for el in self.elements]
@@ -76,20 +75,14 @@ class ConstellationPlot(object):
         self.world_extent = [x_bounds[1]-x_bounds[0],
                              y_bounds[1]-y_bounds[0]]
 
-        max_n_cells = max([
-            el.n_cells
-            for el in self.elements
-            if isinstance(el, Centroid)
-        ])
+        centroid_code = self._render_all_centroids()
+        connection_code = self._render_all_connections()
+        result = connection_code + centroid_code
 
-        centroid_code = ""
-        for el in self.elements:
-            if isinstance(el, Centroid):
-                centroid_code += self._render_centroid(
-                    centroid=el,
-                    max_n_cells=max_n_cells,
-                    x_bounds=x_bounds,
-                    y_bounds=y_bounds)
+        return result
+
+
+    def _render_all_connections(self):
 
         max_connection_ratio = None
         connection_list = []
@@ -120,11 +113,37 @@ class ConstellationPlot(object):
             connection_code += self._render_connection(conn)
 
         print(f'n_conn {len(connection_list)}')
+        return connection_code
 
 
-        result = connection_code + centroid_code
 
-        return result
+    def _render_all_centroids(self):
+
+        x_bounds = (
+            self.world_origin[0],
+            self.world_origin[0]+self.world_extent[0]
+        )
+
+        y_bounds = (
+            self.world_origin[1],
+            self.world_origin[1]+self.world_extent[1]
+        )
+
+        max_n_cells = max([
+            el.n_cells
+            for el in self.elements
+            if isinstance(el, Centroid)
+        ])
+
+        centroid_code = ""
+        for el in self.elements:
+            if isinstance(el, Centroid):
+                centroid_code += self._render_centroid(
+                    centroid=el,
+                    max_n_cells=max_n_cells,
+                    x_bounds=x_bounds,
+                    y_bounds=y_bounds)
+        return centroid_code
 
     def _render_centroid(
             self,
