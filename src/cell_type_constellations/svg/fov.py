@@ -229,7 +229,7 @@ class ConstellationPlot(object):
 def get_bezier_curve(src, dst, ctrl0, ctrl1):
 
     result = f"C {ctrl0[0]} {ctrl0[1]} {ctrl1[0]} {ctrl1[1]} "
-    result += f"""{dst[0]} {dst[1]} """
+    result += f"{dst[0]} {dst[1]} "
     return result
 
 
@@ -241,8 +241,8 @@ def get_bezier_control_points(
     orthogonals = np.zeros((n_conn, 2), dtype=float)
     distances = np.zeros(n_conn, dtype=float)
     for i_conn, conn in enumerate(connection_list):
-        background[i_conn*2, :] = conn.src.pixel_pt + conn.src_mid
-        background[1+i_conn*2, :] = conn.dst.pixel_pt + conn.dst_mid
+        background[i_conn*2, :] = conn.src.pixel_pt
+        background[1+i_conn*2, :] = conn.dst.pixel_pt
         background[2*n_conn+i_conn, :] = 0.5*(conn.src.pixel_pt+conn.dst.pixel_pt)
         dd = conn.dst.pixel_pt-conn.src.pixel_pt
         distances[i_conn] = np.sqrt(
@@ -258,8 +258,6 @@ def get_bezier_control_points(
     n_adj = 0
     for i_iter in range(n_iter):
         for i_conn in range(n_conn):
-            conn = connection_list[i_conn]
-
             mask[2*n_conn+i_conn] = False
             mask[i_conn*2] = False
             mask[1+i_conn*2] = False
@@ -277,34 +275,10 @@ def get_bezier_control_points(
                 n_adj += 1
 
             background[2*n_conn+i_conn, :] = test_pt + force
-
-            n_tot += 1
-
-            for which in ('src', 'dst'):
-                if which == 'src':
-                    test_pt = background[2*i_conn, :]
-                else:
-                    test_pt = background[1+2*i_conn, :]
-
-                force = 100.0*compute_force(
-                    test_pt=test_pt,
-                    background_points=background[mask, :]
-                )
-                displacement = np.sqrt((force**2).sum())
-                if displacement > max_displacement*distances[i_conn]:
-                    force = max_displacement*distances[i_conn]*force/displacement
-                conn.apply_force_to_mid_pt(
-                    force=force,
-                    which=which)
-                if which == 'src':
-                    background[2*i_conn, :] = conn.src_mid + conn.src.pixel_pt
-                else:
-                    background[1+2*i_conn, :] = conn.dst_mid + conn.dst.pixel_pt
-
             mask[2*n_conn+i_conn] = True
             mask[i_conn*2] = True
             mask[1+2*i_conn] =True
-
+            n_tot += 1
         print(f'adj {n_adj} of {n_tot}')
 
     return background[2*n_conn: , :]
