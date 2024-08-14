@@ -217,7 +217,7 @@ class ConstellationPlot(object):
                     ctrl0=ctrl[1][0],
                     ctrl1=ctrl[1][1])
         result += f"""L {pts[0][0]} {pts[0][1]}" """
-        result += f"""stroke="transparent" fill="gray"/>\n"""
+        result += f"""stroke="transparent" fill="#bbbbbb"/>\n"""
         result += "        <title>\n"
         result += f"        {title}\n"
         result += "        </title>\n"
