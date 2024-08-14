@@ -181,7 +181,7 @@ class ConstellationPlot(object):
 
         result += (
             f"""        <circle r="{radius}px" cx="{x_pix}px" cy="{y_pix}px" """
-            f"""fill="{color}"/>\n"""
+            f"""fill="{color}" stroke="transparent"/>\n"""
         )
         result += """        <title>\n"""
         result += f"""        {centroid.name}: {centroid.n_cells:.2e} cells\n"""
