@@ -240,10 +240,16 @@ def get_bezier_control_points(
     background = np.zeros((3*n_conn, 2), dtype=float)
     orthogonals = np.zeros((n_conn, 2), dtype=float)
     distances = np.zeros(n_conn, dtype=float)
+    charges = np.zeros(3*n_conn, dtype=float)
     for i_conn, conn in enumerate(connection_list):
         background[i_conn*2, :] = conn.src.pixel_pt
         background[1+i_conn*2, :] = conn.dst.pixel_pt
+        charges[i_conn*2] = 5.0
+        charges[i_conn*2] = 5.0
+
         background[2*n_conn+i_conn, :] = 0.5*(conn.src.pixel_pt+conn.dst.pixel_pt)
+        charges[2*n_conn+i_conn] = 1.0
+
         dd = conn.dst.pixel_pt-conn.src.pixel_pt
         distances[i_conn] = np.sqrt(
             (dd**2).sum()
@@ -264,7 +270,8 @@ def get_bezier_control_points(
             test_pt = background[2*n_conn+i_conn, :]
             force = compute_force(
                 test_pt=test_pt,
-                background_points=background[mask, :]
+                background_points=background[mask, :],
+                charges=charges[mask]
             )
             ortho_force = np.dot(force, orthogonals[i_conn, :])
             force = 100.0*ortho_force*orthogonals[i_conn, :]
@@ -287,10 +294,12 @@ def get_bezier_control_points(
 def compute_force(
         test_pt,
         background_points,
+        charges,
         eps=0.001):
 
     vectors = test_pt-background_points
     rsq = (vectors**2).sum(axis=1)
     rsq = np.where(rsq>eps, rsq, eps)
-    force = (vectors.transpose()/np.power(rsq, 2.0)).sum(axis=1)
+    weights = charges/np.power(rsq, 2.0)
+    force = (vectors.transpose()*weights).sum(axis=1)
     return force
