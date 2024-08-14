@@ -1,7 +1,8 @@
 import numpy as np
 
 from cell_type_constellations.utils.geometry import(
-    rot
+    rot,
+    do_intersect
 )
 
 
@@ -107,6 +108,13 @@ class Connection(object):
             dst_r=self.dst.pixel_r,
             max_connection_ratio=max_connection_ratio)
 
+
+        points = self.rendering_corners
+        if do_intersect([points[0], points[1]],
+                        [points[2], points[3]]):
+            print(f'huh {self.src.name} {self.dst.name}')
+
+
     def set_bezier_controls(self, thermal_control):
         mid_pt = 0.5*(self.src.pixel_pt+self.src_mid+self.dst.pixel_pt+self.dst_mid)
         dd = thermal_control-mid_pt
@@ -152,6 +160,9 @@ def _intersection_points(
     dst0 = dst_pt + rot(dst_mid, -dst_theta)
     dst1 = dst_pt + rot(dst_mid, dst_theta)
 
-    points = [src0, dst0, dst1, src1]
+    if do_intersect([src0, dst0], [dst1, src1]):
+        points = [src0, dst1, dst0, src1]
+    else:
+        points = [src0, dst0, dst1, src1]
 
     return points
