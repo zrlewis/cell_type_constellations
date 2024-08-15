@@ -20,7 +20,7 @@ class Hull(object):
             [c.pixel_pt for c in self.centroid_list]
         )
 
-        return _path_from_hull(pts=pts, stroke_color=self.color)
+        return _path_from_pts(pts=pts, stroke_color=self.color)
 
     @property
     def x_values(self):
@@ -31,7 +31,7 @@ class Hull(object):
         return []
 
 
-def _path_from_hull(pts, stroke_color='green'):
+def _path_from_pts(pts, stroke_color='green'):
 
     hull = ConvexHull(pts)
     vertices = hull.vertices
