@@ -15,7 +15,7 @@ class Hull(object):
         self.color = color
         self.centroid_list = centroid_list
 
-    def render(self, plot_obj=None):
+    def render(self):
         pts = np.array(
             [c.pixel_pt for c in self.centroid_list]
         )
@@ -31,56 +31,7 @@ class Hull(object):
         return []
 
 
-class RawHull(object):
-
-    def __init__(
-            self,
-            pts,
-            color):
-
-        self.color = color
-        self.pts = pts
-
-    def render(self, plot_obj=None):
-        (xx, 
-         yy) = plot_obj.convert_to_pixel_coords(
-                    x=self.pts[:, 0],
-                    y=self.pts[:, 1])
-        converted_pts = np.array([xx, yy]).transpose()
-        return _path_from_hull(pts=converted_pts, stroke_color=self.color)
-
-    @property
-    def x_values(self):
-        return []
-
-    @property
-    def y_values(self):
-        return []
-
-
-
 def _path_from_hull(pts, stroke_color='green'):
-
-    hull = ConvexHull(pts)
-    vertices = hull.vertices
-
-    path_code = f'<path d="M {pts[vertices[0], 0]} {pts[vertices[0], 1]} '
-    for i_src in range(len(vertices)):
-        i_dst = i_src + 1
-        if i_dst >= len(vertices):
-            i_dst = 0
-
-        src = pts[vertices[i_src], :]
-        dst = pts[vertices[i_dst], :]
-        path_code += (
-            f"L {dst[0]} {dst[1]} "
-        )
-
-    path_code += f'" stroke="{stroke_color}" fill="transparent" />\n'
-
-    return path_code
-
-def _path_from_hull_orig(pts, stroke_color='green'):
 
     hull = ConvexHull(pts)
     vertices = hull.vertices

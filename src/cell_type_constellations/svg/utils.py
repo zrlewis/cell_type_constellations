@@ -8,8 +8,7 @@ from cell_type_constellations.svg.connection import (
     Connection
 )
 from cell_type_constellations.svg.hull import (
-    Hull,
-    RawHull
+    Hull
 )
 from cell_type_constellations.cells.cell_set import (
     choose_connections
@@ -71,6 +70,7 @@ def render_hull_svg(
 
     plot_obj = _load_hulls(
         constellation_cache=constellation_cache,
+        centroid_list=centroid_list,
         plot_obj=plot_obj,
         taxonomy_level=taxonomy_level)
 
@@ -180,18 +180,27 @@ def _load_connections(
 
 def _load_hulls(
         constellation_cache,
+        centroid_list,
         plot_obj,
         taxonomy_level):
 
-    for label in constellation_cache.taxonomy_tree.nodes_at_level(taxonomy_level):
- 
-        pts = constellation_cache.umap_coords_from_label(
-            level=taxonomy_level,
-            label=label)
-        this = RawHull(
-            pts=pts,
-            color=constellation_cache.color_from_label(label)
+    parent_to_children = dict()
+    for centroid in centroid_list:
+        child = centroid.label
+        parentage = constellation_cache.taxonomy_tree.parents(
+                level=constellation_cache.taxonomy_tree.leaf_level,
+                node=child)
+        parent = parentage[taxonomy_level]
+        if parent not in parent_to_children:
+            parent_to_children[parent] = []
+        parent_to_children[parent].append(centroid)
+
+    for parent in parent_to_children:
+        if len(parent_to_children[parent]) < 3:
+            continue
+        this = Hull(
+            centroid_list=parent_to_children[parent],
+            color=constellation_cache.color_from_label(parent)
         )
         plot_obj.add_element(this)
-
     return plot_obj
