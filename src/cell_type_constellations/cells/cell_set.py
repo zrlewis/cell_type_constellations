@@ -351,7 +351,7 @@ def create_constellation_cache(
     }
     del annotation
 
-    with h5py.File('prototype_constellation_data_v2.h5', 'w') as dst:
+    with h5py.File(dst_path, 'w') as dst:
         n_grp = dst.create_group('n_cells')
         mm_grp = dst.create_group('mixture_matrix')
         centroid_grp = dst.create_group('centroid')
