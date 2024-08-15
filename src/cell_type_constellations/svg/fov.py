@@ -182,7 +182,7 @@ class ConstellationPlot(object):
         color = centroid.color
 
         (x_pix,
-         y_pix) = self._convert_to_pixel_coords(
+         y_pix) = self.convert_to_pixel_coords(
                      x=centroid.x,
                      y=centroid.y)
 
@@ -206,7 +206,7 @@ class ConstellationPlot(object):
         result += "    </a>\n"
         return result
 
-    def _convert_to_pixel_coords(
+    def convert_to_pixel_coords(
             self,
             x,
             y):
