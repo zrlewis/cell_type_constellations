@@ -1,5 +1,6 @@
 import h5py
 import json
+import numpy as np
 
 from cell_type_constellations.taxonomy.taxonomy_tree import (
     TaxonomyTree
@@ -40,6 +41,14 @@ class ConstellationCache_HDF5(object):
                 data=json.loads(src['taxonomy_tree'][()])
             )
 
+            self.parentage_to_alias = json.loads(
+                src['parentage_to_alias'][()]
+            )
+
+            self.cluster_aliases = src['cluster_aliases'][()]
+
+            self.umap_coords = src['umap_coords'][()]
+
         self.label_to_idx = {
             level: {
                 self.idx_to_label[level][idx]['label']: idx
@@ -76,3 +85,10 @@ class ConstellationCache_HDF5(object):
 
     def n_cells_from_level(self, level):
         return self.n_cells_lookup[level]
+
+    def umap_coords_from_label(self, level, label):
+        alias_values = self.parentage_to_alias[level][label]
+        cell_mask = np.zeros(len(self.cluster_aliases), dtype=bool)
+        for alias in alias_values:
+            cell_mask[self.cluster_aliases==alias] = True
+        return self.umap_coords[cell_mask, :]
