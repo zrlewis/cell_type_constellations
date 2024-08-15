@@ -308,7 +308,6 @@ def create_constellation_cache(
     n_cells_lookup = dict()
     idx_to_label = dict()
     for level in cell_filter.taxonomy_tree.hierarchy:
-
         mixture_matrix_lookup[level] = create_mixture_matrix(
             cell_set=cell_set,
             cell_filter=cell_filter,
@@ -366,6 +365,19 @@ def create_constellation_cache(
             'k_nn', data=k_nn)
         dst.create_dataset(
             'label_to_color', data=json.dumps(label_to_color).encode('utf-8')
+        )
+        dst.create_dataset(
+            'parentage_to_alias',
+            data=json.dumps(
+                clean_for_json(cell_filter._parentage_to_alias)).encode('utf-8')
+        )
+        dst.create_dataset(
+            'cluster_aliases',
+            data=np.array([int(a) for a in cell_set.cluster_aliases])
+        )
+        dst.create_dataset(
+            'umap_coords',
+            data=cell_set.umap_coords
         )
         for level in cell_filter.taxonomy_tree.hierarchy:
             for grp, lookup in [(n_grp, n_cells_lookup),
@@ -425,3 +437,30 @@ def _get_umap_coords(cell_metadata_path):
          cell_metadata.y.values]).transpose()
     cluster_aliases = np.array([int(a) for a in cell_metadata.cluster_alias.values])
     return cluster_aliases, umap_coords
+
+
+def clean_for_json(data):
+    """
+    Iteratively walk through data, converting np.int64 to int as needed
+
+    Also convert sets into sorted lists and np.ndarrays into lists
+    """
+    if isinstance(data, np.int64):
+        return int(data)
+    elif isinstance(data, np.bool_):
+        return bool(data)
+    elif isinstance(data, list) or isinstance(data, tuple):
+        return [clean_for_json(el) for el in data]
+    elif isinstance(data, set):
+        new_data = list(data)
+        new_data.sort()
+        return clean_for_json(new_data)
+    elif isinstance(data, np.ndarray):
+        return clean_for_json(data.tolist())
+    elif isinstance(data, dict):
+        new_data = {
+            key: clean_for_json(data[key])
+            for key in data
+        }
+        return new_data
+    return data
