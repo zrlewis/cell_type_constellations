@@ -11,7 +11,8 @@ dependencies = [
     "matplotlib",
     "numpy",
     "scipy",
-    "pandas"
+    "pandas",
+    "pytest"
 ]
 requires-python = ">=3.8"
 authors = [
