@@ -88,10 +88,8 @@ def pts_in_hull(pts, hull):
     n_vert = len(hull.vertices)
     n_pts = pts.shape[0]
 
-    sgn_arr = np.zeros(
-        (n_pts, n_vert), dtype=int
-    )
-
+    sgn_arr = None
+    result = np.ones(pts.shape[0], dtype=bool)
     for ii in range(n_vert):
         src = hull.points[hull.vertices[ii]]
         i1 = ii+1
@@ -99,15 +97,19 @@ def pts_in_hull(pts, hull):
             i1 = 0
         dst = hull.points[hull.vertices[i1]]
         edge = np.array([dst-src])
-        pt_vec = pts-src
+        pt_vec = pts[result, :]-src
         sgn = np.sign(cross_product_2d_bulk(
                             vec0=pt_vec,
                             vec1=edge)
                       ).astype(int)
-        sgn_arr[:, ii] = sgn[:, 0]
+        if sgn_arr is None:
+            sgn_arr = sgn[:, 0]
+        else:
+            invalid = (sgn_arr[result] != sgn[:, 0])
+            result[np.where(result)[0][invalid]] = False
 
-    return np.array([
-        (sgn_arr[ii,:] == sgn_arr[ii, 0]).all()
-        for ii in range(n_pts)
-    ])
+        if result.sum() == 0:
+            break
+
+    return result
 
