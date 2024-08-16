@@ -9,12 +9,20 @@ def rot(vec, theta):
 
 
 def cross_product_2d(vec0, vec1):
-
     return np.array([
         0.0,
         0.0,
         vec0[0]*vec1[1]-vec0[1]*vec1[0]
     ])
+
+
+def cross_product_2d_bulk(vec0, vec1):
+    """
+    Inputs are (n_vectors, n_dimensions) arrays
+    """
+    first_term = np.outer(vec0[:, 0], vec1[:, 1])
+    second_term = np.outer(vec0[:, 1], vec1[:, 0])
+    return first_term-second_term
 
 
 def do_intersect(segment0, segment1):
