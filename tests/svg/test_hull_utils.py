@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.spatial
 
-from cell_type_constellations.svg.hull import (
+from cell_type_constellations.svg.hull_utils import (
     pts_in_hull
 )
 
