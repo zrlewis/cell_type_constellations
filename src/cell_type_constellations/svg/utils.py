@@ -14,6 +14,9 @@ from cell_type_constellations.svg.hull import (
     Hull,
     RawHull
 )
+from cell_type_constellations.svg.hull_utils import (
+    find_smooth_hull_for_clusters
+)
 from cell_type_constellations.cells.cell_set import (
     choose_connections
 )
@@ -72,11 +75,16 @@ def render_hull_svg(
          taxonomy_level=constellation_cache.taxonomy_tree.leaf_level,
          color_by_level=taxonomy_level)
 
-    plot_obj = _load_hulls(
-        constellation_cache=constellation_cache,
-        centroid_list=centroid_list,
-        plot_obj=plot_obj,
-        taxonomy_level=taxonomy_level)
+    if taxonomy_level == constellation_cache.taxonomy_tree.leaf_level:
+        plot_obj = _load_leaf_hulls(
+            constellation_cache=constellation_cache,
+            plot_obj=plot_obj)
+    else:
+        plot_obj = _load_hulls(
+            constellation_cache=constellation_cache,
+            centroid_list=centroid_list,
+            plot_obj=plot_obj,
+            taxonomy_level=taxonomy_level)
 
     with open(dst_path, 'w') as dst:
         dst.write(plot_obj.render())
@@ -228,5 +236,36 @@ def _load_hulls(
         ct += 1
         per = dur/ct
         print(f'{label} after {dur:.2e} ({per:.2e})')
+
+    return plot_obj
+
+
+def _load_leaf_hulls(
+        constellation_cache,
+        plot_obj):
+
+    taxonomy_level = constellation_cache.taxonomy_tree.leaf_level
+
+    t0 = time.time()
+    ct = 0
+    n_labels = len(constellation_cache.taxonomy_tree.nodes_at_level(taxonomy_level))
+    for label in constellation_cache.taxonomy_tree.nodes_at_level(taxonomy_level):
+        print(f'working on {label}')
+        final_hull = find_smooth_hull_for_clusters(
+            constellation_cache=constellation_cache,
+            label=label,
+            taxonomy_level=taxonomy_level)
+
+        if final_hull.points.shape[0] > 2:
+            this_hull = RawHull(
+               pts=final_hull.points,
+               color=constellation_cache.color_from_label(label)
+            )
+            plot_obj.add_element(this_hull)
+        dur = time.time()-t0
+        ct += 1
+        per = dur/ct
+        remain = per*n_labels-dur
+        print(f'{label} after {dur:.2e} ({per:.2e}) ({remain:.2e} left)')
 
     return plot_obj
