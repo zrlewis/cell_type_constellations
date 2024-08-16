@@ -199,34 +199,13 @@ def _load_hulls(
     t0 = time.time()
     ct = 0
     for label in constellation_cache.taxonomy_tree.nodes_at_level(taxonomy_level):
-        print(f'working on {label}')
-        alias_list = constellation_cache.parentage_to_alias[taxonomy_level][label]
-        cell_mask = np.zeros(constellation_cache.cluster_aliases.shape, dtype=bool)
+        pts = _get_hull_points(
+            constellation_cache=constellation_cache,
+            taxonomy_level=taxonomy_level,
+            label=label)
 
-        # which cells are in the desired taxon
-        for alias in alias_list:
-            cell_mask[constellation_cache.cluster_aliases==alias] = True
-        cell_idx = np.where(cell_mask)[0]
-        print('    got cell idx')
+        if pts.shape[0] > 2:
 
-        # how many of each cell's nearest neighbors are also in
-        # the desired taxon
-        nn_matrix = constellation_cache.nn_from_cell_idx(cell_idx)
-        print('    loaded nn_data')
-        nn_shape = nn_matrix.shape
-        nn_matrix = nn_matrix.flatten()
-        nn_mask = np.zeros(nn_matrix.shape, dtype=bool)
-        for alias in alias_list:
-            nn_mask[nn_matrix==alias] = True
-        nn_mask = nn_mask.reshape(nn_shape)
-        nn_mask = nn_mask.sum(axis=1)
-        valid = (nn_mask >= 10)
-        print(f'    {valid.sum()} cells of {len(cell_idx)} pass')
-        if valid.sum() > 2:
-            cell_idx = cell_idx[valid]
-
-            # get UMAP coords for the cells that pass this test
-            pts = constellation_cache.umap_coords[cell_idx, :]
             this_hull = RawHull(
                pts=pts,
                color=constellation_cache.color_from_label(label)
@@ -235,9 +214,39 @@ def _load_hulls(
         dur = time.time()-t0
         ct += 1
         per = dur/ct
-        print(f'{label} after {dur:.2e} ({per:.2e})')
 
     return plot_obj
+
+
+def _get_hull_points(
+        constellation_cache,
+        taxonomy_level,
+        label):
+    alias_list = constellation_cache.parentage_to_alias[taxonomy_level][label]
+    cell_mask = np.zeros(constellation_cache.cluster_aliases.shape, dtype=bool)
+
+    # which cells are in the desired taxon
+    for alias in alias_list:
+        cell_mask[constellation_cache.cluster_aliases==alias] = True
+    cell_idx = np.where(cell_mask)[0]
+
+    # how many of each cell's nearest neighbors are also in
+    # the desired taxon
+    nn_matrix = constellation_cache.nn_from_cell_idx(cell_idx)
+    nn_shape = nn_matrix.shape
+    nn_matrix = nn_matrix.flatten()
+    nn_mask = np.zeros(nn_matrix.shape, dtype=bool)
+    for alias in alias_list:
+        nn_mask[nn_matrix==alias] = True
+    nn_mask = nn_mask.reshape(nn_shape)
+    nn_mask = nn_mask.sum(axis=1)
+    valid = (nn_mask >= 10)
+    cell_idx = cell_idx[valid]
+
+    # get UMAP coords for the cells that pass this test
+    pts = constellation_cache.umap_coords[cell_idx, :]
+
+    return pts
 
 
 def _load_leaf_hulls(
