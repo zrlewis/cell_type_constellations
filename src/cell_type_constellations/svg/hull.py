@@ -17,11 +17,39 @@ class Hull(object):
         self.color = color
         self.centroid_list = centroid_list
 
-    def render(self):
+    def render(self, plot_obj=None):
         pts = np.array(
             [c.pixel_pt for c in self.centroid_list]
         )
 
+        return _path_from_pts(pts=pts, stroke_color=self.color)
+
+    @property
+    def x_values(self):
+        return []
+
+    @property
+    def y_values(self):
+        return []
+
+
+class RawHull(object):
+
+    def __init__(
+            self,
+            pts,
+            color):
+
+        self.color = color
+        self.pts = pts
+
+    def render(self, plot_obj=None):
+        (xx,
+         yy) = plot_obj.convert_to_pixel_coords(
+             x=self.pts[:, 0],
+             y=self.pts[:, 1])
+
+        pts = np.array([xx, yy]).transpose()
         return _path_from_pts(pts=pts, stroke_color=self.color)
 
     @property

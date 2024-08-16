@@ -1,3 +1,6 @@
+import numpy as np
+import time
+
 from cell_type_constellations.svg.fov import (
     ConstellationPlot
 )
@@ -8,7 +11,8 @@ from cell_type_constellations.svg.connection import (
     Connection
 )
 from cell_type_constellations.svg.hull import (
-    Hull
+    Hull,
+    RawHull
 )
 from cell_type_constellations.cells.cell_set import (
     choose_connections
@@ -184,23 +188,45 @@ def _load_hulls(
         plot_obj,
         taxonomy_level):
 
-    parent_to_children = dict()
-    for centroid in centroid_list:
-        child = centroid.label
-        parentage = constellation_cache.taxonomy_tree.parents(
-                level=constellation_cache.taxonomy_tree.leaf_level,
-                node=child)
-        parent = parentage[taxonomy_level]
-        if parent not in parent_to_children:
-            parent_to_children[parent] = []
-        parent_to_children[parent].append(centroid)
+    t0 = time.time()
+    ct = 0
+    for label in constellation_cache.taxonomy_tree.nodes_at_level(taxonomy_level):
+        print(f'working on {label}')
+        alias_list = constellation_cache.parentage_to_alias[taxonomy_level][label]
+        cell_mask = np.zeros(constellation_cache.cluster_aliases.shape, dtype=bool)
 
-    for parent in parent_to_children:
-        if len(parent_to_children[parent]) < 3:
-            continue
-        this = Hull(
-            centroid_list=parent_to_children[parent],
-            color=constellation_cache.color_from_label(parent)
-        )
-        plot_obj.add_element(this)
+        # which cells are in the desired taxon
+        for alias in alias_list:
+            cell_mask[constellation_cache.cluster_aliases==alias] = True
+        cell_idx = np.where(cell_mask)[0]
+        print('    got cell idx')
+
+        # how many of each cell's nearest neighbors are also in
+        # the desired taxon
+        nn_matrix = constellation_cache.nn_from_cell_idx(cell_idx)
+        print('    loaded nn_data')
+        nn_shape = nn_matrix.shape
+        nn_matrix = nn_matrix.flatten()
+        nn_mask = np.zeros(nn_matrix.shape, dtype=bool)
+        for alias in alias_list:
+            nn_mask[nn_matrix==alias] = True
+        nn_mask = nn_mask.reshape(nn_shape)
+        nn_mask = nn_mask.sum(axis=1)
+        valid = (nn_mask >= 10)
+        print(f'    {valid.sum()} cells of {len(cell_idx)} pass')
+        if valid.sum() > 2:
+            cell_idx = cell_idx[valid]
+
+            # get UMAP coords for the cells that pass this test
+            pts = constellation_cache.umap_coords[cell_idx, :]
+            this_hull = RawHull(
+               pts=pts,
+               color=constellation_cache.color_from_label(label)
+            )
+            plot_obj.add_element(this_hull)
+        dur = time.time()-t0
+        ct += 1
+        per = dur/ct
+        print(f'{label} after {dur:.2e} ({per:.2e})')
+
     return plot_obj
