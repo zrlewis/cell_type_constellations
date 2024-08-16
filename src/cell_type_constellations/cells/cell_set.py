@@ -302,6 +302,13 @@ def create_constellation_cache(
 
     cell_set = CellSet(cell_metadata_path)
 
+    cell_to_nn_aliases = cell_set.get_nn_from_mask(
+            query_mask=np.ones(cell_set.cluster_aliases.shape, dtype=bool),
+            k_nn=20)
+    final_shape = cell_to_nn_aliases.shape
+    cell_to_nn_aliases = cell_set.cluster_aliases[cell_to_nn_aliases.flatten()].reshape(final_shape)
+    print(f'got cell_to_nn_aliases {cell_to_nn_aliases.shape}')
+
     t0 = time.time()
     mixture_matrix_lookup = dict()
     centroid_lookup = dict()
@@ -378,6 +385,11 @@ def create_constellation_cache(
         dst.create_dataset(
             'umap_coords',
             data=cell_set.umap_coords
+        )
+        dst.create_dataset(
+            'cell_to_nn_aliases',
+            data=cell_to_nn_aliases,
+            chunks=(10000, cell_to_nn_aliases.shape[1])
         )
         for level in cell_filter.taxonomy_tree.hierarchy:
             for grp, lookup in [(n_grp, n_cells_lookup),

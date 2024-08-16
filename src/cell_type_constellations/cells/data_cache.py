@@ -11,6 +11,7 @@ from cell_type_constellations.taxonomy.taxonomy_tree import (
 class ConstellationCache_HDF5(object):
 
     def __init__(self, cache_path):
+        self.cache_path = cache_path
         with h5py.File(cache_path, 'r') as src:
             self.k_nn = src['k_nn'][()]
 
@@ -46,6 +47,7 @@ class ConstellationCache_HDF5(object):
             )
 
             self.cluster_aliases = src['cluster_aliases'][()]
+            self.cell_to_nn_aliases = src['cell_to_nn_aliases'][()]
 
             self.umap_coords = src['umap_coords'][()]
 
@@ -92,3 +94,6 @@ class ConstellationCache_HDF5(object):
         for alias in alias_values:
             cell_mask[self.cluster_aliases==alias] = True
         return self.umap_coords[cell_mask, :]
+
+    def nn_from_cell_idx(self, cell_idx):
+        return self.cell_to_nn_aliases[cell_idx, :]
