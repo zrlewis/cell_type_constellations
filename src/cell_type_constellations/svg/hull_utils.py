@@ -128,7 +128,6 @@ def merge_hulls(
 
     keep_going = True
     final_pass = False
-    overlap = 0.1
     while keep_going:
         print(f'{len(raw_hull_list)} hulls')
         centroid_array = np.array([
@@ -165,8 +164,7 @@ def merge_hulls(
                     raw_hull_list[i0],
                     raw_hull_list[i1],
                     test_pts=test_pts,
-                    test_pt_validity=test_pt_validity,
-                    min_overlap=overlap)
+                    test_pt_validity=test_pt_validity)
 
                 if new_hull is not None:
                     mergers[i0] = new_hull
@@ -179,7 +177,6 @@ def merge_hulls(
                 return raw_hull_list
             else:
                 final_pass = True
-                overlap = 0.0
 
         new_hull_list = []
         for ii in range(len(idx_list)):
@@ -197,17 +194,11 @@ def evaluate_merger(
         hull1,
         test_pts,
         test_pt_validity,
-        min_df1=-0.01,
-        min_overlap=0.1):
+        min_overlap=0.9):
 
     new_hull = ConvexHull(
         np.concatenate([hull0.points, hull1.points])
     )
-
-    in_new = pts_in_hull(
-        hull=new_hull,
-        pts=test_pts)
-
 
     in0 = pts_in_hull(
         hull=hull0,
@@ -218,6 +209,21 @@ def evaluate_merger(
         hull=hull1,
         pts=test_pts
     )
+
+    overlap = np.logical_and(in0, in1).sum()
+
+    n1 = in1.sum()
+    n0 = in0.sum()
+    min_n = min(n0, n1)
+
+    if overlap > 0:
+        if overlap > min_overlap*min_n:
+            print(f'    merging due to overlap {overlap} {min_n}')
+            return new_hull
+
+    in_new = pts_in_hull(
+        hull=new_hull,
+        pts=test_pts)
 
     tp0 = np.logical_and(
         in0,
@@ -230,15 +236,6 @@ def evaluate_merger(
     )
 
     tp_old = np.logical_or(tp0, tp1).sum()
-
-    overlap = np.logical_and(tp0, tp1).sum()
-
-    tp0 = tp0.sum()
-    tp1 = tp1.sum()
-
-    if overlap > 0:
-        if overlap > min_overlap*min(tp0, tp1):
-            return new_hull
 
     false_points = np.logical_not(test_pt_validity)
 
@@ -271,7 +268,8 @@ def evaluate_merger(
 
     delta_f1 = f1_new-f1_old
 
-    if delta_f1 >= min_df1:
+    if f1_new > f1_old:
+        print(f'    merging due to f1 {f1_old:.4e} -> {f1_new:.4e}')
         return new_hull
 
     return None
