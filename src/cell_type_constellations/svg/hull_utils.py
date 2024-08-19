@@ -307,6 +307,7 @@ def pts_in_hull(pts, hull):
 
     sgn_arr = None
     result = np.ones(pts.shape[0], dtype=bool)
+    result_idx = np.arange(pts.shape[0], dtype=int)
     for ii in range(n_vert):
 
         (pt_vec,
@@ -326,10 +327,13 @@ def pts_in_hull(pts, hull):
             sgn_arr = sgn[:, 0]
         else:
             (result,
-             pts) = _update_result(
+             pts,
+             sgn_arr,
+             result_idx) = _update_result(
                 sgn_arr=sgn_arr,
                 sgn=sgn,
                 result=result,
+                result_idx=result_idx,
                 pts=pts)
 
         if result.sum() == 0:
@@ -338,11 +342,14 @@ def pts_in_hull(pts, hull):
     return result
 
 
-def _update_result(sgn_arr, sgn, result, pts):
-    invalid = (sgn_arr[result] != sgn[:, 0])
-    result[np.where(result)[0][invalid]] = False
-    pts = pts[np.logical_not(invalid), :]
-    return result, pts
+def _update_result(sgn_arr, sgn, result, result_idx, pts):
+    invalid = (sgn_arr != sgn[:, 0])
+    valid = np.logical_not(invalid)
+    result[result_idx[invalid]] = False
+    result_idx = result_idx[valid]
+    sgn_arr = sgn_arr[valid]
+    pts = pts[valid, :]
+    return result, pts, sgn_arr, result_idx
 
 
 def _get_pt_edge(
