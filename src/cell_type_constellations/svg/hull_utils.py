@@ -156,8 +156,9 @@ def merge_hulls(
                 if i1 in been_merged:
                     continue
 
-                if dsq_array[i0, i1] > median_dsq:
-                    continue
+                if not final_pass:
+                    if dsq_array[i0, i1] > median_dsq:
+                        continue
 
                 new_hull = evaluate_merger(
                     raw_hull_list[i0],
