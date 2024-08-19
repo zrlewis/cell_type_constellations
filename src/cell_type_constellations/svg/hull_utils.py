@@ -1,4 +1,6 @@
+import copy
 import numpy as np
+
 from scipy.spatial import (
     ConvexHull,
     cKDTree
@@ -101,6 +103,148 @@ def find_smooth_hull_for_clusters(
     return final_hull
 
 
+def merge_hulls(
+        constellation_cache,
+        taxonomy_level,
+        label,
+        leaf_hull_lookup):
+
+    as_leaves = constellation_cache.taxonomy_tree.as_leaves
+    leaf_list = as_leaves[taxonomy_level][label]
+
+    raw_hull_list = [
+        copy.deepcopy(leaf_hull_lookup[leaf])
+        for leaf in leaf_list if leaf in leaf_hull_lookup
+    ]
+
+    data = get_test_pts(
+        constellation_cache=constellation_cache,
+        taxonomy_level=taxonomy_level,
+        label=label
+    )
+
+    test_pts = data['test_pts']
+    test_pt_validity = data['test_pt_validity']
+
+    keep_going = True
+    final_pass = False
+    while keep_going:
+        print(f'{len(raw_hull_list)} hulls')
+        centroid_array = np.array([
+            _get_hull_centroid(h) for h in raw_hull_list
+        ])
+
+        dsq_array = pairwise_distance_sq(centroid_array)
+        if not final_pass:
+            n_cols = len(raw_hull_list)//2
+            if n_cols < 10:
+                n_cols = len(raw_hull_list)
+            median_dsq = np.median(dsq_array[:, :n_cols])
+
+        mergers = dict()
+        been_merged = set()
+        idx_list = np.argsort(dsq_array[0, :])
+        for i0 in idx_list:
+            if i0 in been_merged:
+                continue
+
+            sorted_i1 = np.argsort(dsq_array[i0, :])
+            for i1 in sorted_i1:
+                if i1 == i0:
+                    continue
+
+                if i1 in been_merged:
+                    continue
+
+                if dsq_array[i0, i1] > median_dsq:
+                    continue
+
+                new_hull = evaluate_merger(
+                    raw_hull_list[i0],
+                    raw_hull_list[i1],
+                    test_pts=test_pts,
+                    test_pt_validity=test_pt_validity)
+
+                if new_hull is not None:
+                    print(f'     merging {i0} {i1}')
+                    mergers[i0] = new_hull
+                    been_merged.add(i0)
+                    been_merged.add(i1)
+                    break
+
+        if len(mergers) == 0:
+            if final_pass:
+                return raw_hull_list
+            else:
+                final_pass = True
+
+        new_hull_list = []
+        for ii in range(len(idx_list)):
+            if ii not in been_merged:
+                new_hull_list.append(raw_hull_list[ii])
+            elif ii in mergers:
+                new_hull_list.append(mergers[ii])
+        raw_hull_list = new_hull_list
+        if len(raw_hull_list) == 1:
+            return raw_hull_list
+
+
+def evaluate_merger(
+        hull0,
+        hull1,
+        test_pts,
+        test_pt_validity):
+
+    false_points = np.logical_not(test_pt_validity)
+    new_hull = ConvexHull(
+        np.concatenate([hull0.points, hull1.points])
+    )
+    in_new = pts_in_hull(
+        hull=new_hull,
+        pts=test_pts)
+
+    fp_new = np.logical_and(
+        in_new,
+        false_points
+    ).sum()
+
+
+    in0 = pts_in_hull(
+        hull=hull0,
+        pts=test_pts
+    )
+
+    in1 = pts_in_hull(
+        hull=hull1,
+        pts=test_pts
+    )
+
+
+    fp0 = np.logical_and(
+        in0,
+        false_points
+
+    )
+
+    fp1 = np.logical_and(
+        in1,
+        false_points
+
+    )
+
+    fp_old = np.logical_or(fp0, fp1).sum()
+    fp0 = fp0.sum()
+    fp1 = fp1.sum()
+
+    delta_fp = fp_new-fp_old
+    if delta_fp <= 0.5*(fp0+fp1):
+        return new_hull
+    if delta_fp < 0.05*np.logical_or(in0, in1).sum():
+        return new_hull
+
+    return None
+
+
 def get_test_pts(
         constellation_cache,
         taxonomy_level,
@@ -186,3 +330,37 @@ def pts_in_hull(pts, hull):
 
     return result
 
+
+def _get_hull_centroid(hull):
+    return np.mean(hull.points, axis=0)
+
+
+def pairwise_distance_sq(points: np.ndarray) -> np.ndarray:
+    """
+    Calculate all of the pairwise distances (squared) between the rows
+    in a np.ndarray
+
+    Parameters
+    ----------
+    points: np.ndarray
+        Shape is (n_points, n_dimensions)
+
+    Returns
+    -------
+    distances: np.ndarray
+        A (n_points, n_points) array. The i,jth element
+        is the Euclidean squared distance between the ith and jth
+        rows of the input points.
+
+    Notes
+    -----
+    As n_points, n_dimensions approach a few thousand, this is
+    several orders of magnitude faster than scipy.distances.cdist
+    """
+    p_dot_p = np.dot(points, points.T)
+    dsq = np.zeros((points.shape[0], points.shape[0]), dtype=float)
+    for ii in range(points.shape[0]):
+        dsq[ii, :] += p_dot_p[ii, ii]
+        dsq[:, ii] += p_dot_p[ii, ii]
+        dsq[ii, :] -= 2.0*p_dot_p[ii, :]
+    return dsq
