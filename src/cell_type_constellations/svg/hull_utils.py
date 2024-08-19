@@ -308,27 +308,58 @@ def pts_in_hull(pts, hull):
     sgn_arr = None
     result = np.ones(pts.shape[0], dtype=bool)
     for ii in range(n_vert):
-        src = hull.points[hull.vertices[ii]]
-        i1 = ii+1
-        if i1 >= n_vert:
-            i1 = 0
-        dst = hull.points[hull.vertices[i1]]
-        edge = np.array([dst-src])
-        pt_vec = pts[result, :]-src
+
+        (pt_vec,
+         edge) = _get_pt_edge(
+                     hull=hull,
+                     ii=ii,
+                     n_vert=n_vert,
+                     pts=pts,
+                     result=result)
+
         sgn = np.sign(cross_product_2d_bulk(
                             vec0=pt_vec,
                             vec1=edge)
                       ).astype(int)
+
         if sgn_arr is None:
             sgn_arr = sgn[:, 0]
         else:
-            invalid = (sgn_arr[result] != sgn[:, 0])
-            result[np.where(result)[0][invalid]] = False
+            (result,
+             pts) = _update_result(
+                sgn_arr=sgn_arr,
+                sgn=sgn,
+                result=result,
+                pts=pts)
 
         if result.sum() == 0:
             break
 
     return result
+
+
+def _update_result(sgn_arr, sgn, result, pts):
+    invalid = (sgn_arr[result] != sgn[:, 0])
+    result[np.where(result)[0][invalid]] = False
+    pts = pts[np.logical_not(invalid), :]
+    return result, pts
+
+
+def _get_pt_edge(
+        hull,
+        ii,
+        n_vert,
+        pts,
+        result):
+
+    src = hull.points[hull.vertices[ii]]
+    i1 = ii+1
+    if i1 >= n_vert:
+        i1 = 0
+    dst = hull.points[hull.vertices[i1]]
+    edge = np.array([dst-src])
+    pt_vec = pts-src
+    return pt_vec, edge
 
 
 def _get_hull_centroid(hull):
