@@ -169,7 +169,6 @@ def merge_hulls(
                     min_overlap=overlap)
 
                 if new_hull is not None:
-                    print(f'     merging {i0} {i1}')
                     mergers[i0] = new_hull
                     been_merged.add(i0)
                     been_merged.add(i1)
