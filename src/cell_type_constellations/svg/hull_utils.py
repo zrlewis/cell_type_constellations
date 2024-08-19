@@ -128,6 +128,7 @@ def merge_hulls(
 
     keep_going = True
     final_pass = False
+    overlap = 0.1
     while keep_going:
         print(f'{len(raw_hull_list)} hulls')
         centroid_array = np.array([
@@ -164,7 +165,8 @@ def merge_hulls(
                     raw_hull_list[i0],
                     raw_hull_list[i1],
                     test_pts=test_pts,
-                    test_pt_validity=test_pt_validity)
+                    test_pt_validity=test_pt_validity,
+                    min_overlap=overlap)
 
                 if new_hull is not None:
                     print(f'     merging {i0} {i1}')
@@ -178,6 +180,7 @@ def merge_hulls(
                 return raw_hull_list
             else:
                 final_pass = True
+                overlap = 0.0
 
         new_hull_list = []
         for ii in range(len(idx_list)):
@@ -194,20 +197,17 @@ def evaluate_merger(
         hull0,
         hull1,
         test_pts,
-        test_pt_validity):
+        test_pt_validity,
+        min_df1=-0.01,
+        min_overlap=0.1):
 
-    false_points = np.logical_not(test_pt_validity)
     new_hull = ConvexHull(
         np.concatenate([hull0.points, hull1.points])
     )
+
     in_new = pts_in_hull(
         hull=new_hull,
         pts=test_pts)
-
-    fp_new = np.logical_and(
-        in_new,
-        false_points
-    ).sum()
 
 
     in0 = pts_in_hull(
@@ -220,27 +220,59 @@ def evaluate_merger(
         pts=test_pts
     )
 
-
-    fp0 = np.logical_and(
+    tp0 = np.logical_and(
         in0,
-        false_points
-
+        test_pt_validity
     )
 
-    fp1 = np.logical_and(
+    tp1 = np.logical_and(
         in1,
-        false_points
-
+        test_pt_validity
     )
 
-    fp_old = np.logical_or(fp0, fp1).sum()
-    fp0 = fp0.sum()
-    fp1 = fp1.sum()
+    tp_old = np.logical_or(tp0, tp1).sum()
 
-    delta_fp = fp_new-fp_old
-    if delta_fp <= 0.5*(fp0+fp1):
-        return new_hull
-    if delta_fp < 0.05*np.logical_or(in0, in1).sum():
+    overlap = np.logical_and(tp0, tp1).sum()
+
+    tp0 = tp0.sum()
+    tp1 = tp1.sum()
+
+    if overlap > 0:
+        if overlap > min_overlap*min(tp0, tp1):
+            return new_hull
+
+    false_points = np.logical_not(test_pt_validity)
+
+    fp_new = np.logical_and(
+        in_new,
+        false_points
+    ).sum()
+    tp_new = np.logical_and(
+        in_new,
+        test_pt_validity
+    ).sum()
+    fn_new = np.logical_and(
+        np.logical_not(in_new),
+        test_pt_validity
+    ).sum()
+    f1_new = tp_new/(tp_new+0.5*(fn_new+fp_new))
+
+    in_old = np.logical_or(in0, in1)
+
+    fp_old = np.logical_and(
+        in_old,
+        false_points
+    ).sum()
+
+    fn_old = np.logical_and(
+        np.logical_not(in_old),
+        test_pt_validity
+    ).sum()
+    f1_old = tp_old/(tp_old+0.5*(fn_old+fp_old))
+
+    delta_f1 = f1_new-f1_old
+
+    if delta_f1 >= min_df1:
         return new_hull
 
     return None
