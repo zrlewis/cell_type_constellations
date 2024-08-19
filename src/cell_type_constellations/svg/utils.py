@@ -75,7 +75,7 @@ def render_hull_svg(
          taxonomy_level=constellation_cache.taxonomy_tree.leaf_level,
          color_by_level=taxonomy_level)
 
-    if taxonomy_level == constellation_cache.taxonomy_tree.leaf_level:
+    if False: #taxonomy_level == constellation_cache.taxonomy_tree.leaf_level:
         plot_obj = _load_leaf_hulls(
             constellation_cache=constellation_cache,
             plot_obj=plot_obj)
