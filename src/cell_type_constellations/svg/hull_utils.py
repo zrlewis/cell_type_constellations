@@ -31,14 +31,11 @@ def find_smooth_hull_for_clusters(
     test_pts = data['test_pts']
     test_pt_validity = data['test_pt_validity']
 
-    #kd_tree = cKDTree(test_pts)
-    #valid_pt_neighbor_array = kd_tree.query(
-    #        x=valid_pts,
-    #        k=20)[1]
-    #del kd_tree
-
-    #valid_pt_idx = np.where(test_pt_validity)[0]
-    #valid_pt_dsq = pairwise_distance_sq(test_pts[valid_pt_idx, :])
+    kd_tree = cKDTree(test_pts)
+    valid_pt_neighbor_array = kd_tree.query(
+            x=valid_pts,
+            k=20)[1]
+    del kd_tree
 
     final_hull = None
     eps = 0.001
@@ -46,14 +43,11 @@ def find_smooth_hull_for_clusters(
 
     true_pos_0 = 0
     false_pos_0 = 0
-    false_neg_0 = 0
-    f1_score_0 = 0
     test_hull = None
     hull_0 = None
 
     while True:
         hull_0 = test_hull
-        print(valid_pts.shape)
         test_hull = ConvexHull(valid_pts)
         in_hull = pts_in_hull(
             pts=test_pts,
@@ -75,37 +69,29 @@ def find_smooth_hull_for_clusters(
         print(f'n_iter {n_iter} pts {test_hull.points.shape} ratio {ratio:.2e} f1 {f1_score:.2e} '
         f'delta tp {delta_tp} delta fp {delta_fp} {delta_fp>=10*delta_tp}')
 
-        if f1_score < f1_score_0 and f1_score > 0.1:
+        if delta_fp >= 2.0*delta_tp and true_pos_0 > 0 or delta_tp < -0.01:
             if hull_0 is None:
                 final_hull = test_hull
             else:
                 final_hull = hull_0
-            final_hull = test_hull
-
             break
 
         true_pos_0 = true_pos
         false_pos_0 = false_pos
-        false_neg_0 = false_neg
-        f1_score_0 = f1_score
 
-        #valid_flat = valid_pt_neighbor_array.flatten()
-        #score = np.logical_and(
-        #    in_hull[valid_flat],
-        #    test_pt_validity[valid_flat])
-        #score = score.reshape(valid_pt_neighbor_array.shape)
-        #del valid_flat
+        valid_flat = valid_pt_neighbor_array.flatten()
+        score = np.logical_and(
+            in_hull[valid_flat],
+            test_pt_validity[valid_flat])
+        score = score.reshape(valid_pt_neighbor_array.shape)
+        del valid_flat
 
-        score = pairwise_distance_sq(
-                    valid_pts).sum(axis=1)
-
-        worst_value = np.max(score)
+        score = score.sum(axis=1)
+        worst_value = np.min(score)
         to_keep = np.ones(valid_pts.shape[0], dtype=bool)
-        to_keep[score>=worst_value*0.99] = False
-        #print('dropping')
-        #print(valid_pts[np.logical_not(to_keep), :])
+        to_keep[score==worst_value] = False
         valid_pts = valid_pts[to_keep, :]
-        #valid_pt_neighbor_array = valid_pt_neighbor_array[to_keep, :]
+        valid_pt_neighbor_array = valid_pt_neighbor_array[to_keep, :]
 
 
         #centroid = np.mean(valid_pts, axis=0)
@@ -258,7 +244,7 @@ def evaluate_merger(
     n0 = in0.sum()
     n1 = in1.sum()
 
-    if False: #overlap > 0:
+    if overlap > 0:
         if overlap > min_overlap*min(n0, n1):
             return new_hull
 
@@ -293,7 +279,7 @@ def evaluate_merger(
 
     delta_f1 = f1_new-f1_old
 
-    if delta_f1 > 0.0:
+    if delta_f1 >= min_df1:
         return new_hull
 
     return None
