@@ -23,7 +23,8 @@ from cell_type_constellations.svg.hull_utils import (
     merge_hulls
 )
 from cell_type_constellations.cells.cell_set import (
-    choose_connections
+    choose_connections,
+    get_hull_points
 )
 
 
@@ -223,35 +224,18 @@ def _load_hulls(
     return plot_obj
 
 
-def _get_hull_points(
+def _get_hull_points_from_cache(
         constellation_cache,
         taxonomy_level,
         label):
-    alias_list = constellation_cache.parentage_to_alias[taxonomy_level][label]
-    cell_mask = np.zeros(constellation_cache.cluster_aliases.shape, dtype=bool)
 
-    # which cells are in the desired taxon
-    for alias in alias_list:
-        cell_mask[constellation_cache.cluster_aliases==alias] = True
-    cell_idx = np.where(cell_mask)[0]
-
-    # how many of each cell's nearest neighbors are also in
-    # the desired taxon
-    nn_matrix = constellation_cache.nn_from_cell_idx(cell_idx)
-    nn_shape = nn_matrix.shape
-    nn_matrix = nn_matrix.flatten()
-    nn_mask = np.zeros(nn_matrix.shape, dtype=bool)
-    for alias in alias_list:
-        nn_mask[nn_matrix==alias] = True
-    nn_mask = nn_mask.reshape(nn_shape)
-    nn_mask = nn_mask.sum(axis=1)
-    valid = (nn_mask >= 10)
-    cell_idx = cell_idx[valid]
-
-    # get UMAP coords for the cells that pass this test
-    pts = constellation_cache.umap_coords[cell_idx, :]
-
-    return pts
+    return get_hull_points(
+        taxonomy_level=taxonomy_level,
+        label=label,
+        parentage_to_alias=constellation_cache.parentage_to_alias,
+        cluster_aliases=constellation_cache.cluster_aliases,
+        cell_to_nn_aliases=constellation_cache.cell_to_nn_aliases,
+        umap_coords=constellation_cache.umap_coords)
 
 
 def _load_single_hull(
@@ -276,7 +260,7 @@ def _load_single_hull(
     leaf_level = constellation_cache.taxonomy_tree.leaf_level
 
     if taxonomy_level == leaf_level:
-        pts = _get_hull_points(
+        pts = _get_hull_points_from_cache(
                 constellation_cache=constellation_cache,
                 taxonomy_level=leaf_level,
                 label=label
@@ -298,7 +282,7 @@ def _load_single_hull(
     as_leaves = constellation_cache.taxonomy_tree.as_leaves
     leaf_hull_lookup = dict()
     for leaf in as_leaves[taxonomy_level][label]:
-        pts = _get_hull_points(
+        pts = _get_hull_points_from_cache(
             constellation_cache=constellation_cache,
             taxonomy_level=leaf_level,
             label=leaf

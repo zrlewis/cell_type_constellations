@@ -50,7 +50,7 @@ class CellSet(object):
         mask = np.zeros(self._cluster_aliases.shape, dtype=bool)
         for alias in alias_array:
             mask[self._cluster_aliases==alias] = True
-        return np.mean(self._umap_coords[mask, :], axis=0)
+        return np.median(self._umap_coords[mask, :], axis=0)
 
     def n_cells_from_alias_array(self, alias_array):
         mask = np.zeros(self._cluster_aliases.shape, dtype=bool)
@@ -357,6 +357,27 @@ def create_constellation_cache(
     }
     del annotation
 
+    cluster_alias_array = np.array([int(a) for a in cell_set.cluster_aliases])
+    print(f'=======patching centroids=======')
+    for level in cell_filter.taxonomy_tree.hierarchy:
+        for node in cell_filter.taxonomy_tree.nodes_at_level(level):
+
+            node_idx = cell_filter.idx_from_label(
+                level=level,
+                node=node)
+
+            pts = get_hull_points(
+                taxonomy_level=level,
+                label=node,
+                parentage_to_alias=cell_filter._parentage_to_alias,
+                cluster_aliases=cluster_alias_array,
+                cell_to_nn_aliases=cell_to_nn_aliases,
+                umap_coords=cell_set.umap_coords)
+
+            if pts.shape[0] > 0:
+                centroid_lookup[level][node_idx] = np.median(pts, axis=0)
+        print(f'=======got centroids for {level}=======')
+
     with h5py.File(dst_path, 'w') as dst:
         n_grp = dst.create_group('n_cells')
         mm_grp = dst.create_group('mixture_matrix')
@@ -380,7 +401,7 @@ def create_constellation_cache(
         )
         dst.create_dataset(
             'cluster_aliases',
-            data=np.array([int(a) for a in cell_set.cluster_aliases])
+            data=cluster_alias_array
         )
         dst.create_dataset(
             'umap_coords',
@@ -476,3 +497,39 @@ def clean_for_json(data):
         }
         return new_data
     return data
+
+
+
+def get_hull_points(
+        taxonomy_level,
+        label,
+        parentage_to_alias,
+        cluster_aliases,
+        cell_to_nn_aliases,
+        umap_coords
+    ):
+    alias_list = parentage_to_alias[taxonomy_level][label]
+    cell_mask = np.zeros(cluster_aliases.shape, dtype=bool)
+
+    # which cells are in the desired taxon
+    for alias in alias_list:
+        cell_mask[cluster_aliases==alias] = True
+    cell_idx = np.where(cell_mask)[0]
+
+    # how many of each cell's nearest neighbors are also in
+    # the desired taxon
+    nn_matrix = cell_to_nn_aliases[cell_idx, :]
+    nn_shape = nn_matrix.shape
+    nn_matrix = nn_matrix.flatten()
+    nn_mask = np.zeros(nn_matrix.shape, dtype=bool)
+    for alias in alias_list:
+        nn_mask[nn_matrix==alias] = True
+    nn_mask = nn_mask.reshape(nn_shape)
+    nn_mask = nn_mask.sum(axis=1)
+    valid = (nn_mask >= 10)
+    cell_idx = cell_idx[valid]
+
+    # get UMAP coords for the cells that pass this test
+    pts = umap_coords[cell_idx, :]
+
+    return pts
