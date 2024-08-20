@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def rot(vec, theta):
     arr = np.array(
         [[np.cos(theta), -np.sin(theta)],
@@ -44,13 +45,13 @@ def _do_intersect_general(segment0, segment1):
     vec0 = segment0[1]-segment0[0]
     o1 = cross_product_2d(vec0, segment1[0]-segment0[1])
     o2 = cross_product_2d(vec0, segment1[1]-segment0[1])
-    if np.dot(o1, o2) > 0.0:
+    if np.dot(o1, o2) > np.finfo(float).resolution:
         return False
 
-    vec1 = segment1[1]-segment1[1]
+    vec1 = segment1[1]-segment1[0]
     o3 = cross_product_2d(vec1, segment0[1]-segment1[1])
     o4 = cross_product_2d(vec1, segment0[0]-segment1[1])
-    if np.dot(o3, o4) > 0.0:
+    if np.dot(o3, o4) > np.finfo(float).resolution:
         False
 
     return True
@@ -110,3 +111,21 @@ def _do_overlap(x0, x1, y0, y1):
     if x1 >= y0 and x1 <= y1:
         return True
     return False
+
+
+def find_intersection_pt(segment0, segment1):
+    if _are_colinear(segment0, segment1):
+        return None
+    if not _do_intersect_general(segment0, segment1):
+        return None
+
+
+    v0 = segment0[1]-segment0[0]
+    v0 = v0/np.sqrt((v0**2).sum())
+    v1 = segment1[1]-segment1[0]
+    v1 = v1/np.sqrt((v0**2).sum())
+
+    mm = np.array([v0, -1.0*v1]).transpose()
+    bb = segment1[0]-segment0[0]
+    soln = np.linalg.solve(mm, bb)
+    return segment0[0]+soln[0]*v0
