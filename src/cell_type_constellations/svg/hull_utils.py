@@ -225,6 +225,14 @@ def evaluate_merger(
         hull=new_hull,
         pts=test_pts)
 
+    in_all = np.logical_or(
+        in_new,
+        np.logical_or(
+            in0,
+            in1
+        )
+    )
+
     tp0 = np.logical_and(
         in0,
         test_pt_validity
@@ -248,8 +256,11 @@ def evaluate_merger(
         test_pt_validity
     ).sum()
     fn_new = np.logical_and(
-        np.logical_not(in_new),
-        test_pt_validity
+        in_all,
+        np.logical_and(
+            np.logical_not(in_new),
+            test_pt_validity
+        )
     ).sum()
     f1_new = tp_new/(tp_new+0.5*(fn_new+fp_new))
 
@@ -261,8 +272,11 @@ def evaluate_merger(
     ).sum()
 
     fn_old = np.logical_and(
-        np.logical_not(in_old),
-        test_pt_validity
+        in_all,
+        np.logical_and(
+            np.logical_not(in_old),
+            test_pt_validity
+        )
     ).sum()
     f1_old = tp_old/(tp_old+0.5*(fn_old+fp_old))
 
