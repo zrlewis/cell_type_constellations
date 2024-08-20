@@ -189,7 +189,7 @@ def merge_hulls(
             else:
                 final_pass = True
                 min_overlap=1.1
-                min_f1=0.9
+                min_f1=0.99
 
         new_hull_list = []
         for ii in range(len(idx_list)):

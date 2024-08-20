@@ -1,13 +1,25 @@
 import numpy as np
 from scipy.spatial import ConvexHull
 
+import json
+
 from cell_type_constellations.utils.geometry import (
     rot,
-    cross_product_2d_bulk
+    cross_product_2d_bulk,
+    do_intersect,
+    find_intersection_pt
+)
+
+from cell_type_constellations.svg.hull_utils import (
+    pts_in_hull
 )
 
 
 class Hull(object):
+    """
+    Take a list of Centroids. Ingest their pixel_pts into
+    a scipy ConvexHull. Render SVG.
+    """
 
     def __init__(
             self,
@@ -34,6 +46,10 @@ class Hull(object):
 
 
 class RawHull(object):
+    """
+    Take an array of points. Ingest into a scipy ConvexHull.
+    Render SVG.
+    """
 
     def __init__(
             self,
@@ -59,6 +75,56 @@ class RawHull(object):
     @property
     def y_values(self):
         return []
+
+
+class BareHull(object):
+    """
+    Take a counterclockwise path of points. Store this as a boundary.
+    Expose vertices and points as if it were a scipy ConvexHull
+    """
+    def __init__(
+            self,
+            points):
+
+        self._points = np.copy(points)
+        self._vertices = np.arange(self._points.shape[0], dtype=int)
+        self._set_segments()
+
+    @classmethod
+    def from_convex_hull(cls, convex_hull):
+        points = np.array([
+            convex_hull.points[idx]
+            for idx in convex_hull.vertices
+        ])
+        return cls(points=points)
+
+
+    @property
+    def points(self):
+        return self._points
+
+    @property
+    def vertices(self):
+        return self._vertices
+
+    @property
+    def segments(self):
+        return self._segments
+
+    @property
+    def i_segments(self):
+        return self._i_segments
+
+    def _set_segments(self):
+        segments = []
+        i_segments = []
+        for ii in range(self.points.shape[0]-1):
+            segments.append([self.points[ii, :], self.points[ii+1, :]])
+            i_segments.append([ii, ii+1])
+        segments.append([self.points[-1, :], self.points[0, :]])
+        i_segments.append([self.points.shape[0]-1, 0])
+        self._segments = segments
+        self._i_segments = i_segments
 
 
 def _path_from_pts(pts, stroke_color='green'):
@@ -100,7 +166,7 @@ def _path_from_pts(pts, stroke_color='green'):
 
     return path_code
 
-        
+
 def _get_ctrl_point(pre, center, post):
     """
     ctrl point will be in direction of post
@@ -122,3 +188,134 @@ def _get_ctrl_point(pre, center, post):
         orth *= -1.0
 
     return center + factor*post_norm*orth
+
+
+
+def merge_bare_hulls(
+            bare0,
+            bare1):
+
+    convex0 = ConvexHull(bare0.points)
+    convex1 = ConvexHull(bare1.points)
+
+    bare0_in_1 = pts_in_hull(
+        pts=bare0.points,
+        hull=convex1)
+
+    if bare0_in_1.all():
+        print("all of hull0 in hull1")
+        return [bare1]
+
+    bare1_in_0 = pts_in_hull(
+        pts=bare1.points,
+        hull=convex0
+    )
+
+    if bare1_in_0.all():
+        print("all of hull1 in hull0")
+        return [bare0]
+
+    # find all intersections between the segments in the two
+    # bare hulls
+    bare0_to_1 = dict()
+    bare1_to_0 = dict()
+    intersection_points = []
+    n_all = bare0.points.shape[0]+bare1.points.shape[0]
+    for i0, seg0 in enumerate(bare0.segments):
+        for i1, seg1 in enumerate(bare1.segments):
+            intersection = find_intersection_pt(
+                seg0,
+                seg1)
+            if intersection is not None:
+                if i0 not in bare0_to_1:
+                    bare0_to_1[i0] = dict()
+                if i1 not in bare1_to_0:
+                    bare1_to_0[i1] = dict()
+                intersection_points.append(intersection)
+                bare0_to_1[i0][i1] = n_all+len(intersection_points)-1
+                bare1_to_0[i1][i0] = n_all+len(intersection_points)-1
+
+    intersection_points = np.array(intersection_points)
+    n_intersections = intersection_points.shape[0]
+
+    # either no intersection, or there is an odd numbe of intersections
+    # (which signals an edge case we are not prepared for)
+    if n_intersections == 0 or n_intersections %2 == 1:
+        print("no intersections")
+        return [bare0, bare1]
+
+    all_points = np.concatenate([
+        bare0.points,
+        bare1.points,
+        intersection_points])
+
+    meta_intersection_lookup = [bare0_to_1, bare1_to_0]
+
+    # For each bare hull, assemble a new ordered list of points that includes
+    # the intersections.
+
+    new_bare_hulls = []
+    for i_hull, src_hull in enumerate([bare0, bare1]):
+        new_hull = dict()   # a src->dst graph
+        dst_set = set()
+        if i_hull == 0:
+            hull_offset = 0
+        else:
+            hull_offset = bare0.points.shape[0]
+        intersection_lookup = meta_intersection_lookup[i_hull]
+        for i_seg in src_hull.i_segments:
+            src_idx = int(hull_offset + i_seg[0])
+
+            src_pt = src_hull.points[i_seg[0]]
+            if i_seg[0] in intersection_lookup:
+                intersection_idx_list = np.array(
+                    [idx for idx in intersection_lookup[i_seg[0]].values()]
+                )
+                ddsq_arr = np.array([
+                    ((all_points[idx]-src_pt)**2).sum()
+                    for idx in intersection_idx_list
+                ])
+                sorted_dex = np.argsort(ddsq_arr)
+                intersection_idx_list = intersection_idx_list[sorted_dex]
+                for dst_idx in intersection_idx_list:
+                    dst_idx = int(dst_idx)
+                    #print(json.dumps(new_hull, indent=2))
+                    #print(src_idx, dst_idx, hull_offset, i_hull)
+                    assert src_idx not in new_hull
+                    assert dst_idx not in dst_set
+                    new_hull[src_idx] = dst_idx
+                    dst_set.add(dst_idx)
+                    src_idx = dst_idx
+
+            dst_idx = int(hull_offset + i_seg[1])
+
+            assert src_idx not in new_hull
+            new_hull[src_idx] = dst_idx
+            assert dst_idx not in dst_set
+            dst_set.add(dst_idx)
+
+        new_bare_hulls.append(new_hull)
+
+    starting_idx = np.where(np.logical_not(bare0_in_1))[0][0]
+    current_hull = 0
+    final_points = [starting_idx]
+    final_set = set(final_points)
+    while True:
+        next_pt = new_bare_hulls[current_hull][final_points[-1]]
+        if next_pt in final_set:
+            break
+        final_points.append(next_pt)
+        final_set.add(next_pt)
+        if next_pt in new_bare_hulls[(current_hull+1)%2]:
+            current_hull = ((current_hull+1)%2)
+
+    return [
+        BareHull(
+            points=np.array(
+             [
+              all_points[idx]
+              for idx in final_points
+             ]
+            )
+        )
+    ]
