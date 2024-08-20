@@ -52,7 +52,7 @@ def _do_intersect_general(segment0, segment1):
     o3 = cross_product_2d(vec1, segment0[1]-segment1[1])
     o4 = cross_product_2d(vec1, segment0[0]-segment1[1])
     if np.dot(o3, o4) > np.finfo(float).resolution:
-        False
+        return False
 
     return True
 
