@@ -148,6 +148,45 @@ class BareHull(object):
             stroke_color=self.color)
 
 
+class CompoundBareHull(object):
+
+    def __init__(
+            self,
+            bare_hull_list,
+            label=None,
+            name=None,
+            n_cells=None):
+
+        self.label = label
+        self.name = name
+        self.bare_hull_list = bare_hull_list
+        self.n_cells = n_cells
+
+
+    @property
+    def x_values(self):
+        return np.concatenate(
+         [h.points[:, 0] for h in self.bare_hull_list]
+        )
+
+    @property
+    def y_values(self):
+        return np.concatenate(
+         [h.points[:, 1] for h in self.bare_hull_list]
+        )
+
+    def render(self, plot_obj=None):
+        url = (
+            f"http://35.92.115.7:8883/display_entity?entity_id={self.label}"
+        )
+        result = f"""    <a href="{url}">\n"""
+        for hull in self.bare_hull_list:
+            result += hull.render(plot_obj=plot_obj)
+        result += """        <title>\n"""
+        result += f"""        {self.name}: {self.n_cells:.2e} cells\n"""
+        result += """        </title>\n"""
+        result += "    </a>\n"
+        return result
 
 def _path_from_hull(hull, stroke_color='green'):
 

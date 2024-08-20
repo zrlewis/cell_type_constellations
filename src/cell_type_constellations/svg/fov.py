@@ -14,7 +14,8 @@ from cell_type_constellations.svg.connection import (
 from cell_type_constellations.svg.hull import (
     Hull,
     RawHull,
-    BareHull
+    BareHull,
+    CompoundBareHull
 )
 
 import time
@@ -95,6 +96,7 @@ class ConstellationPlot(object):
             if isinstance(el, Hull)
             or isinstance(el, RawHull)
             or isinstance(el, BareHull)
+            or isinstance(el, CompoundBareHull)
         ]
         hull_code = ""
         for this_hull in hull_list:

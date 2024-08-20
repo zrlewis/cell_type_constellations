@@ -15,6 +15,7 @@ from cell_type_constellations.svg.hull import (
     Hull,
     RawHull,
     BareHull,
+    CompoundBareHull,
     merge_bare_hulls
 )
 from cell_type_constellations.svg.hull_utils import (
@@ -207,12 +208,13 @@ def _load_hulls(
     n_labels = len(label_list)
     for label in label_list:
 
-        hull_list = _load_non_leaf_hull(
+        hull = _load_non_leaf_hull(
             constellation_cache=constellation_cache,
             taxonomy_level=taxonomy_level,
             label=label
         )
-        for hull in hull_list:
+
+        if hull is not None:
             plot_obj.add_element(hull)
 
         dur = time.time()-t0
@@ -292,10 +294,19 @@ def _load_non_leaf_hull(
         taxonomy_level,
         label):
 
+    name = constellation_cache.taxonomy_tree.label_to_name(
+        level=taxonomy_level,
+        label=label
+    )
+
     color = constellation_cache.color(
         level=taxonomy_level,
         label=label,
         color_by_level=taxonomy_level)
+
+    n_cells = constellation_cache.n_cells_from_label(
+        level=taxonomy_level,
+        label=label)
 
     as_leaves = constellation_cache.taxonomy_tree.as_leaves
     leaf_hull_lookup = dict()
@@ -351,4 +362,11 @@ def _load_non_leaf_hull(
         if len(bare_hull_list) == n0:
             break
 
-    return bare_hull_list
+    if len(bare_hull_list) == 0:
+        return None
+
+    return CompoundBareHull(
+        bare_hull_list=bare_hull_list,
+        label=label,
+        name=name,
+        n_cells=n_cells)
