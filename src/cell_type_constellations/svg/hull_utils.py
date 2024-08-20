@@ -134,6 +134,10 @@ def merge_hulls(
             _get_hull_centroid(h) for h in raw_hull_list
         ])
 
+        area_array = np.array([
+            h.volume for h in raw_hull_list
+        ])
+
         dsq_array = pairwise_distance_sq(centroid_array)
         if not final_pass:
             n_cols = len(raw_hull_list)//2
@@ -143,7 +147,7 @@ def merge_hulls(
 
         mergers = dict()
         been_merged = set()
-        idx_list = np.argsort(dsq_array[0, :])
+        idx_list = np.argsort(area_array)
         for i0 in idx_list:
             if i0 in been_merged:
                 continue
