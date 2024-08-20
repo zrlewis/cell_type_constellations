@@ -80,16 +80,12 @@ def render_hull_svg(
          taxonomy_level=constellation_cache.taxonomy_tree.leaf_level,
          color_by_level=taxonomy_level)
 
-    if False: #taxonomy_level == constellation_cache.taxonomy_tree.leaf_level:
-        plot_obj = _load_leaf_hulls(
-            constellation_cache=constellation_cache,
-            plot_obj=plot_obj)
-    else:
-        plot_obj = _load_hulls(
-            constellation_cache=constellation_cache,
-            centroid_list=centroid_list,
-            plot_obj=plot_obj,
-            taxonomy_level=taxonomy_level)
+    plot_obj = _load_hulls(
+        constellation_cache=constellation_cache,
+        centroid_list=centroid_list,
+        plot_obj=plot_obj,
+        taxonomy_level=taxonomy_level
+    )
 
     with open(dst_path, 'w') as dst:
         dst.write(plot_obj.render())
@@ -208,7 +204,7 @@ def _load_hulls(
     n_labels = len(label_list)
     for label in label_list:
 
-        hull = _load_non_leaf_hull(
+        hull = _load_single_hull(
             constellation_cache=constellation_cache,
             taxonomy_level=taxonomy_level,
             label=label
@@ -258,38 +254,7 @@ def _get_hull_points(
     return pts
 
 
-def _load_leaf_hulls(
-        constellation_cache,
-        plot_obj):
-
-    taxonomy_level = constellation_cache.taxonomy_tree.leaf_level
-
-    t0 = time.time()
-    ct = 0
-    n_labels = len(constellation_cache.taxonomy_tree.nodes_at_level(taxonomy_level))
-    for label in constellation_cache.taxonomy_tree.nodes_at_level(taxonomy_level):
-        print(f'working on {label}')
-        final_hull = find_smooth_hull_for_clusters(
-            constellation_cache=constellation_cache,
-            label=label,
-            taxonomy_level=taxonomy_level)
-
-        if final_hull.points.shape[0] > 2:
-            this_hull = RawHull(
-               pts=final_hull.points,
-               color=constellation_cache.color_from_label(label)
-            )
-            plot_obj.add_element(this_hull)
-        dur = time.time()-t0
-        ct += 1
-        per = dur/ct
-        remain = per*n_labels-dur
-        print(f'{label} after {dur:.2e} ({per:.2e}) ({remain:.2e} left)')
-
-    return plot_obj
-
-
-def _load_non_leaf_hull(
+def _load_single_hull(
         constellation_cache,
         taxonomy_level,
         label):
@@ -308,12 +273,34 @@ def _load_non_leaf_hull(
         level=taxonomy_level,
         label=label)
 
+    leaf_level = constellation_cache.taxonomy_tree.leaf_level
+
+    if taxonomy_level == leaf_level:
+        pts = _get_hull_points(
+                constellation_cache=constellation_cache,
+                taxonomy_level=leaf_level,
+                label=label
+        )
+        if pts.shape[0] <= 2:
+            return None
+        convex_hull = ConvexHull(pts)
+        bare_hull = BareHull.from_convex_hull(
+            convex_hull=convex_hull,
+            color=color)
+        return CompoundBareHull(
+            bare_hull_list=[bare_hull],
+            label=label,
+            name=name,
+            n_cells=n_cells
+        )
+
+
     as_leaves = constellation_cache.taxonomy_tree.as_leaves
     leaf_hull_lookup = dict()
     for leaf in as_leaves[taxonomy_level][label]:
         pts = _get_hull_points(
             constellation_cache=constellation_cache,
-            taxonomy_level=constellation_cache.taxonomy_tree.leaf_level,
+            taxonomy_level=leaf_level,
             label=leaf
         )
         if pts.shape[0] > 2:
