@@ -128,7 +128,9 @@ def merge_hulls(
 
     keep_going = True
     final_pass = False
-    nn_cutoff = 3
+    min_overlap = 0.9
+    min_f1 = 0.0
+    nn_cutoff = 2
     while keep_going:
         print(f'{len(raw_hull_list)} hulls')
         centroid_array = np.array([
@@ -141,19 +143,21 @@ def merge_hulls(
 
         dsq_array = pairwise_distance_sq(centroid_array)
         if not final_pass:
-            n_cols = nn_cutoff
-            median_dsq = np.median(dsq_array[:, :n_cols])
+            n_cols = nn_cutoff+1
+            median_dsq = np.quantile(dsq_array[:, :n_cols], 0.25)
 
         mergers = dict()
         been_merged = set()
-        idx_list = np.argsort(area_array)
+        idx_list = np.argsort(area_array)[-1::-1]
         for i0 in idx_list:
+            if final_pass and len(mergers) > 0:
+                break
             if i0 in been_merged:
                 continue
 
             sorted_i1 = np.argsort(dsq_array[i0, :])
             if not final_pass:
-                sorted_i1 = sorted_i1[:nn_cutoff]
+                sorted_i1 = sorted_i1[:nn_cutoff+1]
             for i1 in sorted_i1:
                 if i1 == i0:
                     continue
@@ -169,7 +173,9 @@ def merge_hulls(
                     raw_hull_list[i0],
                     raw_hull_list[i1],
                     test_pts=test_pts,
-                    test_pt_validity=test_pt_validity)
+                    test_pt_validity=test_pt_validity,
+                    min_overlap=min_overlap,
+                    min_f1=min_f1)
 
                 if new_hull is not None:
                     mergers[i0] = new_hull
@@ -182,6 +188,8 @@ def merge_hulls(
                 return [h['hull'] for h in raw_hull_list]
             else:
                 final_pass = True
+                min_overlap=1.1
+                min_f1=0.9
 
         new_hull_list = []
         for ii in range(len(idx_list)):
