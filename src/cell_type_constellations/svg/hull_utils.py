@@ -113,7 +113,7 @@ def merge_hulls(
     leaf_list = as_leaves[taxonomy_level][label]
 
     raw_hull_list = [
-        copy.deepcopy(leaf_hull_lookup[leaf])
+        {'hull': copy.deepcopy(leaf_hull_lookup[leaf])}
         for leaf in leaf_list if leaf in leaf_hull_lookup
     ]
 
@@ -132,11 +132,11 @@ def merge_hulls(
     while keep_going:
         print(f'{len(raw_hull_list)} hulls')
         centroid_array = np.array([
-            _get_hull_centroid(h) for h in raw_hull_list
+            _get_hull_centroid(h['hull']) for h in raw_hull_list
         ])
 
         area_array = np.array([
-            h.volume for h in raw_hull_list
+            h['hull'].volume for h in raw_hull_list
         ])
 
         dsq_array = pairwise_distance_sq(centroid_array)
@@ -179,7 +179,7 @@ def merge_hulls(
 
         if len(mergers) == 0:
             if final_pass:
-                return raw_hull_list
+                return [h['hull'] for h in raw_hull_list]
             else:
                 final_pass = True
 
@@ -191,7 +191,7 @@ def merge_hulls(
                 new_hull_list.append(mergers[ii])
         raw_hull_list = new_hull_list
         if len(raw_hull_list) == 1:
-            return raw_hull_list
+            return [h['hull'] for h in raw_hull_list]
 
 
 def evaluate_merger(
@@ -199,21 +199,26 @@ def evaluate_merger(
         hull1,
         test_pts,
         test_pt_validity,
-        min_overlap=0.9):
+        min_overlap=0.9,
+        min_f1=0.0):
 
     new_hull = ConvexHull(
-        np.concatenate([hull0.points, hull1.points])
+        np.concatenate([hull0['hull'].points, hull1['hull'].points])
     )
 
-    in0 = pts_in_hull(
-        hull=hull0,
-        pts=test_pts
-    )
+    if 'in' not in hull0:
+        hull0['in'] = pts_in_hull(
+            hull=hull0['hull'],
+            pts=test_pts
+        )
+    in0 = hull0['in']
 
-    in1 = pts_in_hull(
-        hull=hull1,
-        pts=test_pts
-    )
+    if 'in' not in hull1:
+        hull1['in'] = pts_in_hull(
+            hull=hull1['hull'],
+            pts=test_pts
+        )
+    in1 = hull1['in']
 
     overlap = np.logical_and(in0, in1).sum()
 
@@ -224,7 +229,7 @@ def evaluate_merger(
     if overlap > 0:
         if overlap > min_overlap*min_n:
             print(f'    merging due to overlap {overlap} {min_n}')
-            return new_hull
+            return {'hull': new_hull}
 
     in_new = pts_in_hull(
         hull=new_hull,
@@ -287,9 +292,10 @@ def evaluate_merger(
 
     delta_f1 = f1_new-f1_old
 
-    if f1_new > f1_old:
-        print(f'    merging due to f1 {f1_old:.4e} -> {f1_new:.4e}')
-        return new_hull
+    if f1_new > f1_old and f1_new > min_f1:
+        print(f'    merging due to f1 {f1_old:.4e} -> {f1_new:.4e} {n0} {n1} -> {in_new.sum()} '
+              f'fn {fn_new} fp {fp_new} tp {tp_new}')
+        return {'hull': new_hull, 'in': in_new}
 
     return None
 
