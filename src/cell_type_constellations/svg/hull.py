@@ -34,7 +34,7 @@ class Hull(object):
             [c.pixel_pt for c in self.centroid_list]
         )
 
-        return _path_from_pts(pts=pts, stroke_color=self.color)
+        return _path_from_hull(hull=ConvexHull(pts), stroke_color=self.color)
 
     @property
     def x_values(self):
@@ -66,7 +66,7 @@ class RawHull(object):
              y=self.pts[:, 1])
 
         pts = np.array([xx, yy]).transpose()
-        return _path_from_pts(pts=pts, stroke_color=self.color)
+        return _path_from_hull(hull=ConvexHull(pts), stroke_color=self.color)
 
     @property
     def x_values(self):
@@ -84,20 +84,30 @@ class BareHull(object):
     """
     def __init__(
             self,
-            points):
+            points,
+            color=None):
 
         self._points = np.copy(points)
         self._vertices = np.arange(self._points.shape[0], dtype=int)
         self._set_segments()
+        self.color = color
 
     @classmethod
-    def from_convex_hull(cls, convex_hull):
+    def from_convex_hull(cls, convex_hull, color=None):
         points = np.array([
             convex_hull.points[idx]
             for idx in convex_hull.vertices
         ])
-        return cls(points=points)
+        return cls(points=points, color=color)
 
+
+    @property
+    def x_values(self):
+        return self.points[:, 0]
+
+    @property
+    def y_values(self):
+        return self.points[:, 1]
 
     @property
     def points(self):
@@ -126,11 +136,23 @@ class BareHull(object):
         self._segments = segments
         self._i_segments = i_segments
 
+    def render(self, plot_obj=None):
+        (xx,
+         yy) = plot_obj.convert_to_pixel_coords(
+             x=self.points[:, 0],
+             y=self.points[:, 1])
 
-def _path_from_pts(pts, stroke_color='green'):
+        pts = np.array([xx, yy]).transpose()
+        return _path_from_hull(
+            hull=BareHull(points=pts),
+            stroke_color=self.color)
 
-    hull = ConvexHull(pts)
+
+
+def _path_from_hull(hull, stroke_color='green'):
+
     vertices = hull.vertices
+    pts = hull.points
 
     path_code = f'<path d="M {pts[vertices[0], 0]} {pts[vertices[0], 1]} '
     for i_src in range(len(vertices)):
@@ -194,7 +216,6 @@ def _get_ctrl_point(pre, center, post):
 def merge_bare_hulls(
             bare0,
             bare1):
-
     convex0 = ConvexHull(bare0.points)
     convex1 = ConvexHull(bare1.points)
 
@@ -203,7 +224,6 @@ def merge_bare_hulls(
         hull=convex1)
 
     if bare0_in_1.all():
-        print("all of hull0 in hull1")
         return [bare1]
 
     bare1_in_0 = pts_in_hull(
@@ -212,7 +232,6 @@ def merge_bare_hulls(
     )
 
     if bare1_in_0.all():
-        print("all of hull1 in hull0")
         return [bare0]
 
     # find all intersections between the segments in the two
@@ -241,7 +260,6 @@ def merge_bare_hulls(
     # either no intersection, or there is an odd numbe of intersections
     # (which signals an edge case we are not prepared for)
     if n_intersections == 0 or n_intersections %2 == 1:
-        print("no intersections")
         return [bare0, bare1]
 
     all_points = np.concatenate([
@@ -316,6 +334,7 @@ def merge_bare_hulls(
               all_points[idx]
               for idx in final_points
              ]
-            )
+            ),
+            color=bare0.color
         )
     ]

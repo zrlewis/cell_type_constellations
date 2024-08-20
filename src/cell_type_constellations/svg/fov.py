@@ -13,7 +13,8 @@ from cell_type_constellations.svg.connection import (
 
 from cell_type_constellations.svg.hull import (
     Hull,
-    RawHull
+    RawHull,
+    BareHull
 )
 
 import time
@@ -91,7 +92,9 @@ class ConstellationPlot(object):
     def _render_all_hulls(self):
         hull_list = [
             el for el in self.elements
-            if isinstance(el, Hull) or isinstance(el, RawHull)
+            if isinstance(el, Hull)
+            or isinstance(el, RawHull)
+            or isinstance(el, BareHull)
         ]
         hull_code = ""
         for this_hull in hull_list:

@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.spatial import ConvexHull
 import time
 
 from cell_type_constellations.svg.fov import (
@@ -12,10 +13,13 @@ from cell_type_constellations.svg.connection import (
 )
 from cell_type_constellations.svg.hull import (
     Hull,
-    RawHull
+    RawHull,
+    BareHull,
+    merge_bare_hulls
 )
 from cell_type_constellations.svg.hull_utils import (
-    find_smooth_hull_for_clusters
+    find_smooth_hull_for_clusters,
+    merge_hulls
 )
 from cell_type_constellations.cells.cell_set import (
     choose_connections
@@ -198,22 +202,25 @@ def _load_hulls(
 
     t0 = time.time()
     ct = 0
-    for label in constellation_cache.taxonomy_tree.nodes_at_level(taxonomy_level):
-        pts = _get_hull_points(
+
+    label_list = constellation_cache.taxonomy_tree.nodes_at_level(taxonomy_level)
+    n_labels = len(label_list)
+    for label in label_list:
+
+        hull_list = _load_non_leaf_hull(
             constellation_cache=constellation_cache,
             taxonomy_level=taxonomy_level,
-            label=label)
+            label=label
+        )
+        for hull in hull_list:
+            plot_obj.add_element(hull)
 
-        if pts.shape[0] > 2:
-
-            this_hull = RawHull(
-               pts=pts,
-               color=constellation_cache.color_from_label(label)
-            )
-            plot_obj.add_element(this_hull)
         dur = time.time()-t0
         ct += 1
         per = dur/ct
+        pred = per*n_labels
+        print(f'{ct} of {n_labels} in {dur:.2e} seconds '
+              f'predict {pred-dur:.2e} of {pred:.2e} remain')
 
     return plot_obj
 
@@ -278,3 +285,70 @@ def _load_leaf_hulls(
         print(f'{label} after {dur:.2e} ({per:.2e}) ({remain:.2e} left)')
 
     return plot_obj
+
+
+def _load_non_leaf_hull(
+        constellation_cache,
+        taxonomy_level,
+        label):
+
+    color = constellation_cache.color(
+        level=taxonomy_level,
+        label=label,
+        color_by_level=taxonomy_level)
+
+    as_leaves = constellation_cache.taxonomy_tree.as_leaves
+    leaf_hull_lookup = dict()
+    for leaf in as_leaves[taxonomy_level][label]:
+        pts = _get_hull_points(
+            constellation_cache=constellation_cache,
+            taxonomy_level=constellation_cache.taxonomy_tree.leaf_level,
+            label=leaf
+        )
+        if pts.shape[0] > 2:
+            leaf_hull_lookup[leaf] = ConvexHull(pts)
+
+    merged_hull_list = merge_hulls(
+        constellation_cache=constellation_cache,
+        taxonomy_level=taxonomy_level,
+        label=label,
+        leaf_hull_lookup=leaf_hull_lookup)
+
+    bare_hull_list = [
+        BareHull.from_convex_hull(h, color=color)
+        for h in merged_hull_list
+    ]
+
+    del merged_hull_list
+
+    assert color is not None
+    for h in bare_hull_list:
+        assert h.color is not None
+
+    while True:
+        new_hull = None
+        n0 = len(bare_hull_list)
+        has_merged = set()
+        for i0 in range(len(bare_hull_list)):
+            if len(has_merged) > 0:
+                break
+            h0 = bare_hull_list[i0]
+            for i1 in range(i0+1, len(bare_hull_list), 1):
+                h1 = bare_hull_list[i1]
+                merger = merge_bare_hulls(h0, h1)
+                if len(merger) == 1:
+                    new_hull = merger[0]
+                    has_merged.add(i0)
+                    has_merged.add(i1)
+                    break
+        new_hull_list = []
+        if new_hull is not None:
+            new_hull_list.append(new_hull)
+        for ii in range(len(bare_hull_list)):
+            if ii not in has_merged:
+                new_hull_list.append(bare_hull_list[ii])
+        bare_hull_list = new_hull_list
+        if len(bare_hull_list) == n0:
+            break
+
+    return bare_hull_list
