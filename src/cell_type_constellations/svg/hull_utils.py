@@ -128,6 +128,7 @@ def merge_hulls(
 
     keep_going = True
     final_pass = False
+    nn_cutoff = 3
     while keep_going:
         print(f'{len(raw_hull_list)} hulls')
         centroid_array = np.array([
@@ -140,9 +141,7 @@ def merge_hulls(
 
         dsq_array = pairwise_distance_sq(centroid_array)
         if not final_pass:
-            n_cols = len(raw_hull_list)//2
-            if n_cols < 10:
-                n_cols = len(raw_hull_list)
+            n_cols = nn_cutoff
             median_dsq = np.median(dsq_array[:, :n_cols])
 
         mergers = dict()
@@ -153,6 +152,8 @@ def merge_hulls(
                 continue
 
             sorted_i1 = np.argsort(dsq_array[i0, :])
+            if not final_pass:
+                sorted_i1 = sorted_i1[:nn_cutoff]
             for i1 in sorted_i1:
                 if i1 == i0:
                     continue
