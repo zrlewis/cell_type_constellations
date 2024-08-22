@@ -66,7 +66,8 @@ def render_hull_svg(
         taxonomy_level,
         height=800,
         max_radius=20,
-        min_radius=5):
+        min_radius=5,
+        n_limit=None):
 
 
     plot_obj = ConstellationPlot(
@@ -85,7 +86,8 @@ def render_hull_svg(
         constellation_cache=constellation_cache,
         centroid_list=centroid_list,
         plot_obj=plot_obj,
-        taxonomy_level=taxonomy_level
+        taxonomy_level=taxonomy_level,
+        n_limit=n_limit
     )
 
     with open(dst_path, 'w') as dst:
@@ -196,7 +198,8 @@ def _load_hulls(
         constellation_cache,
         centroid_list,
         plot_obj,
-        taxonomy_level):
+        taxonomy_level,
+        n_limit=None):
 
     t0 = time.time()
     ct = 0
@@ -220,6 +223,8 @@ def _load_hulls(
         pred = per*n_labels
         print(f'{ct} of {n_labels} in {dur:.2e} seconds '
               f'predict {pred-dur:.2e} of {pred:.2e} remain')
+        if n_limit is not None and ct >= n_limit:
+            break
 
     return plot_obj
 
