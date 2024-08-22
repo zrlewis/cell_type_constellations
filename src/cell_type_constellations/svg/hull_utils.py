@@ -16,13 +16,14 @@ def find_smooth_hull_for_clusters(
         label,
         taxonomy_level='CCN20230722_CLUS',
         valid_fraction=0.51,
-        max_iterations=100
+        max_iterations=100,
+        verbose=False
     ):
     """
     For finding minimal hull(s) containing mostly cells in a given cluster.
     """
 
-    data = get_test_pts(
+    data = get_pixellized_test_pts(
         constellation_cache=constellation_cache,
         taxonomy_level=taxonomy_level,
         label=label)
@@ -43,12 +44,17 @@ def find_smooth_hull_for_clusters(
 
     true_pos_0 = 0
     false_pos_0 = 0
+    f1_score_0 = 0
     test_hull = None
     hull_0 = None
 
     while True:
         hull_0 = test_hull
-        test_hull = ConvexHull(valid_pts)
+
+        try:
+            test_hull = ConvexHull(valid_pts)
+        except:
+            return hull_0
         in_hull = pts_in_hull(
             pts=test_pts,
             hull=test_hull)
@@ -59,17 +65,14 @@ def find_smooth_hull_for_clusters(
         false_neg = np.logical_and(
                         np.logical_not(in_hull),
                         test_pt_validity).sum()
-        delta_tp = (true_pos - true_pos_0)/true_pos_0
-        delta_fp = (false_pos - false_pos_0)/false_pos_0
 
         f1_score = true_pos/(true_pos+0.5*(false_pos+false_neg))
-        ratio = true_pos/in_hull.sum()
         n_iter += 1
-        #if f1_score >= valid_fraction or n_iter > max_iterations:
-        print(f'n_iter {n_iter} pts {test_hull.points.shape} ratio {ratio:.2e} f1 {f1_score:.2e} '
-        f'delta tp {delta_tp} delta fp {delta_fp} {delta_fp>=10*delta_tp}')
 
-        if delta_fp >= 2.0*delta_tp and true_pos_0 > 0 or delta_tp < -0.01:
+        if verbose:
+            print(f'n_iter {n_iter} pts {test_hull.points.shape} -- '
+                  f'{f1_score_0} -> {f1_score}')
+        if f1_score < f1_score_0 and f1_score > 0.1:
             if hull_0 is None:
                 final_hull = test_hull
             else:
@@ -78,6 +81,7 @@ def find_smooth_hull_for_clusters(
 
         true_pos_0 = true_pos
         false_pos_0 = false_pos
+        f1_score_0 = f1_score
 
         valid_flat = valid_pt_neighbor_array.flatten()
         score = np.logical_and(
@@ -93,15 +97,59 @@ def find_smooth_hull_for_clusters(
         valid_pts = valid_pts[to_keep, :]
         valid_pt_neighbor_array = valid_pt_neighbor_array[to_keep, :]
 
-
-        #centroid = np.mean(valid_pts, axis=0)
-        #dsq_centroid = ((valid_pts-centroid)**2).sum(axis=1)
-        #worst_pt = np.argmax(dsq_centroid)
-        #cut = (dsq_centroid < dsq_centroid[worst_pt]-eps)
-        #valid_pts = valid_pts[cut, :]
-
     return final_hull
 
+
+def get_pixellized_test_pts(
+        constellation_cache,
+        taxonomy_level,
+        label):
+    data = get_test_pts(
+        constellation_cache=constellation_cache,
+        taxonomy_level=taxonomy_level,
+        label=label)
+
+    valid_pts = data['valid_pts']
+    test_pts = data['test_pts']
+    test_pt_validity = data['test_pt_validity']
+
+    xmin = test_pts[:, 0].min()
+    xmax = test_pts[:, 0].max()
+    ymin = test_pts[:, 1].min()
+    ymax = test_pts[:, 1].max()
+
+    resx = (xmax-xmin)/100.0
+    resy = (ymax-ymin)/100.0
+    res = min(resx, resy)
+    resx = res
+    resy = res
+
+    nx = np.round(1+(xmax-xmin)/resx).astype(int)
+    ny = np.round(1+(ymax-ymin)/resy).astype(int)
+
+    grid = np.zeros((nx, ny), dtype=bool)
+    valid_x = np.round((valid_pts[:, 0]-xmin)/resx).astype(int)
+    valid_y = np.round((valid_pts[:, 1]-ymin)/resy).astype(int)
+    grid[valid_x, valid_y] = True
+    valid_idx = np.where(grid)
+
+    valid_pts = np.array(
+        [valid_idx[0]*resx+xmin,
+         valid_idx[1]*resy+ymin]
+    ).transpose()
+
+    test_pts_tuple = np.meshgrid(np.arange(nx), np.arange(ny), indexing='ij')
+    test_pts = np.array([
+        test_pts_tuple[0].flatten()*resx+xmin,
+        test_pts_tuple[1].flatten()*resy+ymin
+    ]).transpose()
+    test_pt_validity = grid.flatten()
+
+    return {
+        'valid_pts': valid_pts,
+        'test_pts': test_pts,
+        'test_pt_validity': test_pt_validity
+    }
 
 def merge_hulls(
         constellation_cache,
@@ -119,7 +167,7 @@ def merge_hulls(
     if len(raw_hull_list) == 0:
         return []
 
-    data = get_test_pts(
+    data = get_pixellized_test_pts(
         constellation_cache=constellation_cache,
         taxonomy_level=taxonomy_level,
         label=label
@@ -273,6 +321,11 @@ def evaluate_merger(
         in_new,
         test_pt_validity
     ).sum()
+
+
+    if tp_new == 0:
+        return None
+
     fn_new = np.logical_and(
         in_all,
         np.logical_and(

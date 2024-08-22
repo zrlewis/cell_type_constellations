@@ -265,14 +265,13 @@ def _load_single_hull(
     leaf_level = constellation_cache.taxonomy_tree.leaf_level
 
     if taxonomy_level == leaf_level:
-        pts = _get_hull_points_from_cache(
-                constellation_cache=constellation_cache,
-                taxonomy_level=leaf_level,
-                label=label
+        convex_hull = find_smooth_hull_for_clusters(
+            constellation_cache=constellation_cache,
+            label=label,
+            taxonomy_level=leaf_level
         )
-        if pts.shape[0] <= 2:
+        if convex_hull is None:
             return None
-        convex_hull = ConvexHull(pts)
         bare_hull = BareHull.from_convex_hull(
             convex_hull=convex_hull,
             color=color)
@@ -287,13 +286,13 @@ def _load_single_hull(
     as_leaves = constellation_cache.taxonomy_tree.as_leaves
     leaf_hull_lookup = dict()
     for leaf in as_leaves[taxonomy_level][label]:
-        pts = _get_hull_points_from_cache(
+        leaf_hull = find_smooth_hull_for_clusters(
             constellation_cache=constellation_cache,
-            taxonomy_level=leaf_level,
-            label=leaf
+            label=leaf,
+            taxonomy_level=leaf_level
         )
-        if pts.shape[0] > 2:
-            leaf_hull_lookup[leaf] = ConvexHull(pts)
+        if leaf_hull is not None:
+            leaf_hull_lookup[leaf] = leaf_hull
 
     merged_hull_list = merge_hulls(
         constellation_cache=constellation_cache,
