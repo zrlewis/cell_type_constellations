@@ -104,6 +104,7 @@ def get_pixellized_test_pts(
         constellation_cache,
         taxonomy_level,
         label):
+
     data = get_test_pts(
         constellation_cache=constellation_cache,
         taxonomy_level=taxonomy_level,
@@ -118,9 +119,20 @@ def get_pixellized_test_pts(
     ymin = test_pts[:, 1].min()
     ymax = test_pts[:, 1].max()
 
-    resx = (xmax-xmin)/100.0
-    resy = (ymax-ymin)/100.0
-    res = min(resx, resy)
+    dd_res = 100000.0
+    resx = dd_res
+    resy = dd_res
+    if valid_pts.shape[0] < 500:
+        dd = np.sort(np.sqrt(pairwise_distance_sq(valid_pts)).flatten())
+        dd_res = np.quantile(dd, 0.1)
+        del dd
+    else:
+        resx = (xmax-xmin)/100.0
+        resy = (ymax-ymin)/100.0
+    res = min(resx, resy, dd_res)
+    print('res ',res,resx,resy,dd_res,valid_pts.shape)
+    
+
     resx = res
     resy = res
 
@@ -144,6 +156,7 @@ def get_pixellized_test_pts(
         test_pts_tuple[1].flatten()*resy+ymin
     ]).transpose()
     test_pt_validity = grid.flatten()
+    print('test_pts ', test_pts.shape)
 
     return {
         'valid_pts': valid_pts,
