@@ -262,16 +262,12 @@ def merge_bare_hulls(
         pts=bare0.points,
         hull=convex1)
 
-    if bare0_in_1.all():
-        return [bare1]
 
     bare1_in_0 = pts_in_hull(
         pts=bare1.points,
         hull=convex0
     )
 
-    if bare1_in_0.all():
-        return [bare0]
 
     # find all intersections between the segments in the two
     # bare hulls
@@ -299,6 +295,11 @@ def merge_bare_hulls(
     # either no intersection, or there is an odd numbe of intersections
     # (which signals an edge case we are not prepared for)
     if n_intersections == 0 or n_intersections %2 == 1:
+        if bare1_in_0.all():
+            return [bare0]
+        elif bare0_in_1.all():
+            return [bare1]
+
         return [bare0, bare1]
 
     all_points = np.concatenate([
