@@ -180,7 +180,7 @@ def merge_hulls(
     if len(raw_hull_list) == 0:
         return []
 
-    data = get_pixellized_test_pts(
+    data = get_test_pts(
         constellation_cache=constellation_cache,
         taxonomy_level=taxonomy_level,
         label=label
