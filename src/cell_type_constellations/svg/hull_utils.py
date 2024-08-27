@@ -84,6 +84,7 @@ def find_smooth_hull_for_clusters(
         f1_score_0 = f1_score
 
         valid_flat = valid_pt_neighbor_array.flatten()
+
         score = np.logical_and(
             in_hull[valid_flat],
             test_pt_validity[valid_flat])
@@ -129,7 +130,7 @@ def get_pixellized_test_pts(
         dd[idx_arr, idx_arr] = dd_max
         dd_min = dd.min(axis=1)
         assert dd_min.shape == (valid_pts.shape[0], )
-        dd_res = np.median(dd_min)
+        dd_res = max(0.01, np.median(dd_min))
         del dd
     else:
         resx = (xmax-xmin)/100.0
