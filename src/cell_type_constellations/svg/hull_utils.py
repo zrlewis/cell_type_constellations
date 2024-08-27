@@ -35,7 +35,7 @@ def find_smooth_hull_for_clusters(
     kd_tree = cKDTree(test_pts)
     valid_pt_neighbor_array = kd_tree.query(
             x=valid_pts,
-            k=20)[1]
+            k=min(20, test_pts.shape[0]))[1]
     del kd_tree
 
     final_hull = None
