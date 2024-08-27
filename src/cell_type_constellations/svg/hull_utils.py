@@ -123,8 +123,13 @@ def get_pixellized_test_pts(
     resx = dd_res
     resy = dd_res
     if valid_pts.shape[0] < 500:
-        dd = np.sort(np.sqrt(pairwise_distance_sq(valid_pts)).flatten())
-        dd_res = np.quantile(dd, 0.1)
+        dd = np.sqrt(pairwise_distance_sq(valid_pts))
+        dd_max = dd.max()
+        idx_arr = np.arange(valid_pts.shape[0], dtype=int)
+        dd[idx_arr, idx_arr] = dd_max
+        dd_min = dd.min(axis=1)
+        assert dd_min.shape == (valid_pts.shape[0], )
+        dd_res = np.median(dd_min)
         del dd
     else:
         resx = (xmax-xmin)/100.0
