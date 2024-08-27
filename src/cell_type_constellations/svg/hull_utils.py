@@ -200,6 +200,7 @@ def merge_hulls(
     min_f1 = 0.0
     nn_cutoff = 2
     while keep_going:
+        print(f'{len(raw_hull_list)} hulls now')
         centroid_array = np.array([
             _get_hull_centroid(h['hull']) for h in raw_hull_list
         ])
