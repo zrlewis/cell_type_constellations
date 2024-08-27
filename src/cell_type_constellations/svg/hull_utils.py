@@ -136,9 +136,7 @@ def get_pixellized_test_pts(
         resx = (xmax-xmin)/100.0
         resy = (ymax-ymin)/100.0
     res = min(resx, resy, dd_res)
-    print('res ',res,resx,resy,dd_res,valid_pts.shape)
     
-
     resx = res
     resy = res
 
@@ -162,7 +160,6 @@ def get_pixellized_test_pts(
         test_pts_tuple[1].flatten()*resy+ymin
     ]).transpose()
     test_pt_validity = grid.flatten()
-    print('test_pts ', test_pts.shape)
 
     return {
         'valid_pts': valid_pts,
@@ -201,7 +198,7 @@ def merge_hulls(
     min_f1 = 0.0
     nn_cutoff = 2
     while keep_going:
-        print(f'{len(raw_hull_list)} hulls now')
+        print(f'    {len(raw_hull_list)} hulls now')
         centroid_array = np.array([
             _get_hull_centroid(h['hull']) for h in raw_hull_list
         ])
