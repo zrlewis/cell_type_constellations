@@ -248,6 +248,9 @@ def _load_single_hull(
         taxonomy_level,
         label):
 
+    if not hasattr(_load_single_hull, '_leaf_hull_cache'):
+        _load_single_hull._leaf_hull_cache = dict()
+
     name = constellation_cache.taxonomy_tree.label_to_name(
         level=taxonomy_level,
         label=label
@@ -265,11 +268,16 @@ def _load_single_hull(
     leaf_level = constellation_cache.taxonomy_tree.leaf_level
 
     if taxonomy_level == leaf_level:
-        convex_hull = find_smooth_hull_for_clusters(
-            constellation_cache=constellation_cache,
-            label=label,
-            taxonomy_level=leaf_level
-        )
+
+        if label not in _load_single_hull._leaf_hull_cache:
+            _hull = find_smooth_hull_for_clusters(
+                constellation_cache=constellation_cache,
+                label=label,
+                taxonomy_level=leaf_level
+            )
+            _load_single_hull._leaf_hull_cache[label] = _hull
+        convex_hull = _load_single_hull._leaf_hull_cache[label]
+
         if convex_hull is None:
             return None
         bare_hull = BareHull.from_convex_hull(
@@ -282,15 +290,19 @@ def _load_single_hull(
             n_cells=n_cells
         )
 
-
     as_leaves = constellation_cache.taxonomy_tree.as_leaves
     leaf_hull_lookup = dict()
     for leaf in as_leaves[taxonomy_level][label]:
-        leaf_hull = find_smooth_hull_for_clusters(
-            constellation_cache=constellation_cache,
-            label=leaf,
-            taxonomy_level=leaf_level
-        )
+
+        if leaf not in _load_single_hull._leaf_hull_cache:
+            _hull = find_smooth_hull_for_clusters(
+                constellation_cache=constellation_cache,
+                label=leaf,
+                taxonomy_level=leaf_level
+            )
+            _load_single_hull._leaf_hull_cache[leaf] = _hull
+        leaf_hull = _load_single_hull._leaf_hull_cache[leaf]
+
         if leaf_hull is not None:
             leaf_hull_lookup[leaf] = leaf_hull
 
