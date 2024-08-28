@@ -113,13 +113,13 @@ def get_pixellized_test_pts(
         label=label)
 
     valid_pts = data['valid_pts']
-    test_pts = data['test_pts']
-    test_pt_validity = data['test_pt_validity']
+    raw_test_pts = data['test_pts']
+    raw_test_pt_validity = data['test_pt_validity']
 
-    xmin = test_pts[:, 0].min()
-    xmax = test_pts[:, 0].max()
-    ymin = test_pts[:, 1].min()
-    ymax = test_pts[:, 1].max()
+    xmin = raw_test_pts[:, 0].min()
+    xmax = raw_test_pts[:, 0].max()
+    ymin = raw_test_pts[:, 1].min()
+    ymax = raw_test_pts[:, 1].max()
 
     dd_res = 100000.0
     resx = dd_res
@@ -163,6 +163,30 @@ def get_pixellized_test_pts(
         test_pts_tuple[1].flatten()*resy+ymin
     ]).transpose()
     test_pt_validity = grid.flatten()
+
+    # add back in the original invalid test points, so that those
+    # pixels get up-weighted in false negative calculations
+
+    test_pts_tuple = np.meshgrid(np.arange(nx), np.arange(ny), indexing='ij')
+    invalid_pts = raw_test_pts[np.logical_not(raw_test_pt_validity), :]
+    grid = np.zeros((nx, ny), dtype=bool)
+    invalid_x = np.round((invalid_pts[:, 0]-xmin)/resx).astype(int)
+    invalid_y = np.round((invalid_pts[:, 1]-ymin)/resy).astype(int)
+    grid[invalid_x, invalid_y] = True
+
+    # if there is a valid point in that pixel, do not add it
+    # as a double-counted invalid point
+    grid[valid_x, valid_y] = False
+
+    invalid_idx = np.where(grid)
+    invalid_pts = np.array(
+        [invalid_idx[0]*resx+xmin,
+         invalid_idx[1]*resy+ymin]
+    ).transpose()
+    test_pts = np.concatenate([test_pts, invalid_pts])
+    test_pt_validity = np.concatenate(
+        [test_pt_validity, np.zeros(invalid_pts.shape[0], dtype=bool)]
+    )
 
     return {
         'valid_pts': valid_pts,
