@@ -31,7 +31,7 @@ def find_smooth_hull_for_clusters(
 
     if not hasattr(find_smooth_hull_for_clusters, '_cache'):
         find_smooth_hull_for_clusters._cache = dict()
-    if taxonomy_level not in find_mooth_hull_for_clusters._cache:
+    if taxonomy_level not in find_smooth_hull_for_clusters._cache:
         find_smooth_hull_for_clusters._cache[taxonomy_level] = dict()
 
     if label not in find_smooth_hull_for_clusters._cache[taxonomy_level]:
@@ -39,7 +39,7 @@ def find_smooth_hull_for_clusters(
             constellation_cache=constellation_cache,
             label=label,
             taxonomy_level=taxonomy_level,
-            valid_fraction=valid_fraciton,
+            valid_fraction=valid_fraction,
             max_iterations=max_iterations,
             verbose=verbose
         )
