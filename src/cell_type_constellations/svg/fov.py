@@ -30,14 +30,16 @@ class ConstellationPlot(object):
             min_radius,
             max_n_cells):
 
+        pixel_buffer = 3*max_radius//2
         self.elements = []
         self._max_radius = max_radius
         self._min_radius = min_radius
         self._max_n_cells = max_n_cells
         self._height = height
         self._origin = None
-        self.pixel_origin = np.array([max_radius, max_radius])
-        self.pixel_extent = np.array([height-2*max_radius, height-2*max_radius])
+        self.pixel_origin = np.array([pixel_buffer, pixel_buffer])
+        self.pixel_extent = np.array([height-2*pixel_buffer,
+                                      height-2*pixel_buffer])
         self.world_origin = None
         self.world_extent = None
 
