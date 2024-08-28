@@ -258,17 +258,6 @@ def merge_bare_hulls(
     convex0 = ConvexHull(bare0.points)
     convex1 = ConvexHull(bare1.points)
 
-    bare0_in_1 = pts_in_hull(
-        pts=bare0.points,
-        hull=convex1)
-
-
-    bare1_in_0 = pts_in_hull(
-        pts=bare1.points,
-        hull=convex0
-    )
-
-
     # find all intersections between the segments in the two
     # bare hulls
     bare0_to_1 = dict()
@@ -295,9 +284,20 @@ def merge_bare_hulls(
     # either no intersection, or there is an odd numbe of intersections
     # (which signals an edge case we are not prepared for)
     if n_intersections == 0 or n_intersections %2 == 1:
+
+        bare1_in_0 = pts_in_hull(
+            pts=bare1.points,
+            hull=convex0
+        )
+
         if bare1_in_0.all():
             return [bare0]
-        elif bare0_in_1.all():
+
+        bare0_in_1 = pts_in_hull(
+            pts=bare0.points,
+            hull=convex1)
+
+        if bare0_in_1.all():
             return [bare1]
 
         return [bare0, bare1]

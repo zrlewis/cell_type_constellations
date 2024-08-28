@@ -71,6 +71,17 @@ def find_smooth_hull_for_clusters(
             test_hull = ConvexHull(valid_pts)
         except:
             return hull_0
+
+        # TO TRY
+        # points that were outside of hull_0 ought still be outside
+        # of new hull (since we are just shrinking the convex hull
+        #
+        # Maybe we only need to re-calculate pts_in_hull for points
+        # that were previously inside the hull
+        #
+        # not 100% sure I've got the geometry right there but it feels
+        # right
+
         in_hull = pts_in_hull(
             pts=test_pts,
             hull=test_hull)
