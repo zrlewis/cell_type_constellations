@@ -27,11 +27,13 @@ class ConstellationPlot(object):
             self,
             height,
             max_radius,
-            min_radius):
+            min_radius,
+            max_n_cells):
 
         self.elements = []
         self._max_radius = max_radius
         self._min_radius = min_radius
+        self._max_n_cells = max_n_cells
         self._height = height
         self._origin = None
         self.pixel_origin = np.array([max_radius, max_radius])
@@ -50,6 +52,10 @@ class ConstellationPlot(object):
     @property
     def min_radius(self):
         return self._min_radius
+
+    @property
+    def max_n_cells(self):
+        return self._max_n_cells
 
     def add_element(self, new_element):
         self.elements.append(new_element)
@@ -152,20 +158,15 @@ class ConstellationPlot(object):
             self.world_origin[1]+self.world_extent[1]
         )
 
-        max_n_cells = max([
-            el.n_cells
-            for el in self.elements
-            if isinstance(el, Centroid)
-        ])
-
         centroid_code = ""
         for el in self.elements:
             if isinstance(el, Centroid):
                 centroid_code += self._render_centroid(
                     centroid=el,
-                    max_n_cells=max_n_cells,
+                    max_n_cells=self.max_n_cells,
                     x_bounds=x_bounds,
                     y_bounds=y_bounds)
+
         return centroid_code
 
     def _render_centroid(
@@ -179,11 +180,11 @@ class ConstellationPlot(object):
         coordinates (i.e. not image coordinates)
         """
 
+        dr = self.max_radius-self.min_radius
         logarithmic_r = np.log2(1.0+centroid.n_cells/max_n_cells)
-        logarithmic_r *= self.max_radius
+        radius = self.min_radius+dr*logarithmic_r
 
-        radius = max(self.min_radius,
-                     logarithmic_r)
+        #print(f'{centroid.n_cells:.2e} cells; {radius:.2e} radius')
 
         color = centroid.color
 

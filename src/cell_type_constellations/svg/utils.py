@@ -38,10 +38,14 @@ def render_connection_svg(
         min_radius=5):
 
 
+    max_cluster_cells = constellation_cache.n_cells_lookup[
+        constellation_cache.taxonomy_tree.leaf_level].max()
+
     plot_obj = ConstellationPlot(
         height=height,
         max_radius=max_radius,
-        min_radius=min_radius)
+        min_radius=min_radius,
+        max_n_cells=max_cluster_cells)
 
     (plot_obj,
      centroid_list) = _load_centroids(
@@ -69,11 +73,14 @@ def render_hull_svg(
         min_radius=5,
         n_limit=None):
 
+    max_cluster_cells = constellation_cache.n_cells_lookup[
+        constellation_cache.taxonomy_tree.leaf_level].max()
 
     plot_obj = ConstellationPlot(
         height=height,
         max_radius=max_radius,
-        min_radius=min_radius)
+        min_radius=min_radius,
+        max_n_cells=max_cluster_cells)
 
     (plot_obj,
      centroid_list) = _load_centroids(
