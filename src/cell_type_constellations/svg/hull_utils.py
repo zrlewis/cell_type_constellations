@@ -275,6 +275,17 @@ def merge_hulls(
     as_leaves = constellation_cache.taxonomy_tree.as_leaves
     leaf_list = as_leaves[taxonomy_level][label]
 
+    return merge_hulls_from_leaf_list(
+        constellation_cache=constellation_cache,
+        leaf_list=leaf_list,
+        leaf_hull_lookup=leaf_hull_lookup)
+
+
+def merge_hulls_from_leaf_list(
+        constellation_cache,
+        leaf_list,
+        leaf_hull_lookup):
+
     raw_hull_list = [
         {'hull': copy.deepcopy(leaf_hull_lookup[leaf])}
         for leaf in leaf_list if leaf in leaf_hull_lookup
@@ -282,7 +293,14 @@ def merge_hulls(
     if len(raw_hull_list) == 0:
         return []
 
-    alias_list = constellation_cache.parentage_to_alias[taxonomy_level][label]
+    alias_list = [
+        int(constellation_cache.taxonomy_tree.label_to_name(
+                level=constellation_cache.taxonomy_tree.leaf_level,
+                label=leaf,
+                name_key='alias')
+            )
+        for leaf in leaf_list
+    ]
 
     data = get_pixellized_test_pts_from_alias_list(
         constellation_cache=constellation_cache,
