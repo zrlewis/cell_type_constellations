@@ -1,9 +1,11 @@
 import h5py
 import json
 import numpy as np
+import os
 import pandas as pd
 import scipy.spatial
 import time
+import tempfile
 
 from cell_type_constellations.cells.utils import (
     get_hull_points
@@ -11,6 +13,14 @@ from cell_type_constellations.cells.utils import (
 
 from cell_type_constellations.taxonomy.taxonomy_tree import (
     TaxonomyTree
+)
+
+from cell_type_constellations.svg.hull_utils import (
+    find_smooth_hull_for_clusters
+)
+
+from cell_type_constellations.cells.data_cache import (
+    ConstellationCache_HDF5
 )
 
 
@@ -54,7 +64,11 @@ class CellSet(object):
         mask = np.zeros(self._cluster_aliases.shape, dtype=bool)
         for alias in alias_array:
             mask[self._cluster_aliases==alias] = True
-        return np.median(self._umap_coords[mask, :], axis=0)
+        pts = self._umap_coords[mask, :]
+        median_pt = np.median(pts, axis=0)
+        ddsq = ((median_pt-pts)**2).sum(axis=1)
+        nn_idx = np.argmin(ddsq)
+        return pts[nn_idx, :]
 
     def n_cells_from_alias_array(self, alias_array):
         mask = np.zeros(self._cluster_aliases.shape, dtype=bool)
@@ -299,6 +313,11 @@ def create_constellation_cache(
         k_nn,
         dst_path):
 
+    temp_path = tempfile.mkstemp(dir='tmp', suffix='.h5')
+    os.close(temp_path[0])
+    temp_path = temp_path[1]
+    print(f'writing temp to {temp_path}')
+
     cell_filter = CellFilter.from_data_release(
         cluster_annotation_path=cluster_annotation_path,
         cluster_membership_path=cluster_membership_path,
@@ -360,29 +379,9 @@ def create_constellation_cache(
             annotation.color_hex_triplet.values)
     }
     del annotation
-
     cluster_alias_array = np.array([int(a) for a in cell_set.cluster_aliases])
-    print(f'=======patching centroids=======')
-    for level in cell_filter.taxonomy_tree.hierarchy:
-        for node in cell_filter.taxonomy_tree.nodes_at_level(level):
 
-            node_idx = cell_filter.idx_from_label(
-                level=level,
-                node=node)
-
-            pts = get_hull_points(
-                taxonomy_level=level,
-                label=node,
-                parentage_to_alias=cell_filter._parentage_to_alias,
-                cluster_aliases=cluster_alias_array,
-                cell_to_nn_aliases=cell_to_nn_aliases,
-                umap_coords=cell_set.umap_coords)
-
-            if pts.shape[0] > 0:
-                centroid_lookup[level][node_idx] = np.median(pts, axis=0)
-        print(f'=======got centroids for {level}=======')
-
-    with h5py.File(dst_path, 'w') as dst:
+    with h5py.File(temp_path, 'w') as dst:
         n_grp = dst.create_group('n_cells')
         mm_grp = dst.create_group('mixture_matrix')
         centroid_grp = dst.create_group('centroid')
@@ -422,6 +421,9 @@ def create_constellation_cache(
                                 (centroid_grp, centroid_lookup)]:
                 grp.create_dataset(level, data=np.array(lookup[level]))
 
+    fix_centroids(temp_path=temp_path, dst_path=dst_path)
+    os.unlink(temp_path)
+
 
 def _get_umap_coords(cell_metadata_path):
 
@@ -458,3 +460,69 @@ def clean_for_json(data):
         }
         return new_data
     return data
+
+
+def fix_centroids(temp_path, dst_path):
+    print("=======final centroid patch=======")
+    new_centroid_lookup = dict()
+    old_cache = ConstellationCache_HDF5(temp_path)
+    taxonomy_tree = old_cache.taxonomy_tree
+
+    as_leaves = taxonomy_tree.as_leaves
+    for level in taxonomy_tree.hierarchy:
+        node_list = taxonomy_tree.nodes_at_level(level)
+        centroid_array = np.zeros((len(node_list), 2), dtype=float)
+        for node_idx, node in enumerate(taxonomy_tree.nodes_at_level(level)):
+            print(f'    {node}')
+            children = as_leaves[level][node]
+            old_centroid = old_cache.centroid_from_label(
+                level=level,
+                label=node
+            )
+            pts = []
+            for child in children:
+                hull = find_smooth_hull_for_clusters(
+                    constellation_cache=old_cache,
+                    label=child,
+                    taxonomy_level=taxonomy_tree.leaf_level,
+                )
+                if hull is not None:
+                    pts.append(hull.points)
+            if len(pts) > 0:
+                pts = np.concatenate(pts)
+                median_pt = np.median(pts, axis=0)
+                ddsq = ((median_pt-pts)**2).sum(axis=1)
+                nn_idx = np.argmin(ddsq)
+                new_centroid = pts[nn_idx, :]
+            else:
+                new_centroid = old_centroid
+            centroid_array[node_idx, :] = new_centroid
+        new_centroid_lookup[level] = centroid_array
+        print(f'======done patching {level}=======')
+
+    del old_cache
+    with h5py.File(temp_path, 'r') as src:
+        with h5py.File(dst_path, 'w') as dst:
+            dst.create_group('n_cells')
+            dst.create_group('mixture_matrix')
+            dst.create_group('centroid')
+            for k0 in src.keys():
+                if isinstance(src[k0], h5py.Dataset):
+                    dst.create_dataset(
+                        k0,
+                        data=src[k0][()]
+                    )
+                else:
+                    if k0 == 'centroid':
+                        continue
+                    for k1 in src[k0]:
+                        dst[k0].create_dataset(
+                            k1,
+                            data=src[k0][k1][()]
+                        )
+            for centroid_k in new_centroid_lookup:
+                dst['centroid'].create_dataset(
+                    centroid_k,
+                    data=new_centroid_lookup[centroid_k])
+
+    print('========copied over cache=========')
