@@ -354,13 +354,24 @@ def merge_bare_hulls(
 
         new_bare_hulls.append(new_hull)
 
-    starting_idx = np.where(np.logical_not(bare0_in_1))[0][0]
+    # find a starting point that is on the outer perimeter of the
+    # ConvexHull created from all_points (to guard against accidentally
+    # staring on a vertex that is part of a hole in the merged
+    # hull)
+    naive_hull = ConvexHull(all_points)
+    starting_idx = None
+    for vertex in naive_hull.vertices:
+        if vertex >= bare0.points.shape[0]:
+            continue
+        starting_idx = vertex
+    assert starting_idx is not None
+
     current_hull = 0
     final_points = [starting_idx]
     final_set = set(final_points)
     while True:
         next_pt = new_bare_hulls[current_hull][final_points[-1]]
-        if next_pt in final_set:
+        if next_pt == final_points[0]:
             break
         final_points.append(next_pt)
         final_set.add(next_pt)
