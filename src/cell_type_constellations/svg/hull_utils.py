@@ -29,6 +29,33 @@ def find_smooth_hull_for_clusters(
     For finding minimal hull(s) containing mostly cells in a given cluster.
     """
 
+    if not hasattr(find_smooth_hull_for_clusters, '_cache'):
+        find_smooth_hull_for_clusters._cache = dict()
+    if taxonomy_level not in find_mooth_hull_for_clusters._cache:
+        find_smooth_hull_for_clusters._cache[taxonomy_level] = dict()
+
+    if label not in find_smooth_hull_for_clusters._cache[taxonomy_level]:
+        _hull = _find_smooth_hull_for_clusters(
+            constellation_cache=constellation_cache,
+            label=label,
+            taxonomy_level=taxonomy_level,
+            valid_fraction=valid_fraciton,
+            max_iterations=max_iterations,
+            verbose=verbose
+        )
+        find_smooth_hull_for_clusters._cache[taxonomy_level][label] = _hull
+    return find_smooth_hull_for_clusters._cache[taxonomy_level][label]
+
+
+def _find_smooth_hull_for_clusters(
+        constellation_cache,
+        label,
+        taxonomy_level='CCN20230722_CLUS',
+        valid_fraction=0.51,
+        max_iterations=100,
+        verbose=False
+    ):
+
     # ignore clusters that have points that are too
     # far separated from each other
     first_pts = _get_hull_points_from_cache(
