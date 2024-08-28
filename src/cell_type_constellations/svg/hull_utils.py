@@ -7,7 +7,8 @@ from scipy.spatial import (
 )
 
 from cell_type_constellations.utils.geometry import (
-    cross_product_2d_bulk
+    cross_product_2d_bulk,
+    pairwise_distance_sq
 )
 
 from cell_type_constellations.cells.cell_set import (
@@ -556,37 +557,6 @@ def _get_pt_edge(
 
 def _get_hull_centroid(hull):
     return np.mean(hull.points, axis=0)
-
-
-def pairwise_distance_sq(points: np.ndarray) -> np.ndarray:
-    """
-    Calculate all of the pairwise distances (squared) between the rows
-    in a np.ndarray
-
-    Parameters
-    ----------
-    points: np.ndarray
-        Shape is (n_points, n_dimensions)
-
-    Returns
-    -------
-    distances: np.ndarray
-        A (n_points, n_points) array. The i,jth element
-        is the Euclidean squared distance between the ith and jth
-        rows of the input points.
-
-    Notes
-    -----
-    As n_points, n_dimensions approach a few thousand, this is
-    several orders of magnitude faster than scipy.distances.cdist
-    """
-    p_dot_p = np.dot(points, points.T)
-    dsq = np.zeros((points.shape[0], points.shape[0]), dtype=float)
-    for ii in range(points.shape[0]):
-        dsq[ii, :] += p_dot_p[ii, ii]
-        dsq[:, ii] += p_dot_p[ii, ii]
-        dsq[ii, :] -= 2.0*p_dot_p[ii, :]
-    return dsq
 
 
 def _get_hull_points_from_cache(

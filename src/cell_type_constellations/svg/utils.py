@@ -26,6 +26,9 @@ from cell_type_constellations.cells.cell_set import (
     choose_connections,
     get_hull_points
 )
+from cell_type_constellations.utils.geometry import (
+    pairwise_distance_sq
+)
 
 
 def render_connection_svg(

@@ -135,3 +135,34 @@ def find_intersection_pt(segment0, segment1):
     bb = segment1[0]-segment0[0]
     soln = np.linalg.solve(mm, bb)
     return segment0[0]+soln[0]*v0
+
+
+def pairwise_distance_sq(points: np.ndarray) -> np.ndarray:
+    """
+    Calculate all of the pairwise distances (squared) between the rows
+    in a np.ndarray
+
+    Parameters
+    ----------
+    points: np.ndarray
+        Shape is (n_points, n_dimensions)
+
+    Returns
+    -------
+    distances: np.ndarray
+        A (n_points, n_points) array. The i,jth element
+        is the Euclidean squared distance between the ith and jth
+        rows of the input points.
+
+    Notes
+    -----
+    As n_points, n_dimensions approach a few thousand, this is
+    several orders of magnitude faster than scipy.distances.cdist
+    """
+    p_dot_p = np.dot(points, points.T)
+    dsq = np.zeros((points.shape[0], points.shape[0]), dtype=float)
+    for ii in range(points.shape[0]):
+        dsq[ii, :] += p_dot_p[ii, ii]
+        dsq[:, ii] += p_dot_p[ii, ii]
+        dsq[ii, :] -= 2.0*p_dot_p[ii, :]
+    return dsq
