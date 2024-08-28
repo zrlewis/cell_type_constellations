@@ -104,7 +104,8 @@ def find_smooth_hull_for_clusters(
 def get_pixellized_test_pts(
         constellation_cache,
         taxonomy_level,
-        label):
+        label,
+        min_res=0.01):
 
     data = get_test_pts(
         constellation_cache=constellation_cache,
@@ -123,20 +124,22 @@ def get_pixellized_test_pts(
     dd_res = 100000.0
     resx = dd_res
     resy = dd_res
-    if valid_pts.shape[0] < 500:
+    if valid_pts.shape[0] < 1000:
         dd = np.sqrt(pairwise_distance_sq(valid_pts))
         dd_max = dd.max()
         idx_arr = np.arange(valid_pts.shape[0], dtype=int)
         dd[idx_arr, idx_arr] = dd_max
         dd_min = dd.min(axis=1)
         assert dd_min.shape == (valid_pts.shape[0], )
-        dd_res = max(0.01, np.median(dd_min))
         del dd
+        dd_res = max(min_res, np.median(dd_min))
     else:
-        resx = (xmax-xmin)/100.0
-        resy = (ymax-ymin)/100.0
+        dd_res = 1000.0
+
+    resx = max(min_res, (xmax-xmin)/100.0)
+    resy = max(min_res, (ymax-ymin)/100.0)
     res = min(resx, resy, dd_res)
-    
+
     resx = res
     resy = res
 
