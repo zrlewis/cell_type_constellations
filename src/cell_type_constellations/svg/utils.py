@@ -16,11 +16,13 @@ from cell_type_constellations.svg.hull import (
     RawHull,
     BareHull,
     CompoundBareHull,
-    merge_bare_hulls
+    merge_bare_hulls,
+    create_compound_bare_hull
 )
 from cell_type_constellations.svg.hull_utils import (
     find_smooth_hull_for_clusters,
-    merge_hulls
+    merge_hulls,
+    merge_hulls_from_leaf_list
 )
 from cell_type_constellations.cells.utils import (
     choose_connections,
@@ -111,6 +113,55 @@ def render_hull_svg(
 
     with open(dst_path, 'w') as dst:
         dst.write(plot_obj.render())
+
+
+def render_neighborhood_svg(
+        dst_path,
+        constellation_cache,
+        centroid_level,
+        neighborhood_assignments,
+        neighborhood_colors,
+        height=800,
+        max_radius=20,
+        min_radius=5,
+        n_limit=None,
+        plot_connections=False):
+
+    max_cluster_cells = constellation_cache.n_cells_lookup[
+        constellation_cache.taxonomy_tree.leaf_level].max()
+
+    plot_obj = ConstellationPlot(
+        height=height,
+        max_radius=max_radius,
+        min_radius=min_radius,
+        max_n_cells=max_cluster_cells)
+
+    (plot_obj,
+     centroid_list) = _load_centroids(
+         constellation_cache=constellation_cache,
+         plot_obj=plot_obj,
+         taxonomy_level=centroid_level,
+         color_by_level='CCN20230722_CLAS')
+
+    plot_obj = _load_neighborhood_hulls(
+        constellation_cache=constellation_cache,
+        centroid_list=centroid_list,
+        plot_obj=plot_obj,
+        neighborhood_assignments=neighborhood_assignments,
+        neighborhood_colors=neighborhood_colors,
+        n_limit=n_limit
+    )
+
+    if plot_connections:
+        plot_obj = _load_connections(
+                constellation_cache=constellation_cache,
+                centroid_list=centroid_list,
+                taxonomy_level=centroid_level,
+                plot_obj=plot_obj)
+
+    with open(dst_path, 'w') as dst:
+        dst.write(plot_obj.render())
+
 
 
 
@@ -339,36 +390,80 @@ def _load_single_hull(
     for h in bare_hull_list:
         assert h.color is not None
 
-    while True:
-        new_hull = None
-        n0 = len(bare_hull_list)
-        has_merged = set()
-        for i0 in range(len(bare_hull_list)):
-            if len(has_merged) > 0:
-                break
-            h0 = bare_hull_list[i0]
-            for i1 in range(i0+1, len(bare_hull_list), 1):
-                h1 = bare_hull_list[i1]
-                merger = merge_bare_hulls(h0, h1)
-                if len(merger) == 1:
-                    new_hull = merger[0]
-                    has_merged.add(i0)
-                    has_merged.add(i1)
-                    break
-        new_hull_list = []
-        if new_hull is not None:
-            new_hull_list.append(new_hull)
-        for ii in range(len(bare_hull_list)):
-            if ii not in has_merged:
-                new_hull_list.append(bare_hull_list[ii])
-        bare_hull_list = new_hull_list
-        if len(bare_hull_list) == n0:
+    return create_compound_bare_hull(
+        bare_hull_list=bare_hull_list,
+        label=label,
+        name=name,
+        n_cells=n_cells)
+
+
+def _load_neighborhood_hulls(
+        constellation_cache,
+        centroid_list,
+        plot_obj,
+        neighborhood_assignments,
+        neighborhood_colors,
+        n_limit=None):
+
+    ct = 0
+    for neighborhood in neighborhood_assignments:
+        if neighborhood == 'WholeBrain':
+            continue
+        print(f'=====loading {neighborhood}=======')
+        leaf_list = neighborhood_assignments[neighborhood]
+        color = neighborhood_colors[neighborhood]
+
+        hull = _load_single_neighborhood(
+            constellation_cache=constellation_cache,
+            leaf_list=leaf_list,
+            color=color,
+            label=neighborhood,
+            name=neighborhood
+        )
+        if hull is not None:
+            plot_obj.add_element(hull)
+
+        ct += 1
+        if n_limit is not None and ct >= n_limit:
             break
 
-    if len(bare_hull_list) == 0:
-        return None
+    return plot_obj
 
-    return CompoundBareHull(
+
+def _load_single_neighborhood(
+        constellation_cache,
+        leaf_list,
+        color,
+        label,
+        name):
+    leaf_level = constellation_cache.taxonomy_tree.leaf_level
+    leaf_lookup = dict()
+    n_cells = 0
+    for leaf in leaf_list:
+        leaf_hull = find_smooth_hull_for_clusters(
+                constellation_cache=constellation_cache,
+                label=leaf,
+                taxonomy_level=leaf_level
+            )
+        if leaf_hull is not None:
+            leaf_lookup[leaf] = leaf_hull
+        n_cells += constellation_cache.n_cells_from_label(
+            level=leaf_level,
+            label=leaf)
+
+    merged_hull_list = merge_hulls_from_leaf_list(
+        constellation_cache=constellation_cache,
+        leaf_list=leaf_list,
+        leaf_hull_lookup=leaf_lookup)
+
+    bare_hull_list = [
+        BareHull.from_convex_hull(h, color=color)
+        for h in merged_hull_list
+    ]
+
+    del merged_hull_list
+
+    return create_compound_bare_hull(
         bare_hull_list=bare_hull_list,
         label=label,
         name=name,

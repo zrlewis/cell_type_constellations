@@ -389,3 +389,45 @@ def merge_bare_hulls(
             color=bare0.color
         )
     ]
+
+
+def create_compound_bare_hull(
+        bare_hull_list,
+        label,
+        name,
+        n_cells):
+
+    while True:
+        new_hull = None
+        n0 = len(bare_hull_list)
+        has_merged = set()
+        for i0 in range(len(bare_hull_list)):
+            if len(has_merged) > 0:
+                break
+            h0 = bare_hull_list[i0]
+            for i1 in range(i0+1, len(bare_hull_list), 1):
+                h1 = bare_hull_list[i1]
+                merger = merge_bare_hulls(h0, h1)
+                if len(merger) == 1:
+                    new_hull = merger[0]
+                    has_merged.add(i0)
+                    has_merged.add(i1)
+                    break
+        new_hull_list = []
+        if new_hull is not None:
+            new_hull_list.append(new_hull)
+        for ii in range(len(bare_hull_list)):
+            if ii not in has_merged:
+                new_hull_list.append(bare_hull_list[ii])
+        bare_hull_list = new_hull_list
+        if len(bare_hull_list) == n0:
+            break
+
+    if len(bare_hull_list) == 0:
+        return None
+
+    return CompoundBareHull(
+        bare_hull_list=bare_hull_list,
+        label=label,
+        name=name,
+        n_cells=n_cells)

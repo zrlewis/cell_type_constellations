@@ -51,6 +51,17 @@ def get_hull_points(
         umap_coords
     ):
     alias_list = parentage_to_alias[taxonomy_level][label]
+    return get_hull_points_from_alias_list(
+        alias_list=alias_list,
+        cluster_aliases=cluster_aliases,
+        cell_to_nn_aliases=cell_to_nn_aliases,
+        umap_coords=umap_coords)
+
+def get_hull_points_from_alias_list(
+        alias_list,
+        cluster_aliases,
+        cell_to_nn_aliases,
+        umap_coords):
     cell_mask = np.zeros(cluster_aliases.shape, dtype=bool)
 
     # which cells are in the desired taxon
