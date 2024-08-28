@@ -229,20 +229,6 @@ def _load_hulls(
     return plot_obj
 
 
-def _get_hull_points_from_cache(
-        constellation_cache,
-        taxonomy_level,
-        label):
-
-    return get_hull_points(
-        taxonomy_level=taxonomy_level,
-        label=label,
-        parentage_to_alias=constellation_cache.parentage_to_alias,
-        cluster_aliases=constellation_cache.cluster_aliases,
-        cell_to_nn_aliases=constellation_cache.cell_to_nn_aliases,
-        umap_coords=constellation_cache.umap_coords)
-
-
 def _load_single_hull(
         constellation_cache,
         taxonomy_level,

@@ -10,6 +10,11 @@ from cell_type_constellations.utils.geometry import (
     cross_product_2d_bulk
 )
 
+from cell_type_constellations.cells.cell_set import (
+    choose_connections,
+    get_hull_points
+)
+
 
 def find_smooth_hull_for_clusters(
         constellation_cache,
@@ -22,6 +27,17 @@ def find_smooth_hull_for_clusters(
     """
     For finding minimal hull(s) containing mostly cells in a given cluster.
     """
+
+    # ignore clusters that have points that are too
+    # far separated from each other
+    first_pts = _get_hull_points_from_cache(
+        constellation_cache=constellation_cache,
+        taxonomy_level=taxonomy_level,
+        label=label)
+
+    if first_pts.shape[0] < 3:
+        return None
+    del first_pts
 
     data = get_pixellized_test_pts(
         constellation_cache=constellation_cache,
@@ -560,3 +576,17 @@ def pairwise_distance_sq(points: np.ndarray) -> np.ndarray:
         dsq[:, ii] += p_dot_p[ii, ii]
         dsq[ii, :] -= 2.0*p_dot_p[ii, :]
     return dsq
+
+
+def _get_hull_points_from_cache(
+        constellation_cache,
+        taxonomy_level,
+        label):
+
+    return get_hull_points(
+        taxonomy_level=taxonomy_level,
+        label=label,
+        parentage_to_alias=constellation_cache.parentage_to_alias,
+        cluster_aliases=constellation_cache.cluster_aliases,
+        cell_to_nn_aliases=constellation_cache.cell_to_nn_aliases,
+        umap_coords=constellation_cache.umap_coords)
