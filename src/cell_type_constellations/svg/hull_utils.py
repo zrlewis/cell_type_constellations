@@ -11,7 +11,7 @@ from cell_type_constellations.utils.geometry import (
     pairwise_distance_sq
 )
 
-from cell_type_constellations.cells.cell_set import (
+from cell_type_constellations.cells.utils import (
     choose_connections,
     get_hull_points
 )
@@ -31,7 +31,7 @@ def find_smooth_hull_for_clusters(
 
     if not hasattr(find_smooth_hull_for_clusters, '_cache'):
         find_smooth_hull_for_clusters._cache = dict()
-    if taxonomy_level not in find_mooth_hull_for_clusters._cache:
+    if taxonomy_level not in find_smooth_hull_for_clusters._cache:
         find_smooth_hull_for_clusters._cache[taxonomy_level] = dict()
 
     if label not in find_smooth_hull_for_clusters._cache[taxonomy_level]:
@@ -39,7 +39,7 @@ def find_smooth_hull_for_clusters(
             constellation_cache=constellation_cache,
             label=label,
             taxonomy_level=taxonomy_level,
-            valid_fraction=valid_fraciton,
+            valid_fraction=valid_fraction,
             max_iterations=max_iterations,
             verbose=verbose
         )
@@ -58,10 +58,14 @@ def _find_smooth_hull_for_clusters(
 
     # ignore clusters that have points that are too
     # far separated from each other
-    first_pts = _get_hull_points_from_cache(
-        constellation_cache=constellation_cache,
+
+    first_pts = get_hull_points(
         taxonomy_level=taxonomy_level,
-        label=label)
+        label=label,
+        parentage_to_alias=constellation_cache.parentage_to_alias,
+        cluster_aliases=constellation_cache.cluster_aliases,
+        cell_to_nn_aliases=constellation_cache.cell_to_nn_aliases,
+        umap_coords=constellation_cache.umap_coords)
 
     if first_pts.shape[0] < 3:
         return None
@@ -584,17 +588,3 @@ def _get_pt_edge(
 
 def _get_hull_centroid(hull):
     return np.mean(hull.points, axis=0)
-
-
-def _get_hull_points_from_cache(
-        constellation_cache,
-        taxonomy_level,
-        label):
-
-    return get_hull_points(
-        taxonomy_level=taxonomy_level,
-        label=label,
-        parentage_to_alias=constellation_cache.parentage_to_alias,
-        cluster_aliases=constellation_cache.cluster_aliases,
-        cell_to_nn_aliases=constellation_cache.cell_to_nn_aliases,
-        umap_coords=constellation_cache.umap_coords)

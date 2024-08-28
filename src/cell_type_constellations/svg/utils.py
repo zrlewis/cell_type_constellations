@@ -22,7 +22,7 @@ from cell_type_constellations.svg.hull_utils import (
     find_smooth_hull_for_clusters,
     merge_hulls
 )
-from cell_type_constellations.cells.cell_set import (
+from cell_type_constellations.cells.utils import (
     choose_connections,
     get_hull_points
 )
