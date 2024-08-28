@@ -67,11 +67,13 @@ def render_connection_svg(
 def render_hull_svg(
         dst_path,
         constellation_cache,
-        taxonomy_level,
+        centroid_level,
+        hull_level,
         height=800,
         max_radius=20,
         min_radius=5,
-        n_limit=None):
+        n_limit=None,
+        plot_connections=False):
 
     max_cluster_cells = constellation_cache.n_cells_lookup[
         constellation_cache.taxonomy_tree.leaf_level].max()
@@ -86,16 +88,23 @@ def render_hull_svg(
      centroid_list) = _load_centroids(
          constellation_cache=constellation_cache,
          plot_obj=plot_obj,
-         taxonomy_level=constellation_cache.taxonomy_tree.leaf_level,
-         color_by_level=taxonomy_level)
+         taxonomy_level=centroid_level,
+         color_by_level=hull_level)
 
     plot_obj = _load_hulls(
         constellation_cache=constellation_cache,
         centroid_list=centroid_list,
         plot_obj=plot_obj,
-        taxonomy_level=taxonomy_level,
+        taxonomy_level=hull_level,
         n_limit=n_limit
     )
+
+    if plot_connections:
+        plot_obj = _load_connections(
+                constellation_cache=constellation_cache,
+                centroid_list=centroid_list,
+                taxonomy_level=centroid_level,
+                plot_obj=plot_obj)
 
     with open(dst_path, 'w') as dst:
         dst.write(plot_obj.render())
@@ -211,15 +220,26 @@ def _load_hulls(
     t0 = time.time()
     ct = 0
 
+    if not hasattr(_load_hulls, "_hull_cache"):
+        _load_hulls._hull_cache = dict()
+
+    if taxonomy_level not in _load_hulls._hull_cache:
+        _load_hulls._hull_cache[taxonomy_level] = dict()
+
     label_list = constellation_cache.taxonomy_tree.nodes_at_level(taxonomy_level)
     n_labels = len(label_list)
     for label in label_list:
 
-        hull = _load_single_hull(
-            constellation_cache=constellation_cache,
-            taxonomy_level=taxonomy_level,
-            label=label
-        )
+        if label not in _load_hulls._hull_cache[taxonomy_level]:
+
+            _hull = _load_single_hull(
+                constellation_cache=constellation_cache,
+                taxonomy_level=taxonomy_level,
+                label=label
+            )
+            _load_hulls._hull_cache[taxonomy_level][label] = _hull
+
+        hull = _load_hulls._hull_cache[taxonomy_level][label]
 
         if hull is not None:
             plot_obj.add_element(hull)
