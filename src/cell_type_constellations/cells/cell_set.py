@@ -50,11 +50,7 @@ class CellSet(object):
         mask = np.zeros(self._cluster_aliases.shape, dtype=bool)
         for alias in alias_array:
             mask[self._cluster_aliases==alias] = True
-        pts = self._umap_coords[mask, :]
-        median_pt = np.median(pts, axis=0)
-        ddsq = ((median_pt-pts)**2).sum(axis=1)
-        nn_idx = np.argmin(ddsq)
-        return pts[nn_idx, :]
+        return np.median(self._umap_coords[mask, :], axis=0)
 
     def n_cells_from_alias_array(self, alias_array):
         mask = np.zeros(self._cluster_aliases.shape, dtype=bool)
@@ -379,13 +375,7 @@ def create_constellation_cache(
                 umap_coords=cell_set.umap_coords)
 
             if pts.shape[0] > 0:
-                median_pt = np.median(pts, axis=0)
-
-                # pick nearest actual point as centroid
-                ddsq = ((median_pt-pts)**2).sum(axis=1)
-                nn_idx = np.argmin(ddsq[0, :])
-
-                centroid_lookup[level][node_idx] = pts[nn_idx, :]
+                centroid_lookup[level][node_idx] = np.median(pts, axis=0)
         print(f'=======got centroids for {level}=======')
 
     with h5py.File(dst_path, 'w') as dst:
