@@ -80,8 +80,14 @@ def _are_colinear(segment0, segment1):
 
         v0 = triple[1]-triple[0]
         v1 = triple[2]-triple[1]
-        v0 = v0/np.sqrt((v0**2).sum())
-        v1 = v1/np.sqrt((v1**2).sum())
+        n0 = np.sqrt((v0**2).sum())
+        if n0 == 0.0:
+            n0 = 1.0
+        n1 = np.sqrt((v1**2).sum())
+        if n1 == 0.0:
+            n1 = 1.0
+        v0 = v0/n0
+        v1 = v1/n1
         if np.abs(np.dot(v0, v1))<(1.0-eps):
             return False
     return True
