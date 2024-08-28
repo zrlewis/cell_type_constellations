@@ -78,14 +78,6 @@ def render_hull_svg(
         n_limit=None,
         plot_connections=False):
 
-    valid_label_set = None
-    if n_limit is not None and hull_level != centroid_level:
-        valid_label_set = set()
-        for parent in constellation_cache.taxonomy_tree.nodes_at_level(hull_level)[:n_limit]:
-            children = constellation_cache.taxonomy_tree.children(level=hull_level, node=parent)
-            for child in children:
-                valid_label_set.add(child)
-
     max_cluster_cells = constellation_cache.n_cells_lookup[
         constellation_cache.taxonomy_tree.leaf_level].max()
 
@@ -100,8 +92,7 @@ def render_hull_svg(
          constellation_cache=constellation_cache,
          plot_obj=plot_obj,
          taxonomy_level=centroid_level,
-         color_by_level=hull_level,
-         valid_label_set=valid_label_set)
+         color_by_level=hull_level)
 
     plot_obj = _load_hulls(
         constellation_cache=constellation_cache,
@@ -127,38 +118,17 @@ def _load_centroids(
         constellation_cache,
         plot_obj,
         taxonomy_level,
-        color_by_level,
-        valid_label_set=None):
-
-    as_leaves = constellation_cache.taxonomy_tree.as_leaves
+        color_by_level):
 
     centroid_list = []
     for label in constellation_cache.labels(taxonomy_level):
-        if valid_label_set is not None:
-            if label not in valid_label_set:
-                continue
-
-        leaf_points = np.concatenate(
-            [
-                find_smooth_hull_for_clusters(
-                    constellation_cache=constellation_cache,
-                    label=leaf,
-                    taxonomy_level=constellation_cache.taxonomy_tree.leaf_level,
-                    verbose=False).points
-                for leaf in as_leaves[taxonomy_level][label]
-            ]
-        )
 
         name = constellation_cache.taxonomy_tree.label_to_name(
             level=taxonomy_level, label=label)
 
-        median_point = constellation_cache.centroid_from_label(
+        xy = constellation_cache.centroid_from_label(
             level=taxonomy_level,
             label=label)
-
-        ddsq = ((median_point-leaf_points)**2).sum(axis=1)
-        nn_idx = np.argmin(dsq)
-        xy = leaf_points[nn_idx]
 
         color = constellation_cache.color(
             level=taxonomy_level,
