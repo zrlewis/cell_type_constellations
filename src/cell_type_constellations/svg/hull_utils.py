@@ -166,10 +166,22 @@ def get_pixellized_test_pts(
         label,
         min_res=0.01):
 
-    data = get_test_pts(
+    alias_list = constellation_cache.parentage_to_alias[taxonomy_level][label]
+
+    return get_pixellized_test_pts_from_alias_list(
         constellation_cache=constellation_cache,
-        taxonomy_level=taxonomy_level,
-        label=label)
+        alias_list=alias_list,
+        min_res=min_res)
+
+
+def get_pixellized_test_pts_from_alias_list(
+        constellation_cache,
+        alias_list,
+        min_res=0.01):
+
+    data = get_test_pts_from_alias_list(
+        constellation_cache=constellation_cache,
+        alias_list=alias_list)
 
     valid_pts = data['valid_pts']
     raw_test_pts = data['test_pts']
@@ -253,6 +265,7 @@ def get_pixellized_test_pts(
         'test_pt_validity': test_pt_validity
     }
 
+
 def merge_hulls(
         constellation_cache,
         taxonomy_level,
@@ -269,10 +282,11 @@ def merge_hulls(
     if len(raw_hull_list) == 0:
         return []
 
-    data = get_pixellized_test_pts(
+    alias_list = constellation_cache.parentage_to_alias[taxonomy_level][label]
+
+    data = get_pixellized_test_pts_from_alias_list(
         constellation_cache=constellation_cache,
-        taxonomy_level=taxonomy_level,
-        label=label
+        alias_list=alias_list
     )
 
     test_pts = data['test_pts']
@@ -468,6 +482,16 @@ def get_test_pts(
         label):
 
     alias_list = constellation_cache.parentage_to_alias[taxonomy_level][label]
+
+    return get_test_pts_from_alias_list(
+        constellation_cache=constellation_cache,
+        alias_list=alias_list)
+
+
+def get_test_pts_from_alias_list(
+        constellation_cache,
+        alias_list):
+
     alias_set = set(alias_list)
     valid_pt_mask = np.zeros(constellation_cache.cluster_aliases.shape,
                              dtype=bool)
