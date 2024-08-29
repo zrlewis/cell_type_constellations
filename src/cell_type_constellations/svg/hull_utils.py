@@ -1,5 +1,6 @@
 import copy
 import numpy as np
+import time
 
 from scipy.spatial import (
     ConvexHull,
@@ -31,6 +32,8 @@ def find_smooth_hull_for_clusters(
 
     if not hasattr(find_smooth_hull_for_clusters, '_cache'):
         find_smooth_hull_for_clusters._cache = dict()
+        find_smooth_hull_for_clusters.t0 = time.time()
+
     if taxonomy_level not in find_smooth_hull_for_clusters._cache:
         find_smooth_hull_for_clusters._cache[taxonomy_level] = dict()
 
@@ -44,6 +47,13 @@ def find_smooth_hull_for_clusters(
             verbose=verbose
         )
         find_smooth_hull_for_clusters._cache[taxonomy_level][label] = _hull
+        if verbose:
+            dur = time.time()-find_smooth_hull_for_clusters.t0
+            n = len(find_smooth_hull_for_clusters._cache[taxonomy_level])
+            per = dur / n
+            print(
+                f'    loaded {n} clusters in {dur:.2e} -- {per:.2e}'
+            )
     return find_smooth_hull_for_clusters._cache[taxonomy_level][label]
 
 
@@ -55,6 +65,9 @@ def _find_smooth_hull_for_clusters(
         max_iterations=100,
         verbose=False
     ):
+
+    if verbose:
+        print(f'    loading {taxonomy_level}::{label}')
 
     # ignore clusters that have points that are too
     # far separated from each other
@@ -156,6 +169,9 @@ def _find_smooth_hull_for_clusters(
         to_keep[score==worst_value] = False
         valid_pts = valid_pts[to_keep, :]
         valid_pt_neighbor_array = valid_pt_neighbor_array[to_keep, :]
+
+    if verbose:
+        print(f'    done with {taxonomy_level}::{label}')
 
     return final_hull
 

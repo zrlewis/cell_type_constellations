@@ -524,6 +524,7 @@ def fix_centroids(temp_path, dst_path):
                     constellation_cache=old_cache,
                     label=child,
                     taxonomy_level=taxonomy_tree.leaf_level,
+                    verbose=True
                 )
                 if hull is not None:
                     pts.append(hull.points)
