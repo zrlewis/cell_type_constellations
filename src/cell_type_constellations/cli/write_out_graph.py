@@ -1,5 +1,6 @@
 import argparse
 
+import numpy as np
 import pandas as pd
 import pathlib
 
@@ -30,6 +31,12 @@ def main():
         action='store_true',
         help='Overwrite files if they exist'
     )
+    parser.add_argument(
+        '--suffix',
+        type=str,
+        default=None,
+        help='Suffix appended to names of written files'
+    )
     args = parser.parse_args()
 
     if args.src_path is None:
@@ -48,9 +55,21 @@ def main():
 
     data_cache = ConstellationCache_HDF5(src_path)
 
-    node_path = dst_dir / 'nodes.csv'
+    node_name = 'nodes.csv'
+    if args.suffix is not None:
+        node_name = node_name.replace('.csv', f'_{args.suffix}.csv')
+    node_path = dst_dir / node_name
     write_out_nodes(
         dst_path=node_path,
+        data_cache=data_cache,
+        clobber=args.clobber)
+
+    edge_name = 'edges.csv'
+    if args.suffix is not None:
+        edge_name = edge_name.replace('.csv', f'_{args.suffix}.csv')
+    edge_path = dst_dir / edge_name
+    write_out_edges(
+        dst_path=edge_path,
         data_cache=data_cache,
         clobber=args.clobber)
 
@@ -100,10 +119,40 @@ def write_out_nodes(
                 'centroid_y': centroid[1]
             }
             data.append(datum)
-    data = pd.DataFrame(data).to_csv(dst_path, index=False)
+    pd.DataFrame(data).to_csv(dst_path, index=False)
     print(f'====wrote {dst_path}====')
     
 
+def write_out_edges(
+        dst_path,
+        data_cache,
+        clobber=False):
+    dst_path = pathlib.Path(dst_path)
+    if dst_path.exists():
+        if not clobber:
+            raise RuntimeError(f'{dst_path} exists already')
+        print(f'====overwriting {dst_path}====')
+
+    taxonomy_tree = data_cache.taxonomy_tree
+
+    data = []
+    for level in taxonomy_tree.hierarchy:
+        mixture_matrix = data_cache.mixture_matrix_from_level(level)
+        nonzero = np.where(mixture_matrix>0)
+        label_list = data_cache.labels(level)
+        for i0, i1 in zip(nonzero[0], nonzero[1]):
+            if i0 == i1:
+                continue
+            node0 = label_list[i0]
+            node1 = label_list[i1]
+            datum = {
+                'src': node0,
+                'dst': node1,
+                'cross_taxon_neighbors': mixture_matrix[i0, i1]
+            }
+            data.append(datum)
+    pd.DataFrame(data).to_csv(dst_path, index=False)
+    print(f'====wrote {dst_path}====')
 
 
 if __name__ == "__main__":
