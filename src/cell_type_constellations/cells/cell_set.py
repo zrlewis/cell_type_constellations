@@ -338,6 +338,16 @@ def _create_constellation_cache(
         k_nn,
         dst_path,
         tmp_dir):
+
+    config = {
+        'cell_metadata_path': str(cell_metadata_path),
+        'cluster_annotation_path': str(cluster_annotation_path),
+        'cluster_membership_path': str(cluster_membership_path),
+        'hierarchy': hierarchy,
+        'k_nn': int(k_nn)
+    }
+    json.dumps(config)
+
     temp_path = tempfile.mkstemp(dir=tmp_dir, suffix='.h5')
     os.close(temp_path[0])
     temp_path = temp_path[1]
@@ -410,6 +420,10 @@ def _create_constellation_cache(
         n_grp = dst.create_group('n_cells')
         mm_grp = dst.create_group('mixture_matrix')
         centroid_grp = dst.create_group('centroid')
+        dst.create_dataset(
+            'config',
+            data=json.dumps(config).encode('utf-8')
+        )
         dst.create_dataset(
             'idx_to_label',
             data=json.dumps(idx_to_label).encode('utf-8'))
