@@ -7,6 +7,9 @@ import scipy.spatial
 import time
 import tempfile
 
+from cell_type_constellations.utils.data import (
+    _clean_up
+)
 from cell_type_constellations.cells.utils import (
     get_hull_points
 )
@@ -311,9 +314,31 @@ def create_constellation_cache(
         cluster_membership_path,
         hierarchy,
         k_nn,
-        dst_path):
+        dst_path,
+        tmp_dir=None):
 
-    temp_path = tempfile.mkstemp(dir='tmp', suffix='.h5')
+    tmp_dir = tempfile.mkdtemp(dir=tmp_dir)
+    try:
+        _create_constellation_cache(
+            cell_metadata_path=cell_metadata_path,
+            cluster_annotation_path=cluster_annotation_path,
+            cluster_membership_path=cluster_membership_path,
+            hierarchy=hierarchy,
+            k_nn=k_nn,
+            dst_path=dst_path,
+            tmp_dir=tmp_dir)
+    finally:
+        _clean_up(tmp_dir)
+
+def _create_constellation_cache(
+        cell_metadata_path,
+        cluster_annotation_path,
+        cluster_membership_path,
+        hierarchy,
+        k_nn,
+        dst_path,
+        tmp_dir):
+    temp_path = tempfile.mkstemp(dir=tmp_dir, suffix='.h5')
     os.close(temp_path[0])
     temp_path = temp_path[1]
     print(f'writing temp to {temp_path}')
