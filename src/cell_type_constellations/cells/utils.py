@@ -4,7 +4,26 @@ def choose_connections(
         mixture_matrix,
         n_cells,
         k_nn):
+    """
+    Parameters
+    ----------
+    mixture_matrix:
+        A (n_taxons, n_taxons) matrix of integers indicating
+        how many cross-taxon neighbor connections there are at
+        this level of the taxonomy
+    n_cells:
+        A (n_taxons,) array indicating how many cells are in each
+        taxon at this level of the taxonomy
+    k_nn:
+        An integer. The number of nearest neighbors that were used
+        in calculating mixture_matrix
 
+    Returns
+    -------
+    valid:
+        A (n_taxons, n_taxons) array of booleans indicating which
+        connections ought to be kept.
+    """
     if mixture_matrix.shape != (n_cells.shape[0], n_cells.shape[0]):
         raise RuntimeError(
              f"mixture matrix shape: {mixture_matrix.shape}\n"
