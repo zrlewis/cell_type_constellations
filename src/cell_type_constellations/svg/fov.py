@@ -93,7 +93,7 @@ class ConstellationPlot(object):
         centroid_code = self._render_all_centroids()
         connection_code = self._render_all_connections()
         hull_code = self._render_all_hulls()
-        result = connection_code + hull_code + centroid_code
+        result = hull_code + connection_code + centroid_code
 
         return result
 

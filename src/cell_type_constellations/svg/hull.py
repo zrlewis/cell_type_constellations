@@ -136,7 +136,7 @@ class BareHull(object):
         self._segments = segments
         self._i_segments = i_segments
 
-    def render(self, plot_obj=None):
+    def render(self, plot_obj=None, fill=False):
         (xx,
          yy) = plot_obj.convert_to_pixel_coords(
              x=self.points[:, 0],
@@ -145,7 +145,8 @@ class BareHull(object):
         pts = np.array([xx, yy]).transpose()
         return _path_from_hull(
             hull=BareHull(points=pts),
-            stroke_color=self.color)
+            stroke_color=self.color,
+            fill=fill)
 
 
 class CompoundBareHull(object):
@@ -155,12 +156,14 @@ class CompoundBareHull(object):
             bare_hull_list,
             label=None,
             name=None,
-            n_cells=None):
+            n_cells=None,
+            fill=False):
 
         self.label = label
         self.name = name
         self.bare_hull_list = bare_hull_list
         self.n_cells = n_cells
+        self.fill=fill
 
 
     @property
@@ -181,14 +184,18 @@ class CompoundBareHull(object):
         )
         result = f"""    <a href="{url}">\n"""
         for hull in self.bare_hull_list:
-            result += hull.render(plot_obj=plot_obj)
+            result += hull.render(plot_obj=plot_obj, fill=self.fill)
         result += """        <title>\n"""
         result += f"""        {self.name}: {self.n_cells:.2e} cells\n"""
         result += """        </title>\n"""
         result += "    </a>\n"
         return result
 
-def _path_from_hull(hull, stroke_color='green'):
+def _path_from_hull(hull, stroke_color='green', fill=False):
+    if fill:
+        fill_color = stroke_color
+    else:
+        file_color = transparent
 
     vertices = hull.vertices
     pts = hull.points
@@ -223,7 +230,7 @@ def _path_from_hull(hull, stroke_color='green'):
             f"{dst[0]} {dst[1]} "
         )
 
-    path_code += f'" stroke="{stroke_color}" fill="transparent" />\n'
+    path_code += f'" stroke="{stroke_color}" fill="{fill_color}" fill-opacity="0.1"/>\n'
 
     return path_code
 
@@ -395,7 +402,8 @@ def create_compound_bare_hull(
         bare_hull_list,
         label,
         name,
-        n_cells):
+        n_cells,
+        fill=False):
 
     while True:
         new_hull = None
@@ -430,4 +438,5 @@ def create_compound_bare_hull(
         bare_hull_list=bare_hull_list,
         label=label,
         name=name,
-        n_cells=n_cells)
+        n_cells=n_cells,
+        fill=fill)

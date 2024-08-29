@@ -467,4 +467,5 @@ def _load_single_neighborhood(
         bare_hull_list=bare_hull_list,
         label=label,
         name=name,
-        n_cells=n_cells)
+        n_cells=n_cells,
+        fill=True)
