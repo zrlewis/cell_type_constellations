@@ -319,7 +319,11 @@ def _load_hulls(
 def _load_single_hull(
         constellation_cache,
         taxonomy_level,
-        label):
+        label,
+        verbose=False):
+
+    if verbose:
+        print('in _load_single_hull')
 
     if not hasattr(_load_single_hull, '_leaf_hull_cache'):
         _load_single_hull._leaf_hull_cache = dict()
@@ -365,7 +369,12 @@ def _load_single_hull(
 
     as_leaves = constellation_cache.taxonomy_tree.as_leaves
     leaf_hull_lookup = dict()
-    for leaf in as_leaves[taxonomy_level][label]:
+    if verbose:
+        print('loading leaves')
+    for i_leaf, leaf in enumerate(as_leaves[taxonomy_level][label]):
+        if verbose:
+            print(f'    {leaf} -- '
+                  f'{i_leaf} of {len(as_leaves[taxonomy_level][label])}')
 
         if leaf not in _load_single_hull._leaf_hull_cache:
             _hull = find_smooth_hull_for_clusters(
@@ -378,6 +387,9 @@ def _load_single_hull(
 
         if leaf_hull is not None:
             leaf_hull_lookup[leaf] = leaf_hull
+
+    if verbose:
+        print('merging convex hulls')
 
     merged_hull_list = merge_hulls(
         constellation_cache=constellation_cache,
