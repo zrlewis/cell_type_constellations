@@ -353,8 +353,7 @@ def merge_hulls_from_leaf_list(
         been_merged = set()
         idx_list = np.argsort(area_array)[-1::-1]
         for i0 in idx_list:
-            if final_pass and len(mergers) > 0:
-                break
+
             if i0 in been_merged:
                 continue
 
