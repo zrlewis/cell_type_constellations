@@ -351,10 +351,11 @@ def merge_hulls_from_leaf_list(
 
         mergers = dict()
         been_merged = set()
+        skip_anyway = set()
         idx_list = np.argsort(area_array)[-1::-1]
         for i0 in idx_list:
 
-            if i0 in been_merged:
+            if i0 in been_merged or i0 in skip_anyway:
                 continue
 
             sorted_i1 = np.argsort(dsq_array[i0, :])
@@ -364,7 +365,7 @@ def merge_hulls_from_leaf_list(
                 if i1 == i0:
                     continue
 
-                if i1 in been_merged:
+                if i1 in been_merged or i1 in skip_anyway:
                     continue
 
                 if not final_pass:
@@ -383,6 +384,14 @@ def merge_hulls_from_leaf_list(
                     mergers[i0] = new_hull
                     been_merged.add(i0)
                     been_merged.add(i1)
+
+                    if final_pass:
+                        # do not further consider hulls
+                        # who would have been nearest neighbors
+                        # of this hull
+                        for alt_i1 in sorted_i1[:nn_cutoff+1]:
+                            skip_anyway.add(alt_i1)
+
                     break
 
         if len(mergers) == 0:
