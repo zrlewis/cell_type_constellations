@@ -108,6 +108,7 @@ def _find_smooth_hull_for_clusters(
     f1_score_0 = 0
     test_hull = None
     hull_0 = None
+    in_hull = None
 
     while True:
         hull_0 = test_hull
@@ -117,19 +118,21 @@ def _find_smooth_hull_for_clusters(
         except:
             return hull_0
 
-        # TO TRY
-        # points that were outside of hull_0 ought still be outside
-        # of new hull (since we are just shrinking the convex hull
-        #
-        # Maybe we only need to re-calculate pts_in_hull for points
-        # that were previously inside the hull
-        #
-        # not 100% sure I've got the geometry right there but it feels
-        # right
+        if in_hull is None:
+            in_hull = pts_in_hull(
+                pts=test_pts,
+                hull=test_hull)
+        else:
+            # Points that were outside of hull_0 ought still be outside
+            # of new hull (since we are just shrinking the convex hull.
+            # We only need to re-calculate pts_in_hull for points
+            # that were previously inside the hull
 
-        in_hull = pts_in_hull(
-            pts=test_pts,
-            hull=test_hull)
+            in_hull[in_hull] = pts_in_hull(
+                pts=test_pts[in_hull],
+                hull=test_hull
+            )
+
         true_pos = np.logical_and(in_hull, test_pt_validity).sum()
         false_pos = np.logical_and(
                         in_hull,
