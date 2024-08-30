@@ -39,6 +39,7 @@ def render_connection_svg(
         taxonomy_level,
         color_by_level,
         height=800,
+        width=800,
         max_radius=20,
         min_radius=5):
 
@@ -48,6 +49,7 @@ def render_connection_svg(
 
     plot_obj = ConstellationPlot(
         height=height,
+        width=width,
         max_radius=max_radius,
         min_radius=min_radius,
         max_n_cells=max_cluster_cells)
@@ -75,6 +77,7 @@ def render_hull_svg(
         centroid_level,
         hull_level,
         height=800,
+        width=800,
         max_radius=20,
         min_radius=5,
         n_limit=None,
@@ -85,6 +88,7 @@ def render_hull_svg(
 
     plot_obj = ConstellationPlot(
         height=height,
+        width=width,
         max_radius=max_radius,
         min_radius=min_radius,
         max_n_cells=max_cluster_cells)
@@ -122,6 +126,7 @@ def render_neighborhood_svg(
         neighborhood_assignments,
         neighborhood_colors,
         height=800,
+        width=800,
         max_radius=20,
         min_radius=5,
         n_limit=None,
@@ -132,6 +137,7 @@ def render_neighborhood_svg(
 
     plot_obj = ConstellationPlot(
         height=height,
+        width=width,
         max_radius=max_radius,
         min_radius=min_radius,
         max_n_cells=max_cluster_cells)
