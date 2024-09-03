@@ -93,6 +93,31 @@ def _find_smooth_hull_for_clusters(
     test_pts = data['test_pts']
     test_pt_validity = data['test_pt_validity']
 
+    print(f'all pixellized valid_pts {valid_pts.shape}')
+
+    mask = np.logical_and(
+        valid_pts[:, 1] < 35.0,
+        np.logical_and(
+            valid_pts[:, 1] > 30.0,
+            np.logical_and(
+                valid_pts[:, 0] < 76.0,
+                valid_pts[:, 0] > 70.0
+            )
+        )
+    )
+    print(f'in window {mask.sum()}')
+    mask = np.logical_and(
+        test_pts[:, 1] < 35.0,
+        np.logical_and(
+            test_pts[:, 1] > 30.0,
+            np.logical_and(
+                test_pts[:, 0] < 76.0,
+                test_pts[:, 0] > 70.0
+            )
+        )
+    )
+    print(f'test_pts in window {mask.sum()}')
+
     kd_tree = cKDTree(test_pts)
     valid_pt_neighbor_array = kd_tree.query(
             x=valid_pts,
@@ -203,6 +228,20 @@ def get_pixellized_test_pts_from_alias_list(
         alias_list=alias_list)
 
     valid_pts = data['valid_pts']
+    print(f'all valid_pts {valid_pts.shape}')
+
+    mask = np.logical_and(
+        valid_pts[:, 1] < 35.0,
+        np.logical_and(
+            valid_pts[:, 1] > 30.0,
+            np.logical_and(
+                valid_pts[:, 0] < 76.0,
+                valid_pts[:, 0] > 70.0
+            )
+        )
+    )
+    print(f'in window {mask.sum()}')
+
     raw_test_pts = data['test_pts']
     raw_test_pt_validity = data['test_pt_validity']
 
