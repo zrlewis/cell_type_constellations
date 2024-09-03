@@ -132,23 +132,24 @@ def _find_smooth_hull_for_clusters(
     false_pos_0 = 0
     f1_score_0 = 0
     test_hull = None
-    hull_0 = None
+    hull_best = None
+    f1_best = None
     in_hull = None
+    n_decrease = 0
 
     while True:
-        hull_0 = test_hull
 
         try:
             test_hull = ConvexHull(valid_pts)
         except:
-            return hull_0
+            return hull_best
 
         if in_hull is None:
             in_hull = pts_in_hull(
                 pts=test_pts,
                 hull=test_hull)
         else:
-            # Points that were outside of hull_0 ought still be outside
+            # Points that were outside of hull_best ought still be outside
             # of new hull (since we are just shrinking the convex hull.
             # We only need to re-calculate pts_in_hull for points
             # that were previously inside the hull
@@ -167,17 +168,23 @@ def _find_smooth_hull_for_clusters(
                         test_pt_validity).sum()
 
         f1_score = true_pos/(true_pos+0.5*(false_pos+false_neg))
+
+        if f1_best is None or f1_score > f1_best:
+            f1_best = f1_score
+            hull_best = test_hull
+            n_decrease = 0
+        if f1_score < f1_score_0:
+            n_decrease += 1
+
         n_iter += 1
 
         if verbose:
-            print(f'n_iter {n_iter} pts {test_hull.points.shape} -- '
+            print(f'n_iter {n_iter} n_decrease {n_decrease} pts {test_hull.points.shape} -- '
                   f'{f1_score_0} -> {f1_score}')
-        if f1_score < f1_score_0 and f1_score > 0.1:
-            if hull_0 is None:
-                final_hull = test_hull
-            else:
-                final_hull = hull_0
-            break
+
+        if n_decrease >= 5:
+            return hull_best
+
 
         true_pos_0 = true_pos
         false_pos_0 = false_pos
