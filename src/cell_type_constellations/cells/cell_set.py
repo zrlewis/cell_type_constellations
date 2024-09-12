@@ -18,8 +18,8 @@ from cell_type_constellations.taxonomy.taxonomy_tree import (
     TaxonomyTree
 )
 
-from cell_type_constellations.svg.hull_utils import (
-    find_smooth_hull_for_clusters
+from cell_type_constellations.hulls.leaf_splitter import (
+    iteratively_subdivide_points
 )
 
 from cell_type_constellations.cells.data_cache import (
@@ -507,6 +507,15 @@ def fix_centroids(temp_path, dst_path):
     old_cache = ConstellationCache_HDF5(temp_path)
     taxonomy_tree = old_cache.taxonomy_tree
 
+    leaf_hull_lookup = {
+        leaf: get_hulls_for_leaf(
+            constellation_cache=old_cache,
+            label=leaf
+        )
+        for leaf in old_cache.taxonomy_tree.nodes_at_level(
+            old_cache.taxonomy_tree.leaf_level)
+    }
+
     as_leaves = taxonomy_tree.as_leaves
     for level in taxonomy_tree.hierarchy:
         node_list = taxonomy_tree.nodes_at_level(level)
@@ -518,16 +527,13 @@ def fix_centroids(temp_path, dst_path):
                 level=level,
                 label=node
             )
+
             pts = []
             for child in children:
-                hull = find_smooth_hull_for_clusters(
-                    constellation_cache=old_cache,
-                    label=child,
-                    taxonomy_level=taxonomy_tree.leaf_level,
-                    verbose=True
-                )
-                if hull is not None:
-                    pts.append(hull.points)
+                hull_list = leaf_hull_lookup[child]
+                for hull in hull_list:
+                    pts.append(hull)
+
             if len(pts) > 0:
                 pts = np.concatenate(pts)
                 median_pt = np.median(pts, axis=0)
@@ -546,6 +552,7 @@ def fix_centroids(temp_path, dst_path):
             dst.create_group('n_cells')
             dst.create_group('mixture_matrix')
             dst.create_group('centroid')
+            dst.create_group('leaf_hulls')
             for k0 in src.keys():
                 if isinstance(src[k0], h5py.Dataset):
                     dst.create_dataset(
@@ -565,4 +572,55 @@ def fix_centroids(temp_path, dst_path):
                     centroid_k,
                     data=new_centroid_lookup[centroid_k])
 
+            for leaf_label in leaf_hull_lookup:
+                leaf_grp = dst['leaf_hulls'].create_group(leaf_label)
+                for ii in range(len(leaf_hull_lookup[leaf_label])):
+                    leaf_grp.create_dataset(
+                        f'{ii}',
+                        data=_pts_to_hull_pts(leaf_hull_lookup[leaf_label][ii])
+                    )
+
     print('========copied over cache=========')
+
+
+def get_hulls_for_leaf(
+        constellation_cache,
+        label,
+        min_pts=10):
+    """
+    For the specified leaf node, return a list of arrays.
+    Each array is the points in the convex subhull of the node.
+    """
+    print(f'=======splitting {label}=======')
+
+    pts = constellation_cache.umap_coords_from_label(
+        level=constellation_cache.taxonomy_tree.leaf_level,
+        label=label)
+
+    subdivisions = iteratively_subdivide_points(
+        point_array=pts,
+        k_nn=20,
+        n_sig=2
+    )
+
+    sub_hulls = []
+    for subset in subdivisions:
+        if len(subset) < min_pts:
+            continue
+        subset = pts[np.sort(list(subset)), :]
+        try:
+            test = scipy.spatial.ConvexHull(subset)
+            sub_hulls.append(subset)
+        except:
+            pass
+    if len(sub_hulls) == 0:
+        sub_hulls.append(pts)
+        print('    lumping all points together')
+    else:
+        print(f'    kept {len(sub_hulls)} sub hulls')
+    return sub_hulls
+
+
+def _pts_to_hull_pts(pts):
+    hull = scipy.spatial.ConvexHull(pts)
+    return hull.points[hull.vertices, :]

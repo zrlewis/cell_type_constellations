@@ -77,7 +77,7 @@ def subdivide_points(point_array, k_nn=20, n_sig=2):
     if point_array.shape[0] < 10:
         return [range(point_array.shape[0]),]
 
-    if k_nn > point_array.shape[0]:
+    if k_nn > point_array.shape[0]-1:
         k_nn = point_array.shape[0]-1
     
     kd_tree = scipy.spatial.cKDTree(point_array)
@@ -88,7 +88,7 @@ def subdivide_points(point_array, k_nn=20, n_sig=2):
 
     global_99 = np.quantile(distance, 0.99)
     
-    nn_graph = Graph()
+    nn_graph = HullGraph()
     for idx in range(point_array.shape[0]):
         nn_graph.add_node(idx)
 
