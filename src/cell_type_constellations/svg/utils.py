@@ -346,6 +346,11 @@ def _load_single_hull(
 
     if taxonomy_level == leaf_level:
 
+        # spock
+        # this should just read the ConvexHull from the
+        # cache and then create a CompoundBareHull with
+        # a list of the BareHull.from_convex_hull calls
+
         if label not in _load_single_hull._leaf_hull_cache:
             _hull = find_smooth_hull_for_clusters(
                 constellation_cache=constellation_cache,
@@ -366,6 +371,10 @@ def _load_single_hull(
             name=name,
             n_cells=n_cells
         )
+
+    # spock
+    # do not need to creaet the leaf_hull_lookup,
+    # since leaf hulls are going to come from the constellation cache
 
     as_leaves = constellation_cache.taxonomy_tree.as_leaves
     leaf_hull_lookup = dict()

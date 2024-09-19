@@ -28,6 +28,8 @@ def find_smooth_hull_for_clusters(
     ):
     """
     For finding minimal hull(s) containing mostly cells in a given cluster.
+
+    Returns a scipy.spatial.ConvexHull
     """
 
     if not hasattr(find_smooth_hull_for_clusters, '_cache'):
@@ -351,6 +353,9 @@ def merge_hulls_from_leaf_list(
         leaf_list,
         leaf_hull_lookup):
 
+    # spock
+    # this should read in all of the ConvexHulls in the
+    # constellation cache
     raw_hull_list = [
         {'hull': copy.deepcopy(leaf_hull_lookup[leaf])}
         for leaf in leaf_list if leaf in leaf_hull_lookup
