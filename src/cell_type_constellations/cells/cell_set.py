@@ -531,8 +531,9 @@ def fix_centroids(temp_path, dst_path):
             pts = []
             for child in children:
                 hull_list = leaf_hull_lookup[child]
-                for hull in hull_list:
-                    pts.append(hull)
+                if hull_list is not None:
+                    for hull in hull_list:
+                        pts.append(hull)
 
             if len(pts) > 0:
                 pts = np.concatenate(pts)
@@ -543,7 +544,9 @@ def fix_centroids(temp_path, dst_path):
             else:
                 new_centroid = old_centroid
             centroid_array[node_idx, :] = new_centroid
+
         new_centroid_lookup[level] = centroid_array
+
         print(f'======done patching {level}=======')
 
     del old_cache
@@ -573,6 +576,10 @@ def fix_centroids(temp_path, dst_path):
                     data=new_centroid_lookup[centroid_k])
 
             for leaf_label in leaf_hull_lookup:
+
+                if leaf_hull_lookup[leaf_label] is None:
+                    continue
+
                 leaf_grp = dst['leaf_hulls'].create_group(leaf_label)
                 for ii in range(len(leaf_hull_lookup[leaf_label])):
                     leaf_grp.create_dataset(
@@ -590,12 +597,20 @@ def get_hulls_for_leaf(
     """
     For the specified leaf node, return a list of arrays.
     Each array is the points in the convex subhull of the node.
+
+    Returns None if it is impossible to construct a ConvexHull
+    from the available points.
     """
     print(f'=======splitting {label}=======')
 
     pts = constellation_cache.umap_coords_from_label(
         level=constellation_cache.taxonomy_tree.leaf_level,
         label=label)
+
+    try:
+        scipy.spatial.ConvexHull(pts)
+    except:
+        return None
 
     subdivisions = iteratively_subdivide_points(
         point_array=pts,
@@ -613,11 +628,13 @@ def get_hulls_for_leaf(
             sub_hulls.append(subset)
         except:
             pass
+
     if len(sub_hulls) == 0:
-        sub_hulls.append(pts)
         print('    lumping all points together')
+        sub_hulls.append(pts)
     else:
         print(f'    kept {len(sub_hulls)} sub hulls')
+
     return sub_hulls
 
 
