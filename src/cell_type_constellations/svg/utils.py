@@ -81,7 +81,8 @@ def render_hull_svg(
         max_radius=20,
         min_radius=5,
         n_limit=None,
-        plot_connections=False):
+        plot_connections=False,
+        verbose=False):
 
     max_cluster_cells = constellation_cache.n_cells_lookup[
         constellation_cache.taxonomy_tree.leaf_level].max()
@@ -105,7 +106,8 @@ def render_hull_svg(
         centroid_list=centroid_list,
         plot_obj=plot_obj,
         taxonomy_level=hull_level,
-        n_limit=n_limit
+        n_limit=n_limit,
+        verbose=verbose
     )
 
     if plot_connections:
@@ -275,7 +277,8 @@ def _load_hulls(
         centroid_list,
         plot_obj,
         taxonomy_level,
-        n_limit=None):
+        n_limit=None,
+        verbose=False):
 
     t0 = time.time()
     ct = 0
@@ -295,7 +298,8 @@ def _load_hulls(
             _hull = _load_single_hull(
                 constellation_cache=constellation_cache,
                 taxonomy_level=taxonomy_level,
-                label=label
+                label=label,
+                verbose=verbose
             )
             _load_hulls._hull_cache[taxonomy_level][label] = _hull
 
