@@ -350,65 +350,36 @@ def _load_single_hull(
 
     if taxonomy_level == leaf_level:
 
-        # spock
-        # this should just read the ConvexHull from the
-        # cache and then create a CompoundBareHull with
-        # a list of the BareHull.from_convex_hull calls
+        convex_hull_list = constellation_cache.convex_hull_list_from_label(
+            label=label,
+            level=taxonomy_level
+        )
 
-        if label not in _load_single_hull._leaf_hull_cache:
-            _hull = find_smooth_hull_for_clusters(
-                constellation_cache=constellation_cache,
-                label=label,
-                taxonomy_level=leaf_level
-            )
-            _load_single_hull._leaf_hull_cache[label] = _hull
-        convex_hull = _load_single_hull._leaf_hull_cache[label]
-
-        if convex_hull is None:
+        if convex_hull_list is None:
             return None
-        bare_hull = BareHull.from_convex_hull(
-            convex_hull=convex_hull,
-            color=color)
+
+        bare_hull_list = [
+            BareHull.from_convex_hull(
+                convex_hull=convex_hull,
+                color=color)
+            for convex_hull in convex_hull_list
+        ]
+
         return CompoundBareHull(
-            bare_hull_list=[bare_hull],
+            bare_hull_list=bare_hull_list,
             label=label,
             name=name,
             n_cells=n_cells
         )
 
-    # spock
-    # do not need to creaet the leaf_hull_lookup,
-    # since leaf hulls are going to come from the constellation cache
-
     as_leaves = constellation_cache.taxonomy_tree.as_leaves
-    leaf_hull_lookup = dict()
-    if verbose:
-        print('loading leaves')
-    for i_leaf, leaf in enumerate(as_leaves[taxonomy_level][label]):
-        if verbose:
-            print(f'    {leaf} -- '
-                  f'{i_leaf} of {len(as_leaves[taxonomy_level][label])}')
-
-        if leaf not in _load_single_hull._leaf_hull_cache:
-            _hull = find_smooth_hull_for_clusters(
-                constellation_cache=constellation_cache,
-                label=leaf,
-                taxonomy_level=leaf_level
-            )
-            _load_single_hull._leaf_hull_cache[leaf] = _hull
-        leaf_hull = _load_single_hull._leaf_hull_cache[leaf]
-
-        if leaf_hull is not None:
-            leaf_hull_lookup[leaf] = leaf_hull
-
     if verbose:
         print('merging convex hulls')
 
     merged_hull_list = merge_hulls(
         constellation_cache=constellation_cache,
         taxonomy_level=taxonomy_level,
-        label=label,
-        leaf_hull_lookup=leaf_hull_lookup)
+        label=label)
 
     bare_hull_list = [
         BareHull.from_convex_hull(h, color=color)

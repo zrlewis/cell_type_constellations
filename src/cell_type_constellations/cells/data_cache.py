@@ -1,6 +1,7 @@
 import h5py
 import json
 import numpy as np
+import scipy.spatial
 
 from cell_type_constellations.taxonomy.taxonomy_tree import (
     TaxonomyTree
@@ -59,6 +60,17 @@ class ConstellationCache_HDF5(object):
             for level in self.idx_to_label
         }
 
+        self.alias_to_cluster = {
+            self.taxonomy_tree.label_to_name(
+                level=self.taxonomy_tree.leaf_level,
+                label=node,
+                name_key='alias'
+            ): node
+            for node in self.taxonomy_tree.nodes_at_level(
+                self.taxonomy_tree.leaf_level
+            )
+        }
+
     def labels(self, level):
         return [el['label'] for el in self.idx_to_label[level]]
 
@@ -97,3 +109,19 @@ class ConstellationCache_HDF5(object):
 
     def nn_from_cell_idx(self, cell_idx):
         return self.cell_to_nn_aliases[cell_idx, :]
+
+    def convex_hull_list_from_label(self, level, label):
+        alias_values = self.parentage_to_alias[level][label]
+        hull_list = []
+        with h5py.File(self.cache_path, 'r') as src:
+            for alias in alias_values:
+                node = self.alias_to_cluster[str(alias)]
+                if node in src['leaf_hulls']:
+                    for idx in src['leaf_hulls'][node].keys():
+                        hull = scipy.spatial.ConvexHull(
+                            src['leaf_hulls'][node][idx][()]
+                        )
+                        hull_list.append(hull)
+        if len(hull_list) == 0:
+            return None
+        return hull_list

@@ -336,29 +336,33 @@ def get_pixellized_test_pts_from_alias_list(
 def merge_hulls(
         constellation_cache,
         taxonomy_level,
-        label,
-        leaf_hull_lookup):
+        label):
 
     as_leaves = constellation_cache.taxonomy_tree.as_leaves
     leaf_list = as_leaves[taxonomy_level][label]
 
     return merge_hulls_from_leaf_list(
         constellation_cache=constellation_cache,
-        leaf_list=leaf_list,
-        leaf_hull_lookup=leaf_hull_lookup)
+        leaf_list=leaf_list)
 
 
 def merge_hulls_from_leaf_list(
         constellation_cache,
-        leaf_list,
-        leaf_hull_lookup):
+        leaf_list):
 
-    # spock
-    # this should read in all of the ConvexHulls in the
-    # constellation cache
+    leaf_level = constellation_cache.taxonomy_tree.leaf_level
+    hull_list = []
+    for leaf_label in leaf_list:
+        this_list = constellation_cache.convex_hull_list_from_label(
+            level=leaf_level,
+            label=leaf_label
+        )
+        if this_list is not None:
+            hull_list += this_list
+
     raw_hull_list = [
-        {'hull': copy.deepcopy(leaf_hull_lookup[leaf])}
-        for leaf in leaf_list if leaf in leaf_hull_lookup
+        {'hull': hull}
+        for hull in hull_list
     ]
     if len(raw_hull_list) == 0:
         return []
