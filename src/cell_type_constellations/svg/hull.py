@@ -196,7 +196,7 @@ def _path_from_hull(hull, stroke_color='green', fill=False):
     if fill:
         fill_color = stroke_color
     else:
-        file_color = 'transparent'
+        fill_color = 'transparent'
 
     vertices = hull.vertices
     pts = hull.points
