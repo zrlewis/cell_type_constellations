@@ -8,6 +8,10 @@ from cell_type_constellations.cells.data_cache import (
     ConstellationCache_HDF5
 )
 
+from cell_type_constellations.cells.utils import (
+    choose_connections
+)
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -138,9 +142,15 @@ def write_out_edges(
     data = []
     for level in taxonomy_tree.hierarchy:
         mixture_matrix = data_cache.mixture_matrix_from_level(level)
-        nonzero = np.where(mixture_matrix>0)
+        n_cells = data_cache.n_cells_from_level(level)
+
+        valid_idx = choose_connections(
+            mixture_matrix=mixture_matrix,
+            n_cells=n_cells,
+            k_nn=15)
+
         label_list = data_cache.labels(level)
-        for i0, i1 in zip(nonzero[0], nonzero[1]):
+        for i0, i1 in zip(valid_idx[0], valid_idx[1]):
             if i0 == i1:
                 continue
             node0 = label_list[i0]
