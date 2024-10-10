@@ -144,21 +144,45 @@ def write_out_edges(
         mixture_matrix = data_cache.mixture_matrix_from_level(level)
         n_cells = data_cache.n_cells_from_level(level)
 
-        valid_idx = choose_connections(
+        raw_valid_idx = choose_connections(
             mixture_matrix=mixture_matrix,
             n_cells=n_cells,
             k_nn=15)
 
         label_list = data_cache.labels(level)
-        for i0, i1 in zip(valid_idx[0], valid_idx[1]):
+
+        # store edges once with relative weights at nodes
+        max_ratio = None
+        valid_idx = set()
+        for i0, i1 in zip(raw_valid_idx[0], raw_valid_idx[1]):
             if i0 == i1:
                 continue
+            valid_idx.add(tuple(sorted((i0, i1))))
+
+            r0 = mixture_matrix[i0, i1]/n_cells[i0]
+            r1 = mixture_matrix[i1, i0]/n_cells[i1]
+
+            if r0 > r1:
+                rmax = r0
+            else:
+                rmax = r1
+            if max_ratio is None or rmax > max_ratio:
+                max_ratio = rmax
+
+        valid_idx = list(valid_idx)
+        valid_idx.sort()
+
+        for i0, i1 in valid_idx:
+
             node0 = label_list[i0]
             node1 = label_list[i1]
+            r0 = mixture_matrix[i0, i1]/n_cells[i0]
+            r1 = mixture_matrix[i1, i0]/n_cells[i1]
             datum = {
                 'src': node0,
                 'dst': node1,
-                'cross_taxon_neighbors': mixture_matrix[i0, i1]
+                'weight_at_src': r0/max_ratio,
+                'weight_at_dst': r1/max_ratio
             }
             data.append(datum)
     pd.DataFrame(data).to_csv(dst_path, index=False)
