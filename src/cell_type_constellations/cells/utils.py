@@ -21,8 +21,8 @@ def choose_connections(
     Returns
     -------
     valid:
-        A (n_taxons, n_taxons) array of booleans indicating which
-        connections ought to be kept.
+        A 2-D array of indexes indicatin which connections to keep
+        (the result of np.where(boolean_mask))
     """
     if mixture_matrix.shape != (n_cells.shape[0], n_cells.shape[0]):
         raise RuntimeError(
