@@ -77,6 +77,18 @@ def subdivide_points(point_array, k_nn=20, n_sig=2):
     if point_array.shape[0] < 10:
         return [range(point_array.shape[0]),]
 
+    nn_graph = create_hull_graph(
+        point_array=point_array,
+        k_nn=k_nn,
+        n_sig=n_sig
+    )
+
+    sub_populations = nn_graph.partition_graph()
+    return sub_populations
+
+
+def create_hull_graph(point_array, k_nn, n_sig):
+
     if k_nn > point_array.shape[0]-1:
         k_nn = point_array.shape[0]-1
     
@@ -114,8 +126,7 @@ def subdivide_points(point_array, k_nn=20, n_sig=2):
             if i0 in edge_candidates[i1]:
                 nn_graph.add_bidirectional_edge(i0, i1)
 
-    sub_populations = nn_graph.partition_graph()
-    return sub_populations
+    return nn_graph
 
 
 def iteratively_subdivide_points(point_array, k_nn=20, n_sig=2):
