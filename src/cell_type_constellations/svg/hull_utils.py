@@ -1,5 +1,6 @@
 import copy
 import numpy as np
+import scipy.spatial
 import time
 
 from scipy.spatial import (
@@ -360,12 +361,18 @@ def merge_hulls_from_leaf_list(
         if this_list is not None:
             hull_list += this_list
 
+    hull_list = winnow_hull_list(
+        hull_list,
+        cutoff_quantile=0.05)
+
     raw_hull_list = [
         {'hull': hull}
         for hull in hull_list
     ]
+
     if len(raw_hull_list) == 0:
         return []
+
 
     alias_list = [
         int(constellation_cache.taxonomy_tree.label_to_name(
@@ -466,6 +473,32 @@ def merge_hulls_from_leaf_list(
         raw_hull_list = new_hull_list
         if len(raw_hull_list) == 1:
             return [h['hull'] for h in raw_hull_list]
+
+
+def winnow_hull_list(
+        hull_list,
+        cutoff_quantile=0.05):
+    """
+    Take a list of ConvexHulls;
+    Winnow by n-weighted density (n is the number of
+    points in the hull);
+    Return list of ConvexHulls that just contain vertices.
+    """
+
+    density_list = []
+    for hull in hull_list:
+        density_list += [density_from_hull(hull)]*hull.points.shape[0]
+    cutoff = np.quantile(density_list, cutoff_quantile)
+    result = [
+        scipy.spatial.ConvexHull(hull.points[hull.vertices, :])
+        for hull in hull_list
+        if density_from_hull(hull) >= cutoff
+    ]
+    return result
+
+
+def density_from_hull(hull):
+    return hull.points.shape[0]/hull.volume
 
 
 def evaluate_merger(
