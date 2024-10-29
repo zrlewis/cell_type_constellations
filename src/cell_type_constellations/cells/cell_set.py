@@ -639,5 +639,6 @@ def get_hulls_for_leaf(
 
 
 def _pts_to_hull_pts(pts):
-    hull = scipy.spatial.ConvexHull(pts)
-    return hull.points[hull.vertices, :]
+    #hull = scipy.spatial.ConvexHull(pts)
+    #return hull.points[hull.vertices, :]
+    return pts
