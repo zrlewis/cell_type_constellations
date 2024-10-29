@@ -113,7 +113,12 @@ def create_hull_graph(point_array, k_nn, n_sig):
 
         chosen_idx = np.concatenate([[i0], nn_idx[i0, :]])
 
-        sub_distances = distance[chosen_idx, :]
+        sub_idx = nn_idx[chosen_idx, :]
+        sub_distances = np.concatenate(
+            [distance[chosen_idx, :].flatten(),
+             distance[sub_idx, :].flatten()]
+        )
+
         q25, q50, q75 = np.quantile(sub_distances, (0.25, 0.5, 0.75))
         mu = q50
         std = (q75-q25)/1.35
