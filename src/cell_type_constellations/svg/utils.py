@@ -39,6 +39,7 @@ def render_connection_svg(
         taxonomy_level,
         color_by_level,
         height=800,
+        width=800,
         max_radius=20,
         min_radius=5):
 
@@ -48,6 +49,7 @@ def render_connection_svg(
 
     plot_obj = ConstellationPlot(
         height=height,
+        width=width,
         max_radius=max_radius,
         min_radius=min_radius,
         max_n_cells=max_cluster_cells)
@@ -75,16 +77,19 @@ def render_hull_svg(
         centroid_level,
         hull_level,
         height=800,
+        width=800,
         max_radius=20,
         min_radius=5,
         n_limit=None,
-        plot_connections=False):
+        plot_connections=False,
+        verbose=False):
 
     max_cluster_cells = constellation_cache.n_cells_lookup[
         constellation_cache.taxonomy_tree.leaf_level].max()
 
     plot_obj = ConstellationPlot(
         height=height,
+        width=width,
         max_radius=max_radius,
         min_radius=min_radius,
         max_n_cells=max_cluster_cells)
@@ -101,7 +106,8 @@ def render_hull_svg(
         centroid_list=centroid_list,
         plot_obj=plot_obj,
         taxonomy_level=hull_level,
-        n_limit=n_limit
+        n_limit=n_limit,
+        verbose=verbose
     )
 
     if plot_connections:
@@ -122,6 +128,7 @@ def render_neighborhood_svg(
         neighborhood_assignments,
         neighborhood_colors,
         height=800,
+        width=800,
         max_radius=20,
         min_radius=5,
         n_limit=None,
@@ -132,6 +139,7 @@ def render_neighborhood_svg(
 
     plot_obj = ConstellationPlot(
         height=height,
+        width=width,
         max_radius=max_radius,
         min_radius=min_radius,
         max_n_cells=max_cluster_cells)
@@ -269,7 +277,8 @@ def _load_hulls(
         centroid_list,
         plot_obj,
         taxonomy_level,
-        n_limit=None):
+        n_limit=None,
+        verbose=False):
 
     t0 = time.time()
     ct = 0
@@ -289,7 +298,8 @@ def _load_hulls(
             _hull = _load_single_hull(
                 constellation_cache=constellation_cache,
                 taxonomy_level=taxonomy_level,
-                label=label
+                label=label,
+                verbose=verbose
             )
             _load_hulls._hull_cache[taxonomy_level][label] = _hull
 
@@ -313,7 +323,11 @@ def _load_hulls(
 def _load_single_hull(
         constellation_cache,
         taxonomy_level,
-        label):
+        label,
+        verbose=False):
+
+    if verbose:
+        print('in _load_single_hull')
 
     if not hasattr(_load_single_hull, '_leaf_hull_cache'):
         _load_single_hull._leaf_hull_cache = dict()
@@ -336,48 +350,36 @@ def _load_single_hull(
 
     if taxonomy_level == leaf_level:
 
-        if label not in _load_single_hull._leaf_hull_cache:
-            _hull = find_smooth_hull_for_clusters(
-                constellation_cache=constellation_cache,
-                label=label,
-                taxonomy_level=leaf_level
-            )
-            _load_single_hull._leaf_hull_cache[label] = _hull
-        convex_hull = _load_single_hull._leaf_hull_cache[label]
+        convex_hull_list = constellation_cache.convex_hull_list_from_label(
+            label=label,
+            level=taxonomy_level
+        )
 
-        if convex_hull is None:
+        if convex_hull_list is None:
             return None
-        bare_hull = BareHull.from_convex_hull(
-            convex_hull=convex_hull,
-            color=color)
+
+        bare_hull_list = [
+            BareHull.from_convex_hull(
+                convex_hull=convex_hull,
+                color=color)
+            for convex_hull in convex_hull_list
+        ]
+
         return CompoundBareHull(
-            bare_hull_list=[bare_hull],
+            bare_hull_list=bare_hull_list,
             label=label,
             name=name,
             n_cells=n_cells
         )
 
     as_leaves = constellation_cache.taxonomy_tree.as_leaves
-    leaf_hull_lookup = dict()
-    for leaf in as_leaves[taxonomy_level][label]:
-
-        if leaf not in _load_single_hull._leaf_hull_cache:
-            _hull = find_smooth_hull_for_clusters(
-                constellation_cache=constellation_cache,
-                label=leaf,
-                taxonomy_level=leaf_level
-            )
-            _load_single_hull._leaf_hull_cache[leaf] = _hull
-        leaf_hull = _load_single_hull._leaf_hull_cache[leaf]
-
-        if leaf_hull is not None:
-            leaf_hull_lookup[leaf] = leaf_hull
+    if verbose:
+        print('merging convex hulls')
 
     merged_hull_list = merge_hulls(
         constellation_cache=constellation_cache,
         taxonomy_level=taxonomy_level,
-        label=label,
-        leaf_hull_lookup=leaf_hull_lookup)
+        label=label)
 
     bare_hull_list = [
         BareHull.from_convex_hull(h, color=color)

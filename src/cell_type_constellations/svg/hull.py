@@ -191,11 +191,12 @@ class CompoundBareHull(object):
         result += "    </a>\n"
         return result
 
+
 def _path_from_hull(hull, stroke_color='green', fill=False):
     if fill:
         fill_color = stroke_color
     else:
-        file_color = transparent
+        fill_color = 'transparent'
 
     vertices = hull.vertices
     pts = hull.points
@@ -224,11 +225,18 @@ def _path_from_hull(hull, stroke_color='green', fill=False):
             dst,
             src)
 
-        path_code += (
-            f"C {src_ctrl[0]} {src_ctrl[1]} "
-            f"{dst_ctrl[0]} {dst_ctrl[1]} "
-            f"{dst[0]} {dst[1]} "
-        )
+        if np.isfinite(src_ctrl).all() and np.isfinite(dst_ctrl).all():
+            update = (
+                f"C {src_ctrl[0]} {src_ctrl[1]} "
+                f"{dst_ctrl[0]} {dst_ctrl[1]} "
+                f"{dst[0]} {dst[1]} "
+            )
+        else:
+            update = (
+                f"L {dst[0]} {dst[1]} "
+            )
+
+        path_code += update
 
     path_code += f'" stroke="{stroke_color}" fill="{fill_color}" fill-opacity="0.1"/>\n'
 

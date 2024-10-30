@@ -120,6 +120,12 @@ def _do_overlap(x0, x1, y0, y1):
 
 
 def find_intersection_pt(segment0, segment1):
+    # check that segments are not co-terminus
+    for i0 in range(2):
+        for i1 in range(2):
+            if np.array_equal(segment0[i0], segment1[i1]):
+                return None
+
     if _are_colinear(segment0, segment1):
         return None
     if not _do_intersect_general(segment0, segment1):

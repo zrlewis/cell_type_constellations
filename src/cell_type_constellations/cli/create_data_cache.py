@@ -73,6 +73,7 @@ def main():
         help='Path to file to be written'
     )
 
+    t0 = time.time()
     args = parser.parse_args()
     assert args.dst_path is not None
     create_constellation_cache(
@@ -83,6 +84,7 @@ def main():
             k_nn=15,
             dst_path=args.dst_path,
             tmp_dir=args.tmp_dir)
+    print(f'====cache creation took {time.time()-t0:.2e} seconds')
 
 
 if __name__ == "__main__":

@@ -1,5 +1,7 @@
 import copy
 import numpy as np
+import scipy.spatial
+import time
 
 from scipy.spatial import (
     ConvexHull,
@@ -27,10 +29,14 @@ def find_smooth_hull_for_clusters(
     ):
     """
     For finding minimal hull(s) containing mostly cells in a given cluster.
+
+    Returns a scipy.spatial.ConvexHull
     """
 
     if not hasattr(find_smooth_hull_for_clusters, '_cache'):
         find_smooth_hull_for_clusters._cache = dict()
+        find_smooth_hull_for_clusters.t0 = time.time()
+
     if taxonomy_level not in find_smooth_hull_for_clusters._cache:
         find_smooth_hull_for_clusters._cache[taxonomy_level] = dict()
 
@@ -44,6 +50,13 @@ def find_smooth_hull_for_clusters(
             verbose=verbose
         )
         find_smooth_hull_for_clusters._cache[taxonomy_level][label] = _hull
+        if verbose:
+            dur = time.time()-find_smooth_hull_for_clusters.t0
+            n = len(find_smooth_hull_for_clusters._cache[taxonomy_level])
+            per = dur / n
+            print(
+                f'    loaded {n} clusters in {dur:.2e} -- {per:.2e}'
+            )
     return find_smooth_hull_for_clusters._cache[taxonomy_level][label]
 
 
@@ -55,6 +68,9 @@ def _find_smooth_hull_for_clusters(
         max_iterations=100,
         verbose=False
     ):
+
+    if verbose:
+        print(f'    loading {taxonomy_level}::{label}')
 
     # ignore clusters that have points that are too
     # far separated from each other
@@ -80,6 +96,31 @@ def _find_smooth_hull_for_clusters(
     test_pts = data['test_pts']
     test_pt_validity = data['test_pt_validity']
 
+    #print(f'all pixellized valid_pts {valid_pts.shape}')
+
+    mask = np.logical_and(
+        valid_pts[:, 1] < 35.0,
+        np.logical_and(
+            valid_pts[:, 1] > 30.0,
+            np.logical_and(
+                valid_pts[:, 0] < 76.0,
+                valid_pts[:, 0] > 70.0
+            )
+        )
+    )
+    #print(f'in window {mask.sum()}')
+    mask = np.logical_and(
+        test_pts[:, 1] < 35.0,
+        np.logical_and(
+            test_pts[:, 1] > 30.0,
+            np.logical_and(
+                test_pts[:, 0] < 76.0,
+                test_pts[:, 0] > 70.0
+            )
+        )
+    )
+    #print(f'test_pts in window {mask.sum()}')
+
     kd_tree = cKDTree(test_pts)
     valid_pt_neighbor_array = kd_tree.query(
             x=valid_pts,
@@ -94,29 +135,33 @@ def _find_smooth_hull_for_clusters(
     false_pos_0 = 0
     f1_score_0 = 0
     test_hull = None
-    hull_0 = None
+    hull_best = None
+    f1_best = None
+    in_hull = None
+    n_decrease = 0
 
     while True:
-        hull_0 = test_hull
 
         try:
             test_hull = ConvexHull(valid_pts)
         except:
-            return hull_0
+            return hull_best
 
-        # TO TRY
-        # points that were outside of hull_0 ought still be outside
-        # of new hull (since we are just shrinking the convex hull
-        #
-        # Maybe we only need to re-calculate pts_in_hull for points
-        # that were previously inside the hull
-        #
-        # not 100% sure I've got the geometry right there but it feels
-        # right
+        if in_hull is None:
+            in_hull = pts_in_hull(
+                pts=test_pts,
+                hull=test_hull)
+        else:
+            # Points that were outside of hull_best ought still be outside
+            # of new hull (since we are just shrinking the convex hull.
+            # We only need to re-calculate pts_in_hull for points
+            # that were previously inside the hull
 
-        in_hull = pts_in_hull(
-            pts=test_pts,
-            hull=test_hull)
+            in_hull[in_hull] = pts_in_hull(
+                pts=test_pts[in_hull],
+                hull=test_hull
+            )
+
         true_pos = np.logical_and(in_hull, test_pt_validity).sum()
         false_pos = np.logical_and(
                         in_hull,
@@ -126,17 +171,23 @@ def _find_smooth_hull_for_clusters(
                         test_pt_validity).sum()
 
         f1_score = true_pos/(true_pos+0.5*(false_pos+false_neg))
+
+        if f1_best is None or f1_score > f1_best:
+            f1_best = f1_score
+            hull_best = test_hull
+            n_decrease = 0
+        if f1_score < f1_score_0:
+            n_decrease += 1
+
         n_iter += 1
 
         if verbose:
-            print(f'n_iter {n_iter} pts {test_hull.points.shape} -- '
+            print(f'n_iter {n_iter} n_decrease {n_decrease} pts {test_hull.points.shape} -- '
                   f'{f1_score_0} -> {f1_score}')
-        if f1_score < f1_score_0 and f1_score > 0.1:
-            if hull_0 is None:
-                final_hull = test_hull
-            else:
-                final_hull = hull_0
-            break
+
+        if n_decrease >= 5:
+            return hull_best
+
 
         true_pos_0 = true_pos
         false_pos_0 = false_pos
@@ -156,6 +207,9 @@ def _find_smooth_hull_for_clusters(
         to_keep[score==worst_value] = False
         valid_pts = valid_pts[to_keep, :]
         valid_pt_neighbor_array = valid_pt_neighbor_array[to_keep, :]
+
+    if verbose:
+        print(f'    done with {taxonomy_level}::{label}')
 
     return final_hull
 
@@ -184,6 +238,20 @@ def get_pixellized_test_pts_from_alias_list(
         alias_list=alias_list)
 
     valid_pts = data['valid_pts']
+    #print(f'all valid_pts {valid_pts.shape}')
+
+    mask = np.logical_and(
+        valid_pts[:, 1] < 35.0,
+        np.logical_and(
+            valid_pts[:, 1] > 30.0,
+            np.logical_and(
+                valid_pts[:, 0] < 76.0,
+                valid_pts[:, 0] > 70.0
+            )
+        )
+    )
+    #print(f'in window {mask.sum()}')
+
     raw_test_pts = data['test_pts']
     raw_test_pt_validity = data['test_pt_validity']
 
@@ -269,29 +337,42 @@ def get_pixellized_test_pts_from_alias_list(
 def merge_hulls(
         constellation_cache,
         taxonomy_level,
-        label,
-        leaf_hull_lookup):
+        label):
 
     as_leaves = constellation_cache.taxonomy_tree.as_leaves
     leaf_list = as_leaves[taxonomy_level][label]
 
     return merge_hulls_from_leaf_list(
         constellation_cache=constellation_cache,
-        leaf_list=leaf_list,
-        leaf_hull_lookup=leaf_hull_lookup)
+        leaf_list=leaf_list)
 
 
 def merge_hulls_from_leaf_list(
         constellation_cache,
-        leaf_list,
-        leaf_hull_lookup):
+        leaf_list):
+
+    leaf_level = constellation_cache.taxonomy_tree.leaf_level
+    hull_list = []
+    for leaf_label in leaf_list:
+        this_list = constellation_cache.convex_hull_list_from_label(
+            level=leaf_level,
+            label=leaf_label
+        )
+        if this_list is not None:
+            hull_list += this_list
+
+    hull_list = winnow_hull_list(
+        hull_list,
+        cutoff_quantile=0.01)
 
     raw_hull_list = [
-        {'hull': copy.deepcopy(leaf_hull_lookup[leaf])}
-        for leaf in leaf_list if leaf in leaf_hull_lookup
+        {'hull': hull}
+        for hull in hull_list
     ]
+
     if len(raw_hull_list) == 0:
         return []
+
 
     alias_list = [
         int(constellation_cache.taxonomy_tree.label_to_name(
@@ -316,7 +397,7 @@ def merge_hulls_from_leaf_list(
     min_f1 = 0.0
     nn_cutoff = 2
     while keep_going:
-        print(f'    {len(raw_hull_list)} hulls now')
+        print(f'    {len(raw_hull_list)} hulls now -- final_pass: {final_pass}')
         centroid_array = np.array([
             _get_hull_centroid(h['hull']) for h in raw_hull_list
         ])
@@ -332,11 +413,11 @@ def merge_hulls_from_leaf_list(
 
         mergers = dict()
         been_merged = set()
+        skip_anyway = set()
         idx_list = np.argsort(area_array)[-1::-1]
         for i0 in idx_list:
-            if final_pass and len(mergers) > 0:
-                break
-            if i0 in been_merged:
+
+            if i0 in been_merged or i0 in skip_anyway:
                 continue
 
             sorted_i1 = np.argsort(dsq_array[i0, :])
@@ -346,7 +427,7 @@ def merge_hulls_from_leaf_list(
                 if i1 == i0:
                     continue
 
-                if i1 in been_merged:
+                if i1 in been_merged or i1 in skip_anyway:
                     continue
 
                 if not final_pass:
@@ -365,6 +446,14 @@ def merge_hulls_from_leaf_list(
                     mergers[i0] = new_hull
                     been_merged.add(i0)
                     been_merged.add(i1)
+
+                    if final_pass:
+                        # do not further consider hulls
+                        # who would have been nearest neighbors
+                        # of this hull
+                        for alt_i1 in sorted_i1[:nn_cutoff+1]:
+                            skip_anyway.add(alt_i1)
+
                     break
 
         if len(mergers) == 0:
@@ -384,6 +473,32 @@ def merge_hulls_from_leaf_list(
         raw_hull_list = new_hull_list
         if len(raw_hull_list) == 1:
             return [h['hull'] for h in raw_hull_list]
+
+
+def winnow_hull_list(
+        hull_list,
+        cutoff_quantile=0.05):
+    """
+    Take a list of ConvexHulls;
+    Winnow by n-weighted density (n is the number of
+    points in the hull);
+    Return list of ConvexHulls that just contain vertices.
+    """
+
+    density_list = []
+    for hull in hull_list:
+        density_list += [density_from_hull(hull)]*hull.points.shape[0]
+    cutoff = np.quantile(density_list, cutoff_quantile)
+    result = [
+        scipy.spatial.ConvexHull(hull.points[hull.vertices, :])
+        for hull in hull_list
+        if density_from_hull(hull) >= cutoff
+    ]
+    return result
+
+
+def density_from_hull(hull):
+    return hull.points.shape[0]/hull.volume
 
 
 def evaluate_merger(

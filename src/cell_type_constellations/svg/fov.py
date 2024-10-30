@@ -28,7 +28,8 @@ class ConstellationPlot(object):
             height,
             max_radius,
             min_radius,
-            max_n_cells):
+            max_n_cells,
+            width=None):
 
         pixel_buffer = 3*max_radius//2
         self.elements = []
@@ -36,9 +37,13 @@ class ConstellationPlot(object):
         self._min_radius = min_radius
         self._max_n_cells = max_n_cells
         self._height = height
+        if width is None:
+            self._width = height
+        else:
+            self._width = width
         self._origin = None
         self.pixel_origin = np.array([pixel_buffer, pixel_buffer])
-        self.pixel_extent = np.array([height-2*pixel_buffer,
+        self.pixel_extent = np.array([width-2*pixel_buffer,
                                       height-2*pixel_buffer])
         self.world_origin = None
         self.world_extent = None
@@ -46,6 +51,10 @@ class ConstellationPlot(object):
     @property
     def height(self):
         return self._height
+
+    @property
+    def width(self):
+        return self._width
 
     @property
     def max_radius(self):
@@ -64,7 +73,7 @@ class ConstellationPlot(object):
 
     def render(self):
         result = (
-            f'<svg height="{self.height}px" width="{self.height}px" '
+            f'<svg height="{self.height}px" width="{self.width}px" '
             'xmlns="http://www.w3.org/2000/svg">\n'
         )
 
