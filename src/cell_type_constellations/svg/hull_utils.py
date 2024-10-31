@@ -363,7 +363,7 @@ def merge_hulls_from_leaf_list(
 
     hull_list = winnow_hull_list(
         hull_list,
-        cutoff_quantile=0.01)
+        cutoff_quantile=0.05)
 
     raw_hull_list = [
         {'hull': hull}
