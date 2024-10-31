@@ -159,10 +159,11 @@ class CellFilter(object):
             cls,
             cluster_annotation_path,
             cluster_membership_path,
-            hierarchy):
+            hierarchy,
+            cell_metadata_path=None):
 
         taxonomy_tree = TaxonomyTree.from_data_release(
-            cell_metadata_path=None,
+            cell_metadata_path=cell_metadata_path,
             cluster_annotation_path=cluster_annotation_path,
             cluster_membership_path=cluster_membership_path,
             hierarchy=hierarchy,
@@ -316,7 +317,8 @@ def create_constellation_cache(
         hierarchy,
         k_nn,
         dst_path,
-        tmp_dir=None):
+        tmp_dir=None,
+        prune_taxonomy=False):
 
     tmp_dir = tempfile.mkdtemp(dir=tmp_dir)
     try:
@@ -327,7 +329,8 @@ def create_constellation_cache(
             hierarchy=hierarchy,
             k_nn=k_nn,
             dst_path=dst_path,
-            tmp_dir=tmp_dir)
+            tmp_dir=tmp_dir,
+            prune_taxonomy=prune_taxonomy)
     finally:
         _clean_up(tmp_dir)
 
@@ -338,7 +341,8 @@ def _create_constellation_cache(
         hierarchy,
         k_nn,
         dst_path,
-        tmp_dir):
+        tmp_dir,
+        prune_taxonomy=False):
 
     config = {
         'cell_metadata_path': str(cell_metadata_path),
@@ -354,10 +358,16 @@ def _create_constellation_cache(
     temp_path = temp_path[1]
     print(f'writing temp to {temp_path}')
 
+    if prune_taxonomy:
+        filter_cell_metadata_path=cell_metadata_path
+    else:
+        filter_cell_metadata_path=None
+
     cell_filter = CellFilter.from_data_release(
         cluster_annotation_path=cluster_annotation_path,
         cluster_membership_path=cluster_membership_path,
-        hierarchy=hierarchy)
+        hierarchy=hierarchy,
+        cell_metadata_path=filter_cell_metadata_path)
 
     cell_set = CellSet(cell_metadata_path)
 
