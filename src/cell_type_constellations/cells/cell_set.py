@@ -67,6 +67,9 @@ class CellSet(object):
         mask = np.zeros(self._cluster_aliases.shape, dtype=bool)
         for alias in alias_array:
             mask[self._cluster_aliases==alias] = True
+        if mask.sum() == 0:
+            msg = f"alias array {alias_array} has no cells"
+            raise RuntimeError(msg)
         pts = self._umap_coords[mask, :]
         median_pt = np.median(pts, axis=0)
         ddsq = ((median_pt-pts)**2).sum(axis=1)
