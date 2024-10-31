@@ -165,7 +165,8 @@ class CellFilter(object):
             cell_metadata_path=None,
             cluster_annotation_path=cluster_annotation_path,
             cluster_membership_path=cluster_membership_path,
-            hierarchy=hierarchy)
+            hierarchy=hierarchy,
+            do_pruning=True)
 
         return cls(taxonomy_tree=taxonomy_tree)
 
