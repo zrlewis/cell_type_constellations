@@ -133,8 +133,16 @@ def find_intersection_pt(segment0, segment1):
 
 
     v0 = segment0[1]-segment0[0]
+
+    if v0.sum() == 0.0:
+        return None
+
     v0 = v0/np.sqrt((v0**2).sum())
     v1 = segment1[1]-segment1[0]
+
+    if v1.sum() == 0.0:
+        return None
+
     v1 = v1/np.sqrt((v0**2).sum())
 
     mm = np.array([v0, -1.0*v1]).transpose()
