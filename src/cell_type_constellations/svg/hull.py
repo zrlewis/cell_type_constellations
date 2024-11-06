@@ -198,11 +198,9 @@ class CompoundBareHull(object):
         return result
 
 
-def _path_from_hull(hull, stroke_color='green', fill=False):
-    if fill:
-        fill_color = stroke_color
-    else:
-        fill_color = 'transparent'
+def _path_points_from_hull(hull):
+
+    points = []
 
     vertices = hull.vertices
     pts = hull.points
@@ -231,6 +229,35 @@ def _path_from_hull(hull, stroke_color='green', fill=False):
             dst,
             src)
 
+        points.append(src)
+        points.append(src_ctrl)
+        points.append(dst)
+        points.append(dst_ctrl)
+
+    points = np.array(points)
+    return points
+
+
+def _path_from_hull(hull, stroke_color='green', fill=False):
+    if fill:
+        fill_color = stroke_color
+    else:
+        fill_color = 'transparent'
+
+    path_points = _path_points_from_hull(hull)
+
+    path_code = ""
+    #path_code = f'<path d="M {pts[vertices[0], 0]} {pts[vertices[0], 1]} '
+    for i0 in range(0, len(path_points), 4):
+        src = path_points[i0, :]
+        src_ctrl = path_points[i0+1, :]
+        dst = path_points[i0+2, :]
+        dst_ctrl = path_points[i0+3, :]
+
+
+        if i0 == 0:
+            path_code += f'<path d="M {src[0]} {src[1]} '
+
         if np.isfinite(src_ctrl).all() and np.isfinite(dst_ctrl).all():
             update = (
                 f"C {src_ctrl[0]} {src_ctrl[1]} "
@@ -247,7 +274,6 @@ def _path_from_hull(hull, stroke_color='green', fill=False):
     path_code += f'" stroke="{stroke_color}" fill="{fill_color}" fill-opacity="0.1"/>\n'
 
     return path_code
-
 
 def _get_ctrl_point(pre, center, post):
     """
