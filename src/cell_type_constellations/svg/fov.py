@@ -31,6 +31,8 @@ class ConstellationPlot(object):
             max_n_cells,
             width=None):
 
+        self._base_url = "http://35.92.115.7:8883"
+
         pixel_buffer = 3*max_radius//2
         self.elements = []
         self._max_radius = max_radius
@@ -169,35 +171,38 @@ class ConstellationPlot(object):
             self.world_origin[1]+self.world_extent[1]
         )
 
-        centroid_code = ""
+        centroid_list = []
         for el in self.elements:
             if isinstance(el, Centroid):
-                centroid_code += self._render_centroid(
+                self._parametrize_centroid(
                     centroid=el,
                     max_n_cells=self.max_n_cells,
                     x_bounds=x_bounds,
                     y_bounds=y_bounds)
+                centroid_list.append(el)
+
+        centroid_code = ""
+        for el in centroid_list:
+            centroid_code += self._render_centroid(
+                centroid=el)
 
         return centroid_code
 
-    def _render_centroid(
+    def _parametrize_centroid(
             self,
             centroid,
             max_n_cells,
             x_bounds,
             y_bounds):
         """
+        Set the internal parametrs of a Centroid
+
         x_bounds and y_bounds are (min, max) tuples in 'scientific'
         coordinates (i.e. not image coordinates)
         """
-
         dr = self.max_radius-self.min_radius
         logarithmic_r = np.log2(1.0+centroid.n_cells/max_n_cells)
         radius = self.min_radius+dr*logarithmic_r
-
-        #print(f'{centroid.n_cells:.2e} cells; {radius:.2e} radius')
-
-        color = centroid.color
 
         (x_pix,
          y_pix) = self.convert_to_pixel_coords(
@@ -209,14 +214,16 @@ class ConstellationPlot(object):
             y=y_pix,
             radius=radius)
 
-        url = (
-            f"http://35.92.115.7:8883/display_entity?entity_id={centroid.label}"
-        )
-        result = f"""    <a href="{url}">\n"""
+
+    def _render_centroid(
+            self,
+            centroid):
+
+        result = f"""    <a href="{self._base_url}/{centroid.relative_url}">\n"""
 
         result += (
-            f"""        <circle r="{radius}px" cx="{x_pix}px" cy="{y_pix}px" """
-            f"""fill="{color}" stroke="transparent"/>\n"""
+            f"""        <circle r="{centroid.pixel_r}px" cx="{centroid.pixel_x}px" cy="{centroid.pixel_y}px" """
+            f"""fill="{centroid.color}" stroke="transparent"/>\n"""
         )
         result += """        <title>\n"""
         result += f"""        {centroid.name}: {centroid.n_cells:.2e} cells\n"""

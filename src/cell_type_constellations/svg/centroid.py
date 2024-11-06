@@ -90,3 +90,7 @@ class Centroid(object):
             self.pixel_x,
             self.pixel_y
         ])
+
+    @property
+    def relative_url(self):
+        return f"display_entity?entity_id={self.label}"
