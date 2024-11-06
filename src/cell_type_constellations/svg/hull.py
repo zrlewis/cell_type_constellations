@@ -190,27 +190,29 @@ class CompoundBareHull(object):
     def relative_url(self):
         return f"display_entity?entity_id={self.label}"
 
-    def render(self, plot_obj=None):
+    def set_parameters(self, plot_obj=None):
         for hull in self.bare_hull_list:
             hull.set_path(plot_obj=plot_obj)
 
-        url = (
-            f"http://35.92.115.7:8883/{self.relative_url}"
-        )
 
-        result = f"""    <a href="{url}">\n"""
+def render_compound_hull(compound_hull):
+    url = (
+        f"http://35.92.115.7:8883/{compound_hull.relative_url}"
+    )
 
-        for hull in self.bare_hull_list:
-            result += render_path_points(
-                        path_points=hull.path_points,
-                        color=hull.color,
-                        fill=self.fill)
+    result = f"""    <a href="{url}">\n"""
 
-        result += """        <title>\n"""
-        result += f"""        {self.name}: {self.n_cells:.2e} cells\n"""
-        result += """        </title>\n"""
-        result += "    </a>\n"
-        return result
+    for hull in compound_hull.bare_hull_list:
+        result += render_path_points(
+                    path_points=hull.path_points,
+                    color=hull.color,
+                    fill=compound_hull.fill)
+
+    result += """        <title>\n"""
+    result += f"""        {compound_hull.name}: {compound_hull.n_cells:.2e} cells\n"""
+    result += """        </title>\n"""
+    result += "    </a>\n"
+    return result
 
 
 def _path_points_from_hull(hull):

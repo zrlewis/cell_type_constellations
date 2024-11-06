@@ -15,7 +15,8 @@ from cell_type_constellations.svg.hull import (
     Hull,
     RawHull,
     BareHull,
-    CompoundBareHull
+    CompoundBareHull,
+    render_compound_hull
 )
 
 import time
@@ -104,13 +105,13 @@ class ConstellationPlot(object):
         centroid_code = self._render_all_centroids()
         connection_list = self._parametrize_all_connections()
         connection_code = self._render_all_connections(connection_list=connection_list)
-        hull_code = self._render_all_hulls()
+        hull_list = self._parametrize_all_hulls()
+        hull_code = self._render_all_hulls(hull_list)
         result = hull_code + connection_code + centroid_code
 
         return result
 
-
-    def _render_all_hulls(self):
+    def _parametrize_all_hulls(self):
         hull_list = [
             el for el in self.elements
             if isinstance(el, Hull)
@@ -118,10 +119,9 @@ class ConstellationPlot(object):
             or isinstance(el, BareHull)
             or isinstance(el, CompoundBareHull)
         ]
-        hull_code = ""
         for this_hull in hull_list:
-            hull_code += this_hull.render(plot_obj=self)
-        return hull_code
+            this_hull.set_parameters(plot_obj=self)
+        return hull_list
 
     def _parametrize_all_connections(self):
 
@@ -162,8 +162,6 @@ class ConstellationPlot(object):
         print(f'n_conn {len(connection_list)}')
         return connection_code
 
-
-
     def _render_all_centroids(self):
 
         x_bounds = (
@@ -192,6 +190,12 @@ class ConstellationPlot(object):
                 centroid=el)
 
         return centroid_code
+
+    def _render_all_hulls(self, hull_list):
+        hull_code = ""
+        for hull in hull_list:
+            hull_code += render_compound_hull(hull)
+        return hull_code
 
     def _parametrize_centroid(
             self,
