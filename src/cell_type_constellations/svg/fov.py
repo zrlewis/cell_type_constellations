@@ -102,7 +102,8 @@ class ConstellationPlot(object):
                              y_bounds[1]-y_bounds[0]]
 
         centroid_code = self._render_all_centroids()
-        connection_code = self._render_all_connections()
+        connection_list = self._parametrize_all_connections()
+        connection_code = self._render_all_connections(connection_list=connection_list)
         hull_code = self._render_all_hulls()
         result = hull_code + connection_code + centroid_code
 
@@ -122,7 +123,7 @@ class ConstellationPlot(object):
             hull_code += this_hull.render(plot_obj=self)
         return hull_code
 
-    def _render_all_connections(self):
+    def _parametrize_all_connections(self):
 
         max_connection_ratio = None
         connection_list = []
@@ -150,6 +151,10 @@ class ConstellationPlot(object):
         for conn, bez in zip(connection_list, bezier_controls):
             conn.set_bezier_controls(bez)
 
+        return connection_list
+
+
+    def _render_all_connections(self, connection_list):
         connection_code = ""
         for conn in connection_list:
             connection_code += self._render_connection(conn)
