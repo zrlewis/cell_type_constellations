@@ -30,6 +30,7 @@ class Hull(object):
         self.centroid_list = centroid_list
 
     def render(self, plot_obj=None):
+        raise NotImplementedError("Hull render")
         pts = np.array(
             [c.pixel_pt for c in self.centroid_list]
         )
@@ -60,6 +61,7 @@ class RawHull(object):
         self.pts = pts
 
     def render(self, plot_obj=None):
+        raise NotImplementedError("RawHull render")
         (xx,
          yy) = plot_obj.convert_to_pixel_coords(
              x=self.pts[:, 0],
