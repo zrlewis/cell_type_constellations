@@ -180,9 +180,13 @@ class CompoundBareHull(object):
          [h.points[:, 1] for h in self.bare_hull_list]
         )
 
+    @property
+    def relative_url(self):
+        return f"display_entity?entity_id={self.label}"
+
     def render(self, plot_obj=None):
         url = (
-            f"http://35.92.115.7:8883/display_entity?entity_id={self.label}"
+            f"http://35.92.115.7:8883/{self.relative_url}"
         )
         result = f"""    <a href="{url}">\n"""
         for hull in self.bare_hull_list:
