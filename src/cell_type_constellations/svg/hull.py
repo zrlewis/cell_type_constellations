@@ -93,6 +93,7 @@ class BareHull(object):
         self._vertices = np.arange(self._points.shape[0], dtype=int)
         self._set_segments()
         self.color = color
+        self._path_points = None
 
     @classmethod
     def from_convex_hull(cls, convex_hull, color=None):
@@ -127,6 +128,12 @@ class BareHull(object):
     def i_segments(self):
         return self._i_segments
 
+    @property
+    def path_points(self):
+        if self._path_points is None:
+            raise RuntimeError("self._path_points is None")
+        return self._path_points
+
     def _set_segments(self):
         segments = []
         i_segments = []
@@ -138,17 +145,16 @@ class BareHull(object):
         self._segments = segments
         self._i_segments = i_segments
 
-    def render(self, plot_obj=None, fill=False):
+    def set_path(self, plot_obj=None):
         (xx,
          yy) = plot_obj.convert_to_pixel_coords(
              x=self.points[:, 0],
              y=self.points[:, 1])
 
         pts = np.array([xx, yy]).transpose()
-        return _path_from_hull(
-            hull=BareHull(points=pts),
-            stroke_color=self.color,
-            fill=fill)
+
+        self._path_points = _path_points_from_hull(
+            hull=BareHull(points=pts))
 
 
 class CompoundBareHull(object):
@@ -185,12 +191,21 @@ class CompoundBareHull(object):
         return f"display_entity?entity_id={self.label}"
 
     def render(self, plot_obj=None):
+        for hull in self.bare_hull_list:
+            hull.set_path(plot_obj=plot_obj)
+
         url = (
             f"http://35.92.115.7:8883/{self.relative_url}"
         )
+
         result = f"""    <a href="{url}">\n"""
+
         for hull in self.bare_hull_list:
-            result += hull.render(plot_obj=plot_obj, fill=self.fill)
+            result += render_path_points(
+                        path_points=hull.path_points,
+                        color=hull.color,
+                        fill=self.fill)
+
         result += """        <title>\n"""
         result += f"""        {self.name}: {self.n_cells:.2e} cells\n"""
         result += """        </title>\n"""
@@ -238,13 +253,11 @@ def _path_points_from_hull(hull):
     return points
 
 
-def _path_from_hull(hull, stroke_color='green', fill=False):
+def render_path_points(path_points, color='green', fill=False):
     if fill:
-        fill_color = stroke_color
+        fill_color = color
     else:
         fill_color = 'transparent'
-
-    path_points = _path_points_from_hull(hull)
 
     path_code = ""
     #path_code = f'<path d="M {pts[vertices[0], 0]} {pts[vertices[0], 1]} '
@@ -271,7 +284,7 @@ def _path_from_hull(hull, stroke_color='green', fill=False):
 
         path_code += update
 
-    path_code += f'" stroke="{stroke_color}" fill="{fill_color}" fill-opacity="0.1"/>\n'
+    path_code += f'" stroke="{color}" fill="{fill_color}" fill-opacity="0.1"/>\n'
 
     return path_code
 
