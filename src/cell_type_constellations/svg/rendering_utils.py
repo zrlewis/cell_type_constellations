@@ -7,18 +7,67 @@ from cell_type_constellations.svg.connection import Connection
 from cell_type_constellations.svg.hull import CompoundBareHull
 
 
+def render_fov_from_hdf5(
+        hdf5_path,
+        centroid_level,
+        hull_level,
+        base_url):
+
+    with h5py.File(hdf5_path, 'r', swmr=True) as src:
+        width = src['fov/width'][()]
+        height = src['fov/height'][()]
+
+    centroid_lookup = centroid_lookup_from_hdf5(
+        hdf5_path=hdf5_path,
+        level=centroid_level)
+
+    connection_list = connection_list_from_hdf5(
+        hdf5_path=hdf5_path,
+        level=centroid_level,
+        centroid_lookup=centroid_lookup
+    )
+
+    hull_lookup = hull_lookup_from_hdf5(
+        hdf5_path=hdf5_path,
+        level=hull_level
+    )
+
+    centroid_list = list(centroid_lookup.values())
+    hull_list = list(hull_lookup.values())
+
+
+    result = render_fov(
+        centroid_list=centroid_list,
+        connection_list=connection_list,
+        hull_list=hull_list,
+        base_url=base_url,
+        width=width,
+        height=height)
+
+    return result
+
+
 def render_fov(
         centroid_list,
         connection_list,
         hull_list,
-        base_url):
+        base_url,
+        height,
+        width):
+
+    result = (
+            f'<svg height="{height}px" width="{width}px" '
+            'xmlns="http://www.w3.org/2000/svg">\n'
+        )
 
     centroid_code = render_centroid_list(
                         centroid_list=centroid_list,
                         base_url=base_url)
     connection_code = render_connection_list(connection_list=connection_list)
     hull_code = render_hull_list(hull_list, base_url=base_url)
-    result = hull_code + connection_code + centroid_code
+    result += hull_code + connection_code + centroid_code
+    result += "</svg>\n"
+
     return result
 
 
@@ -166,6 +215,22 @@ def render_centroid(
 
 def centroid_list_to_hdf5(
         centroid_list,
+        hdf5_path):
+    by_level = dict()
+    for centroid in centroid_list:
+        level = centroid.level
+        if level not in by_level:
+            by_level[level] = []
+        by_level[level].append(centroid)
+    for level in by_level:
+        centroid_list_to_hdf5_single_level(
+            centroid_list=by_level[level],
+            hdf5_path=hdf5_path,
+            level=level)
+
+
+def centroid_list_to_hdf5_single_level(
+        centroid_list,
         hdf5_path,
         level):
 
@@ -223,7 +288,8 @@ def centroid_lookup_from_hdf5(hdf5_path, level):
             'pixel_r': data_lookup['pixel_r'][idx],
             'pixel_x': data_lookup['pixel_x'][idx],
             'pixel_y': data_lookup['pixel_y'][idx],
-            'color': data_lookup['color'][idx].decode('utf-8')
+            'color': data_lookup['color'][idx].decode('utf-8'),
+            'level': level
         }
         result[label] = Centroid.from_dict(params)
 
@@ -231,6 +297,26 @@ def centroid_lookup_from_hdf5(hdf5_path, level):
 
 
 def connection_list_to_hdf5(
+        connection_list,
+        hdf5_path):
+
+    by_level = dict()
+    for connection in connection_list:
+        assert connection.src.level == connection.dst.level
+        level = connection.src.level
+        if level not in by_level:
+            by_level[level] = []
+        by_level[level].append(connection)
+
+    for level in by_level:
+        connection_list_to_hdf5_single_level(
+            connection_list=by_level[level],
+            hdf5_path=hdf5_path,
+            level=level
+        )
+
+
+def connection_list_to_hdf5_single_level(
         connection_list,
         hdf5_path,
         level):
@@ -361,6 +447,22 @@ def connection_list_from_hdf5(
 
 
 def hull_list_to_hdf5(
+        hull_list,
+        hdf5_path):
+    by_level = dict()
+    for hull in hull_list:
+        level = hull.level
+        if level not in by_level:
+            by_level[level] = []
+        by_level[level].append(hull)
+    for level in by_level:
+        hull_list_to_hdf5_single_level(
+            hull_list=by_level[level],
+            level=level,
+            hdf5_path=hdf5_path)
+
+
+def hull_list_to_hdf5_single_level(
         hull_list,
         level,
         hdf5_path):

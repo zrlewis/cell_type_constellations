@@ -10,7 +10,8 @@ class Centroid(object):
             n_cells,
             color,
             label,
-            name):
+            name,
+            level):
 
         self._x = x
         self._y = y
@@ -18,6 +19,7 @@ class Centroid(object):
         self._n_cells = n_cells
         self._name = name
         self._label = label
+        self._level = level
 
         self._pixel_coords = None
 
@@ -52,6 +54,10 @@ class Centroid(object):
     @property
     def label(self):
         return self._label
+
+    @property
+    def level(self):
+        return self._level
 
     @property
     def pixel_x(self):
@@ -114,7 +120,8 @@ class Centroid(object):
             n_cells=params['n_cells'],
             color=params['color'],
             label=params['label'],
-            name=params['name']
+            name=params['name'],
+            level=params['level']
         )
         result.set_pixel_coords(
             x=params['pixel_x'],

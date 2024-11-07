@@ -183,11 +183,13 @@ class CompoundBareHull(object):
     def __init__(
             self,
             bare_hull_list,
+            level,
             label=None,
             name=None,
             n_cells=None,
             fill=False):
 
+        self.level = level
         self.label = label
         self.name = name
         self.bare_hull_list = bare_hull_list
@@ -227,6 +229,7 @@ class CompoundBareHull(object):
     @classmethod
     def from_dict(cls, params):
         result = cls(
+            level=params['level'],
             label=params['label'],
             name=params['name'],
             n_cells=params['n_cells'],
@@ -318,7 +321,8 @@ class CompoundBareHull(object):
             'label': label,
             'name': name.decode('utf-8'),
             'n_cells': n_cells,
-            'bare_hull_list': bare_hull_list
+            'bare_hull_list': bare_hull_list,
+            'level': level
         }
         return cls.from_dict(params)
 
@@ -531,6 +535,7 @@ def create_compound_bare_hull(
         label,
         name,
         n_cells,
+        taxonomy_level,
         fill=False):
 
     while True:
@@ -567,4 +572,5 @@ def create_compound_bare_hull(
         label=label,
         name=name,
         n_cells=n_cells,
-        fill=fill)
+        fill=fill,
+        level=taxonomy_level)

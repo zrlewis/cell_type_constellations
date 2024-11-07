@@ -1,4 +1,5 @@
 import numpy as np
+import pathlib
 from scipy.spatial import ConvexHull
 import time
 
@@ -30,6 +31,10 @@ from cell_type_constellations.cells.utils import (
 )
 from cell_type_constellations.utils.geometry import (
     pairwise_distance_sq
+)
+
+from cell_type_constellations.svg.rendering_utils import (
+    render_fov_from_hdf5
 )
 
 
@@ -117,8 +122,20 @@ def render_hull_svg(
                 taxonomy_level=centroid_level,
                 plot_obj=plot_obj)
 
+    hdf5_path = pathlib.Path('hdf5_dummy.h5')
+    if hdf5_path.exists():
+        hdf5_path.unlink()
+    plot_obj.serialize_fov(hdf5_path=hdf5_path)
+
     with open(dst_path, 'w') as dst:
-        dst.write(plot_obj.render())
+        dst.write(
+            render_fov_from_hdf5(
+                hdf5_path=hdf5_path,
+                centroid_level=centroid_level,
+                hull_level=hull_level,
+                base_url=plot_obj.base_url
+            )
+        )
 
 
 def render_neighborhood_svg(
@@ -204,7 +221,8 @@ def _load_centroids(
             color=color,
             n_cells=n_cells,
             label=label,
-            name=name)
+            name=name,
+            level=taxonomy_level)
 
         centroid_list.append(this)
 
@@ -396,7 +414,8 @@ def _load_single_hull(
         bare_hull_list=bare_hull_list,
         label=label,
         name=name,
-        n_cells=n_cells)
+        n_cells=n_cells,
+        taxonomy_level=taxonomy_level)
 
 
 def _load_neighborhood_hulls(
@@ -470,4 +489,5 @@ def _load_single_neighborhood(
         label=label,
         name=name,
         n_cells=n_cells,
-        fill=True)
+        fill=True,
+        taxonomy_level='neighborhood')

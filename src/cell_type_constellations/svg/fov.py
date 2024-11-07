@@ -63,6 +63,10 @@ class ConstellationPlot(object):
         self.world_extent = None
 
     @property
+    def base_url(self):
+        return self._base_url
+
+    @property
     def height(self):
         return self._height
 
@@ -123,47 +127,22 @@ class ConstellationPlot(object):
                 'hull_list': hull_list}
 
 
-    def _render_elements(self):
+    def serialize_fov(self, hdf5_path):
+
+        with h5py.File(hdf5_path, 'a') as dst:
+            if 'fov' not in dst.keys():
+                dst.create_group('fov')
+            dst['fov'].create_dataset('height', data=self.height)
+            dst['fov'].create_dataset('width', data=self.width)
 
         element_lookup = self._parametrize_elements()
         _centroid_list = element_lookup['centroid_list']
         _connection_list = element_lookup['connection_list']
         _hull_list = element_lookup['hull_list']
 
-        hdf5_path = pathlib.Path('hdf5_dummy.h5')
-        if hdf5_path.exists():
-            hdf5_path.unlink()
-
-        level = 'test'
-        centroid_list_to_hdf5(hdf5_path=hdf5_path, level=level, centroid_list=_centroid_list)
-        connection_list_to_hdf5(hdf5_path=hdf5_path, level=level, connection_list=_connection_list)
-        hull_list_to_hdf5(hdf5_path=hdf5_path, level=level, hull_list=_hull_list)
-
-        centroid_lookup = centroid_lookup_from_hdf5(
-            hdf5_path=hdf5_path,
-            level=level)
-
-        connection_list = connection_list_from_hdf5(
-            hdf5_path=hdf5_path,
-            level=level,
-            centroid_lookup=centroid_lookup
-        )
-
-        hull_lookup = hull_lookup_from_hdf5(
-            hdf5_path=hdf5_path,
-            level=level
-        )
-
-        centroid_list = list(centroid_lookup.values())
-        hull_list = list(hull_lookup.values())
-
-        result = render_fov(
-            centroid_list=centroid_list,
-            connection_list=connection_list,
-            hull_list=hull_list,
-            base_url=self._base_url)
-
-        return result
+        centroid_list_to_hdf5(hdf5_path=hdf5_path, centroid_list=_centroid_list)
+        connection_list_to_hdf5(hdf5_path=hdf5_path, connection_list=_connection_list)
+        hull_list_to_hdf5(hdf5_path=hdf5_path, hull_list=_hull_list)
 
     def _parametrize_all_hulls(self):
         hull_list = [
