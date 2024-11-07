@@ -86,7 +86,7 @@ class ConstellationPlot(object):
         result += "</svg>\n"
         return result
 
-    def _render_elements(self):
+    def _parametrize_elements(self):
 
         x_values = np.concatenate(
             [el.x_values for el in self.elements]
@@ -102,10 +102,25 @@ class ConstellationPlot(object):
         self.world_extent = [x_bounds[1]-x_bounds[0],
                              y_bounds[1]-y_bounds[0]]
 
-        centroid_code = self._render_all_centroids()
+
+        centroid_list = self._parametrize_all_centroids()
         connection_list = self._parametrize_all_connections()
-        connection_code = self._render_all_connections(connection_list=connection_list)
         hull_list = self._parametrize_all_hulls()
+
+        return {'centroid_list': centroid_list,
+                'connection_list': connection_list,
+                'hull_list': hull_list}
+
+
+    def _render_elements(self):
+
+        element_lookup = self._parametrize_elements()
+        centroid_list = element_lookup['centroid_list']
+        connection_list = element_lookup['connection_list']
+        hull_list = element_lookup['hull_list']
+
+        centroid_code = self._render_all_centroids(centroid_list=centroid_list)
+        connection_code = self._render_all_connections(connection_list=connection_list)
         hull_code = self._render_all_hulls(hull_list)
         result = hull_code + connection_code + centroid_code
 
@@ -162,7 +177,7 @@ class ConstellationPlot(object):
         print(f'n_conn {len(connection_list)}')
         return connection_code
 
-    def _render_all_centroids(self):
+    def _parametrize_all_centroids(self):
 
         x_bounds = (
             self.world_origin[0],
@@ -183,6 +198,10 @@ class ConstellationPlot(object):
                     x_bounds=x_bounds,
                     y_bounds=y_bounds)
                 centroid_list.append(el)
+
+        return centroid_list
+
+    def _render_all_centroids(self, centroid_list):
 
         centroid_code = ""
         for el in centroid_list:
