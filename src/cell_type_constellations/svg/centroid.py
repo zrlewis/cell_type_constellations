@@ -94,3 +94,30 @@ class Centroid(object):
     @property
     def relative_url(self):
         return f"display_entity?entity_id={self.label}"
+
+    def to_dict(self):
+        return {
+            "pixel_r": self.pixel_r,
+            "pixel_x": self.pixel_x,
+            "pixel_y": self.pixel_y,
+            "label": self.label,
+            "name": self.name,
+            "n_cells": self.n_cells,
+            "color": self.color
+        }
+
+    @classmethod
+    def from_dict(cls, params):
+        result = cls(
+            x=None,
+            y=None,
+            n_cells=params['n_cells'],
+            color=params['color'],
+            label=params['label'],
+            name=params['name']
+        )
+        result.set_pixel_coords(
+            x=params['pixel_x'],
+            y=params['pixel_y'],
+            radius=params['pixel_r'])
+        return result

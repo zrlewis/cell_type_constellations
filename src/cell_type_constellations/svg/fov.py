@@ -196,7 +196,9 @@ class ConstellationPlot(object):
                     max_n_cells=self.max_n_cells,
                     x_bounds=x_bounds,
                     y_bounds=y_bounds)
-                centroid_list.append(el)
+                params = el.to_dict()
+                new_el = Centroid.from_dict(params)
+                centroid_list.append(new_el)
 
         return centroid_list
 
