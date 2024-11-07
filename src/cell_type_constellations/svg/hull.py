@@ -89,9 +89,14 @@ class BareHull(object):
             points,
             color=None):
 
-        self._points = np.copy(points)
-        self._vertices = np.arange(self._points.shape[0], dtype=int)
-        self._set_segments()
+        if points is not None:
+            self._points = np.copy(points)
+            self._vertices = np.arange(self._points.shape[0], dtype=int)
+            self._set_segments()
+        else:
+            self._points = None
+            self._vertices = None
+
         self.color = color
         self._path_points = None
 
@@ -156,6 +161,21 @@ class BareHull(object):
         self._path_points = _path_points_from_hull(
             hull=BareHull(points=pts))
 
+    def to_dict(self):
+        return {
+            "color": self.color,
+            "path_points": self.path_points
+        }
+
+    @classmethod
+    def from_dict(cls, params):
+        result = cls(
+            points=None,
+            color=params['color']
+        )
+        result._path_points = params['path_points']
+        return result
+
 
 class CompoundBareHull(object):
 
@@ -193,6 +213,26 @@ class CompoundBareHull(object):
     def set_parameters(self, plot_obj=None):
         for hull in self.bare_hull_list:
             hull.set_path(plot_obj=plot_obj)
+
+    def to_dict(self):
+        return {
+            "fill": self.fill,
+            "label": self.label,
+            "name": self.name,
+            "n_cells": self.n_cells,
+            "bare_hull_list": [h.to_dict() for h in self.bare_hull_list]
+        }
+
+    @classmethod
+    def from_dict(cls, params):
+        result = cls(
+            label=params['label'],
+            name=params['name'],
+            n_cells=params['n_cells'],
+            fill=params['fill'],
+            bare_hull_list=[BareHull.from_dict(h) for h in params['bare_hull_list']]
+        )
+        return result
 
 
 def _path_points_from_hull(hull):

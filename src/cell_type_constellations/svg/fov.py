@@ -143,7 +143,13 @@ class ConstellationPlot(object):
         ]
         for this_hull in hull_list:
             this_hull.set_parameters(plot_obj=self)
-        return hull_list
+
+        final_hull_list = []
+        for h in hull_list:
+            params = h.to_dict()
+            final_hull_list.append(CompoundBareHull.from_dict(params))
+
+        return final_hull_list
 
     def _parametrize_all_connections(self):
 
