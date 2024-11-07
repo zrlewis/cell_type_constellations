@@ -19,9 +19,7 @@ from cell_type_constellations.svg.hull import (
 )
 
 from cell_type_constellations.svg.rendering_utils import (
-    render_hull_list,
-    render_connection_list,
-    render_centroid_list
+    render_fov
 )
 
 import time
@@ -124,12 +122,11 @@ class ConstellationPlot(object):
         connection_list = element_lookup['connection_list']
         hull_list = element_lookup['hull_list']
 
-        centroid_code = render_centroid_list(
-                            centroid_list=centroid_list,
-                            base_url=self._base_url)
-        connection_code = render_connection_list(connection_list=connection_list)
-        hull_code = render_hull_list(hull_list)
-        result = hull_code + connection_code + centroid_code
+        result = render_fov(
+            centroid_list=centroid_list,
+            connection_list=connection_list,
+            hull_list=hull_list,
+            base_url=self._base_url)
 
         return result
 

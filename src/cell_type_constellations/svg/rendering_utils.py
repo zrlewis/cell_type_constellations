@@ -1,6 +1,20 @@
 import numpy as np
 
 
+def render_fov(
+        centroid_list,
+        connection_list,
+        hull_list,
+        base_url):
+
+    centroid_code = render_centroid_list(
+                        centroid_list=centroid_list,
+                        base_url=base_url)
+    connection_code = render_connection_list(connection_list=connection_list)
+    hull_code = render_hull_list(hull_list)
+    result = hull_code + connection_code + centroid_code
+    return result
+
 
 def render_hull_list(hull_list):
     hull_code = ""
