@@ -5,6 +5,7 @@ from cell_type_constellations.utils.geometry import(
     do_intersect
 )
 
+from cell_type_constellations.svg.centroid import Centroid
 
 class Connection(object):
 
@@ -100,6 +101,35 @@ class Connection(object):
         ctrl0 = dd+0.5*(self.rendering_corners[0]+self.rendering_corners[1])
         ctrl1 = dd+0.5*(self.rendering_corners[2]+self.rendering_corners[3])
         self.bezier_control_points = [ctrl0, ctrl1]
+
+    def to_dict(self):
+        return {
+            "src": self.src.to_dict(),
+            "dst": self.dst.to_dict(),
+            "src_label": self.src.label,
+            "dst_label": self.dst.label,
+            "k_nn": self.k_nn,
+            "src_neighbors": self.src_neighbors,
+            "dst_neighbors": self.dst_neighbors,
+            "rendering_corners": self.rendering_corners,
+            "bezier_control_points": self.bezier_control_points
+        }
+
+    @classmethod
+    def from_dict(cls, params):
+        src = Centroid.from_dict(params['src'])
+        dst = Centroid.from_dict(params['dst'])
+        result = cls(
+            src_centroid=src,
+            dst_centroid=dst,
+            k_nn=params['k_nn'],
+            src_neighbors=params['src_neighbors'],
+            dst_neighbors=params['dst_neighbors']
+        )
+        result.rendering_corners = params['rendering_corners']
+        result.bezier_control_points = params['bezier_control_points']
+        return result
+
 
 def _intersection_points(
         src_pt,

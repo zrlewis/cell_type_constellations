@@ -159,7 +159,7 @@ class ConstellationPlot(object):
                 max_connection_ratio = rr
             connection_list.append(el)
         if len(connection_list) == 0:
-            return ""
+            return connection_list
 
         t0 = time.time()
         bezier_controls = get_bezier_control_points(connection_list=connection_list)
@@ -173,7 +173,13 @@ class ConstellationPlot(object):
         for conn, bez in zip(connection_list, bezier_controls):
             conn.set_bezier_controls(bez)
 
-        return connection_list
+        result = []
+        for el in connection_list:
+            params = el.to_dict()
+            new_el = Connection.from_dict(params)
+            result.append(new_el)
+
+        return result
 
 
     def _parametrize_all_centroids(self):
