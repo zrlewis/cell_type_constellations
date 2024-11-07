@@ -141,12 +141,7 @@ class ConstellationPlot(object):
         for this_hull in hull_list:
             this_hull.set_parameters(plot_obj=self)
 
-        final_hull_list = []
-        for h in hull_list:
-            params = h.to_dict()
-            final_hull_list.append(CompoundBareHull.from_dict(params))
-
-        return final_hull_list
+        return hull_list
 
     def _parametrize_all_connections(self):
 
@@ -176,13 +171,7 @@ class ConstellationPlot(object):
         for conn, bez in zip(connection_list, bezier_controls):
             conn.set_bezier_controls(bez)
 
-        result = []
-        for el in connection_list:
-            params = el.to_dict()
-            new_el = Connection.from_dict(params)
-            result.append(new_el)
-
-        return result
+        return connection_list
 
 
     def _parametrize_all_centroids(self):
@@ -205,9 +194,7 @@ class ConstellationPlot(object):
                     max_n_cells=self.max_n_cells,
                     x_bounds=x_bounds,
                     y_bounds=y_bounds)
-                params = el.to_dict()
-                new_el = Centroid.from_dict(params)
-                centroid_list.append(new_el)
+                centroid_list.append(el)
 
         return centroid_list
 
