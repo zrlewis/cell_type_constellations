@@ -17,21 +17,21 @@ def render_fov(
                         centroid_list=centroid_list,
                         base_url=base_url)
     connection_code = render_connection_list(connection_list=connection_list)
-    hull_code = render_hull_list(hull_list)
+    hull_code = render_hull_list(hull_list, base_url=base_url)
     result = hull_code + connection_code + centroid_code
     return result
 
 
-def render_hull_list(hull_list):
+def render_hull_list(hull_list, base_url):
     hull_code = ""
     for hull in hull_list:
-        hull_code += render_compound_hull(hull)
+        hull_code += render_compound_hull(hull, base_url)
     return hull_code
 
 
-def render_compound_hull(compound_hull):
+def render_compound_hull(compound_hull, base_url):
     url = (
-        f"http://35.92.115.7:8883/{compound_hull.relative_url}"
+        f"{base_url}/{compound_hull.relative_url}"
     )
 
     result = f"""    <a href="{url}">\n"""
