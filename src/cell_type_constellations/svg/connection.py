@@ -100,7 +100,7 @@ class Connection(object):
         dd = thermal_control-mid_pt
         ctrl0 = dd+0.5*(self.rendering_corners[0]+self.rendering_corners[1])
         ctrl1 = dd+0.5*(self.rendering_corners[2]+self.rendering_corners[3])
-        self.bezier_control_points = [ctrl0, ctrl1]
+        self.bezier_control_points = np.array([ctrl0, ctrl1])
 
     def to_dict(self):
         return {
@@ -117,8 +117,17 @@ class Connection(object):
 
     @classmethod
     def from_dict(cls, params):
-        src = Centroid.from_dict(params['src'])
-        dst = Centroid.from_dict(params['dst'])
+
+        if isinstance(params['src'], dict):
+            src = Centroid.from_dict(params['src'])
+        else:
+            src = params['src']
+
+        if isinstance(params['dst'], dict):
+            dst = Centroid.from_dict(params['dst'])
+        else:
+            dst = params['dst']
+
         result = cls(
             src_centroid=src,
             dst_centroid=dst,
@@ -174,4 +183,4 @@ def _intersection_points(
     else:
         points = [src0, dst0, dst1, src1]
 
-    return points
+    return np.array(points)

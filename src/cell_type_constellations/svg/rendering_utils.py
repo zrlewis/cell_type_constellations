@@ -1,4 +1,10 @@
+import h5py
 import numpy as np
+
+
+from cell_type_constellations.svg.centroid import Centroid
+from cell_type_constellations.svg.connection import Connection
+from cell_type_constellations.svg.hull import CompoundBareHull
 
 
 def render_fov(
@@ -155,4 +161,225 @@ def render_centroid(
     result += f"""        {centroid.name}: {centroid.n_cells:.2e} cells\n"""
     result += """        </title>\n"""
     result += "    </a>\n"
+    return result
+
+
+def centroid_list_to_hdf5(
+        centroid_list,
+        hdf5_path,
+        level):
+
+    pixel_r = np.array([
+        c.pixel_r for c in centroid_list
+    ])
+    pixel_x = np.array([
+        c.pixel_x for c in centroid_list
+    ])
+    pixel_y = np.array([
+        c.pixel_y for c in centroid_list
+    ])
+    label_arr =np.array([
+        c.label.encode('utf-8') for c in centroid_list
+    ])
+    name_arr = np.array([
+        c.name.encode('utf-8') for c in centroid_list
+    ])
+    n_cells = np.array([
+        c.n_cells for c in centroid_list
+    ])
+    color = np.array([
+        c.color.encode('utf-8') for c in centroid_list
+    ])
+    with h5py.File(hdf5_path, 'a') as dst:
+        if 'centroids' not in dst.keys():
+            dst.create_group('centroids')
+        dst_grp = dst['centroids']
+        if level not in dst_grp.keys():
+            dst_grp.create_group(level)
+        dst_grp = dst_grp[level]
+        for k, data in [('pixel_r', pixel_r),
+                        ('pixel_x', pixel_x),
+                        ('pixel_y', pixel_y),
+                        ('label', label_arr),
+                        ('name', name_arr),
+                        ('n_cells', n_cells),
+                        ('color', color)]:
+            dst_grp.create_dataset(k, data=data)
+
+
+def centroid_lookup_from_hdf5(hdf5_path, level):
+    this_key = f'centroids/{level}'
+    data_lookup = dict()
+    with h5py.File(hdf5_path, 'r', swmr=True) as src:
+        for k in ('pixel_r', 'pixel_x', 'pixel_y', 'label', 'name', 'n_cells', 'color'):
+            data_lookup[k] = src[this_key][k][()]
+    result = dict()
+    for idx in range(len(data_lookup['pixel_r'])):
+        label = data_lookup['label'][idx].decode('utf-8')
+        params = {
+            'label': label,
+            'name': data_lookup['name'][idx].decode('utf-8'),
+            'n_cells': data_lookup['n_cells'][idx],
+            'pixel_r': data_lookup['pixel_r'][idx],
+            'pixel_x': data_lookup['pixel_x'][idx],
+            'pixel_y': data_lookup['pixel_y'][idx],
+            'color': data_lookup['color'][idx].decode('utf-8')
+        }
+        result[label] = Centroid.from_dict(params)
+
+    return result
+
+
+def connection_list_to_hdf5(
+        connection_list,
+        hdf5_path,
+        level):
+
+    src_label_list = np.array(
+        [c.src.label.encode('utf-8')
+         for c in connection_list]
+    )
+    dst_label_list = np.array(
+        [c.dst.label.encode('utf-8')
+         for c in connection_list]
+    )
+    k_nn_list = np.array(
+        [c.k_nn for c in connection_list]
+    )
+    src_neighbor_list = np.array(
+        [c.src_neighbors for c in connection_list]
+    )
+    dst_neighbor_list = np.array(
+        [c.dst_neighbors for c in connection_list]
+    )
+    n_rendering_corners = np.array(
+        [c.rendering_corners.shape[0] for c in connection_list],
+        dtype=int
+    )
+    n_bezier_points = np.array(
+        [c.bezier_control_points.shape[0] for c in connection_list],
+        dtype=int
+    )
+    rendering_corners = np.vstack(
+        [c.rendering_corners for c in connection_list]
+    )
+    bezier_control_points = np.vstack(
+        [c.bezier_control_points for c in connection_list]
+    )
+
+    with h5py.File(hdf5_path, 'a') as dst:
+        if 'connections' not in dst.keys():
+            dst.create_group('connections')
+        dst_grp = dst['connections']
+        if level not in dst_grp.keys():
+            dst_grp.create_group(level)
+        dst_grp = dst_grp[level]
+
+        dst_grp.create_dataset('src_label_list', data=src_label_list)
+        dst_grp.create_dataset('dst_label_list', data=dst_label_list)
+        dst_grp.create_dataset('k_nn_list', data=k_nn_list)
+        dst_grp.create_dataset('src_neighbor_list', data=src_neighbor_list)
+        dst_grp.create_dataset('dst_neighbor_list', data=dst_neighbor_list)
+
+        dst_grp.create_dataset(
+            'n_rendering_corners', data=n_rendering_corners)
+
+        dst_grp.create_dataset(
+            'n_bezier_points', data=n_bezier_points
+        )
+
+        dst_grp.create_dataset(
+            'rendering_corners',
+            data=rendering_corners,
+            compression='lzf')
+
+        dst_grp.create_dataset(
+            'bezier_control_points',
+            data=bezier_control_points,
+            compression='lzf'
+        )
+
+def connection_list_from_hdf5(
+        hdf5_path,
+        level,
+        centroid_lookup=None):
+
+    if centroid_lookup is None:
+        centroid_lookup = centroid_lookup_from_hdf5(
+            hdf5_path=hdf5_path,
+            level=level
+        )
+
+    data_lookup = dict()
+    this_key = f'connections/{level}'
+    with h5py.File(hdf5_path, 'r', swmr=True) as src:
+        for k in ('src_label_list', 'dst_label_list',
+                  'k_nn_list', 'src_neighbor_list',
+                  'dst_neighbor_list', 'n_rendering_corners',
+                  'n_bezier_points', 'rendering_corners',
+                  'bezier_control_points'):
+            data_lookup[k] = src[this_key][k][()]
+
+    n_connections = len(data_lookup['src_label_list'])
+
+    bez0 = 0
+    corner0 = 0
+
+    result = []
+
+    for idx in range(n_connections):
+        src_label = data_lookup['src_label_list'][idx].decode('utf-8')
+        dst_label = data_lookup['dst_label_list'][idx].decode('utf-8')
+
+        k_nn = data_lookup['k_nn_list'][idx]
+
+        src_neighbors = data_lookup['src_neighbor_list'][idx]
+        dst_neighbors = data_lookup['dst_neighbor_list'][idx]
+
+        n_corners = data_lookup['n_rendering_corners'][idx]
+        n_bez = data_lookup['n_bezier_points'][idx]
+
+        rendering_corners = data_lookup['rendering_corners'][corner0:corner0+n_corners, :]
+        corner0 += n_corners
+
+        bezier_points = data_lookup['bezier_control_points'][bez0:bez0+n_bez, :]
+        bez0 += n_bez
+
+        params = {
+            'src': centroid_lookup[src_label],
+            'dst': centroid_lookup[dst_label],
+            'k_nn': k_nn,
+            'src_neighbors': src_neighbors,
+            'dst_neighbors': dst_neighbors,
+            'rendering_corners': rendering_corners,
+            'bezier_control_points': bezier_points
+        }
+
+        result.append(Connection.from_dict(params))
+
+    return result
+
+
+def hull_list_to_hdf5(
+        hull_list,
+        level,
+        hdf5_path):
+
+    for hull in hull_list:
+        hull.to_hdf5(hdf5_path=hdf5_path, level=level)
+
+
+def hull_lookup_from_hdf5(
+        hdf5_path,
+        level):
+
+    result = dict()
+    with h5py.File(hdf5_path, 'r', swmr=True) as src:
+        src_grp = src[f'hulls/{level}']
+        for label in src_grp.keys():
+            result[label] = CompoundBareHull.from_hdf5(
+                hdf5_handle=src,
+                label=label,
+                level=level
+            )
     return result

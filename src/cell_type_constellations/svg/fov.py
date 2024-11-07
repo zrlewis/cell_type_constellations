@@ -1,4 +1,6 @@
+import h5py
 import numpy as np
+import pathlib
 
 from cell_type_constellations.utils.geometry import(
     rot
@@ -19,7 +21,13 @@ from cell_type_constellations.svg.hull import (
 )
 
 from cell_type_constellations.svg.rendering_utils import (
-    render_fov
+    render_fov,
+    centroid_list_to_hdf5,
+    centroid_lookup_from_hdf5,
+    hull_list_to_hdf5,
+    hull_lookup_from_hdf5,
+    connection_list_to_hdf5,
+    connection_list_from_hdf5
 )
 
 import time
@@ -118,9 +126,36 @@ class ConstellationPlot(object):
     def _render_elements(self):
 
         element_lookup = self._parametrize_elements()
-        centroid_list = element_lookup['centroid_list']
-        connection_list = element_lookup['connection_list']
-        hull_list = element_lookup['hull_list']
+        _centroid_list = element_lookup['centroid_list']
+        _connection_list = element_lookup['connection_list']
+        _hull_list = element_lookup['hull_list']
+
+        hdf5_path = pathlib.Path('hdf5_dummy.h5')
+        if hdf5_path.exists():
+            hdf5_path.unlink()
+
+        level = 'test'
+        centroid_list_to_hdf5(hdf5_path=hdf5_path, level=level, centroid_list=_centroid_list)
+        connection_list_to_hdf5(hdf5_path=hdf5_path, level=level, connection_list=_connection_list)
+        hull_list_to_hdf5(hdf5_path=hdf5_path, level=level, hull_list=_hull_list)
+
+        centroid_lookup = centroid_lookup_from_hdf5(
+            hdf5_path=hdf5_path,
+            level=level)
+
+        connection_list = connection_list_from_hdf5(
+            hdf5_path=hdf5_path,
+            level=level,
+            centroid_lookup=centroid_lookup
+        )
+
+        hull_lookup = hull_lookup_from_hdf5(
+            hdf5_path=hdf5_path,
+            level=level
+        )
+
+        centroid_list = list(centroid_lookup.values())
+        hull_list = list(hull_lookup.values())
 
         result = render_fov(
             centroid_list=centroid_list,
