@@ -15,8 +15,13 @@ from cell_type_constellations.svg.hull import (
     Hull,
     RawHull,
     BareHull,
-    CompoundBareHull,
-    render_compound_hull
+    CompoundBareHull
+)
+
+from cell_type_constellations.svg.rendering_utils import (
+    render_hull_list,
+    render_connection_list,
+    render_centroid_list
 )
 
 import time
@@ -119,9 +124,11 @@ class ConstellationPlot(object):
         connection_list = element_lookup['connection_list']
         hull_list = element_lookup['hull_list']
 
-        centroid_code = self._render_all_centroids(centroid_list=centroid_list)
-        connection_code = self._render_all_connections(connection_list=connection_list)
-        hull_code = self._render_all_hulls(hull_list)
+        centroid_code = render_centroid_list(
+                            centroid_list=centroid_list,
+                            base_url=self._base_url)
+        connection_code = render_connection_list(connection_list=connection_list)
+        hull_code = render_hull_list(hull_list)
         result = hull_code + connection_code + centroid_code
 
         return result
@@ -169,14 +176,6 @@ class ConstellationPlot(object):
         return connection_list
 
 
-    def _render_all_connections(self, connection_list):
-        connection_code = ""
-        for conn in connection_list:
-            connection_code += self._render_connection(conn)
-
-        print(f'n_conn {len(connection_list)}')
-        return connection_code
-
     def _parametrize_all_centroids(self):
 
         x_bounds = (
@@ -201,20 +200,6 @@ class ConstellationPlot(object):
 
         return centroid_list
 
-    def _render_all_centroids(self, centroid_list):
-
-        centroid_code = ""
-        for el in centroid_list:
-            centroid_code += self._render_centroid(
-                centroid=el)
-
-        return centroid_code
-
-    def _render_all_hulls(self, hull_list):
-        hull_code = ""
-        for hull in hull_list:
-            hull_code += render_compound_hull(hull)
-        return hull_code
 
     def _parametrize_centroid(
             self,
@@ -242,23 +227,6 @@ class ConstellationPlot(object):
             y=y_pix,
             radius=radius)
 
-
-    def _render_centroid(
-            self,
-            centroid):
-
-        result = f"""    <a href="{self._base_url}/{centroid.relative_url}">\n"""
-
-        result += (
-            f"""        <circle r="{centroid.pixel_r}px" cx="{centroid.pixel_x}px" cy="{centroid.pixel_y}px" """
-            f"""fill="{centroid.color}" stroke="transparent"/>\n"""
-        )
-        result += """        <title>\n"""
-        result += f"""        {centroid.name}: {centroid.n_cells:.2e} cells\n"""
-        result += """        </title>\n"""
-        result += "    </a>\n"
-        return result
-
     def convert_to_pixel_coords(
             self,
             x,
@@ -276,48 +244,6 @@ class ConstellationPlot(object):
             + self.pixel_extent[1]*(self.world_origin[1]+self.world_extent[1]-y)/self.world_extent[1]
         )
         return x_pix, y_pix
-
-
-    def _render_connection(self, this_connection):
-
-        title = (
-            f"{this_connection.src.name} "
-            f"({this_connection.src_neighbor_fraction:.2e} of neighbors) "
-            "-> "
-            f"{this_connection.dst.name} "
-            f"({this_connection.dst_neighbor_fraction:.2e} of neighbors)"
-        )
-
-        pts = this_connection.rendering_corners
-        ctrl = this_connection.bezier_control_points
-
-        result = """    <a href="">\n"""
-        result += "        <path "
-        result +=f"""d="M {pts[0][0]} {pts[0][1]} """
-        result += get_bezier_curve(
-                    src=pts[0],
-                    dst=pts[1],
-                    ctrl=ctrl[0])
-        result += f"L {pts[2][0]} {pts[2][1]} "
-        result += get_bezier_curve(
-                    src=pts[2],
-                    dst=pts[3],
-                    ctrl=ctrl[1])
-        result += f"""L {pts[0][0]} {pts[0][1]}" """
-        result += f"""stroke="transparent" fill="#bbbbbb"/>\n"""
-        result += "        <title>\n"
-        result += f"        {title}\n"
-        result += "        </title>\n"
-        result += "    </a>"
-
-        return result
-
-
-def get_bezier_curve(src, dst, ctrl):
-
-    result = f"Q {ctrl[0]} {ctrl[1]} "
-    result += f"{dst[0]} {dst[1]} "
-    return result
 
 
 def get_bezier_control_points(

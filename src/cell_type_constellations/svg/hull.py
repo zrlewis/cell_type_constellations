@@ -195,26 +195,6 @@ class CompoundBareHull(object):
             hull.set_path(plot_obj=plot_obj)
 
 
-def render_compound_hull(compound_hull):
-    url = (
-        f"http://35.92.115.7:8883/{compound_hull.relative_url}"
-    )
-
-    result = f"""    <a href="{url}">\n"""
-
-    for hull in compound_hull.bare_hull_list:
-        result += render_path_points(
-                    path_points=hull.path_points,
-                    color=hull.color,
-                    fill=compound_hull.fill)
-
-    result += """        <title>\n"""
-    result += f"""        {compound_hull.name}: {compound_hull.n_cells:.2e} cells\n"""
-    result += """        </title>\n"""
-    result += "    </a>\n"
-    return result
-
-
 def _path_points_from_hull(hull):
 
     points = []
@@ -254,41 +234,6 @@ def _path_points_from_hull(hull):
     points = np.array(points)
     return points
 
-
-def render_path_points(path_points, color='green', fill=False):
-    if fill:
-        fill_color = color
-    else:
-        fill_color = 'transparent'
-
-    path_code = ""
-    #path_code = f'<path d="M {pts[vertices[0], 0]} {pts[vertices[0], 1]} '
-    for i0 in range(0, len(path_points), 4):
-        src = path_points[i0, :]
-        src_ctrl = path_points[i0+1, :]
-        dst = path_points[i0+2, :]
-        dst_ctrl = path_points[i0+3, :]
-
-
-        if i0 == 0:
-            path_code += f'<path d="M {src[0]} {src[1]} '
-
-        if np.isfinite(src_ctrl).all() and np.isfinite(dst_ctrl).all():
-            update = (
-                f"C {src_ctrl[0]} {src_ctrl[1]} "
-                f"{dst_ctrl[0]} {dst_ctrl[1]} "
-                f"{dst[0]} {dst[1]} "
-            )
-        else:
-            update = (
-                f"L {dst[0]} {dst[1]} "
-            )
-
-        path_code += update
-
-    path_code += f'" stroke="{color}" fill="{fill_color}" fill-opacity="0.1"/>\n'
-
-    return path_code
 
 def _get_ctrl_point(pre, center, post):
     """
