@@ -129,7 +129,7 @@ def write_out_svg_cache(
         process_list = winnow_process_list(process_list)
 
     print(f'======SUCCESS=======')
-    print(f'that took {time.time()-t0:.2e} seconds')
+    print(f'that took {(time.time()-t0)/60.0:.2e} minutes')
 
 
 def _write_svg_cache_worker(
