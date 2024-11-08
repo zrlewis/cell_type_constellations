@@ -1,6 +1,9 @@
+import h5py
+import multiprocessing
 import numpy as np
 import pathlib
 from scipy.spatial import ConvexHull
+import tempfile
 import time
 
 from cell_type_constellations.svg.fov import (
@@ -35,6 +38,15 @@ from cell_type_constellations.utils.geometry import (
 
 from cell_type_constellations.svg.rendering_utils import (
     render_fov_from_hdf5
+)
+
+from cell_type_constellations.utils.multiprocessing_utils import (
+    winnow_process_list
+)
+
+from cell_type_constellations.utils.data import (
+    _clean_up,
+    mkstemp_clean
 )
 
 
@@ -294,18 +306,83 @@ def _load_hulls(
         plot_obj,
         taxonomy_level,
         n_limit=None,
-        verbose=False):
+        verbose=False,
+        n_processors=1):
 
     label_list = constellation_cache.taxonomy_tree.nodes_at_level(taxonomy_level)
+    if n_processors == 1:
+
+        hull_list = _get_hull_list(
+            constellation_cache=constellation_cache,
+            label_list=label_list,
+            taxonomy_level=taxonomy_level,
+            verbose=verbose)
+
+        for hull in hull_list:
+            plot_obj.add_element(hull)
+
+    else:
+        tmp_dir = tempfile.mkdtemp()
+
+        try:
+            n_per = max(1, len(label_list)//(2*n_processors))
+            tmp_file_list = []
+            process_list = []
+            for i0 in range(0, len(label_list), n_per):
+                i1 = min(len(label_list),i0+n_per)
+                tmp_path = mkstemp_clean(
+                    dir=tmp_dir,
+                    prefix='hull_',
+                    suffix='.h5'
+                )
+                sub_list = label_list[i0:i1]
+                p = multiprocessing.Process(
+                    target=_get_hull_list_worker,
+                    kwargs={
+                        'label_list': sub_list,
+                        'taxonomy_level': taxonomy_level,
+                        'constellation_cache': constellation_cache,
+                        'output_path': tmp_path
+                    }
+                )
+                tmp_file_list.append(tmp_path)
+                p.start()
+                process_list.append(p)
+                while len(process_list) >= n_processors:
+                    process_list = winnow_process_list(process_list)
+            while len(process_list) >= 0:
+                process_list = winnow_process_list(process_list)
+
+            for pth in tmp_file_list:
+                with h5py.File(pth, 'r') as src:
+                    this_list = src[f'hulls/{taxonomy_level}'].keys()
+                    for label in this_list:
+                        hull = CompoundBareHull.from_hdf5(
+                            hdf5_handle=src,
+                            label=label,
+                            level=taxonomy_level
+                        )
+                        plot_obj.add_element(hull)
+        finally:
+            _clean_up(tmp_dir)
+
+    return plot_obj
+
+
+def _get_hull_list_worker(
+        constellation_cache,
+        label_list,
+        taxonomy_level,
+        output_path):
+
     hull_list = _get_hull_list(
         constellation_cache=constellation_cache,
         label_list=label_list,
         taxonomy_level=taxonomy_level,
-        verbose=verbose)
+        verbose=False)
 
     for hull in hull_list:
-        plot_obj.add_element(hull)
-    return plot_obj
+        hull.to_hdf5(hdf5_path=output_path, level=taxonomy_level)
 
 
 def _get_hull_list(

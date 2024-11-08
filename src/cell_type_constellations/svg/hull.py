@@ -324,7 +324,8 @@ class CompoundBareHull(object):
             'bare_hull_list': bare_hull_list,
             'level': level
         }
-        return cls.from_dict(params)
+        result = cls.from_dict(params)
+        return result
 
 
 def _path_points_from_hull(hull):
