@@ -108,7 +108,6 @@ def render_hull_svg(
 
     plot_obj = _load_hulls(
         constellation_cache=constellation_cache,
-        centroid_list=centroid_list,
         plot_obj=plot_obj,
         taxonomy_level=hull_level,
         n_limit=n_limit,
@@ -292,7 +291,6 @@ def _load_connections(
 
 def _load_hulls(
         constellation_cache,
-        centroid_list,
         plot_obj,
         taxonomy_level,
         n_limit=None,
