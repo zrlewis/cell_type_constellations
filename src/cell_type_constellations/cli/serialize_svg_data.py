@@ -4,7 +4,9 @@ all of the data needed to render and svg
 """
 
 import argparse
+import multiprocessing
 import pathlib
+import time
 
 from cell_type_constellations.cells.data_cache import (
     ConstellationCache_HDF5
@@ -90,6 +92,8 @@ def write_out_svg_cache(
         width,
         clobber=False):
 
+    t0 = time.time()
+
     dst_path = pathlib.Path(dst_path)
     if dst_path.exists():
         if clobber:
@@ -100,6 +104,43 @@ def write_out_svg_cache(
             )
 
     constellation_cache = ConstellationCache_HDF5(src_path)
+    process_list = []
+    mgr = multiprocessing.Manager()
+    lock = mgr.Lock()
+    mode = 'w'
+    for level in constellation_cache.taxonomy_tree.hierarchy:
+        p = multiprocessing.Process(
+            target=_write_svg_cache_worker,
+            kwargs = {
+                'constellation_cache': constellation_cache,
+                'dst_path': dst_path,
+                'level': level,
+                'height': height,
+                'width': width,
+                'lock': lock,
+                'mode': mode
+            }
+        )
+        p.start()
+        mode = 'a'
+        process_list.append(p)
+
+    while len(process_list) > 0:
+        process_list = winnow_process_list(process_list)
+
+    print(f'======SUCCESS=======')
+    print(f'that took {time.time()-t0:.2e} seconds')
+
+
+def _write_svg_cache_worker(
+        constellation_cache,
+        dst_path,
+        level,
+        height,
+        width,
+        lock,
+        mode
+    ):
 
     max_cluster_cells = constellation_cache.n_cells_lookup[
         constellation_cache.taxonomy_tree.leaf_level].max()
@@ -107,49 +148,64 @@ def write_out_svg_cache(
     # each level gets its own plot object so that, when finding
     # the positions of bezier control points, we do not account for
     # centroids not at that level
-    level_to_obj = {
-        level: ConstellationPlot(
+    plot_obj = ConstellationPlot(
             height=height,
             width=width,
             max_radius=20,
             min_radius=2,
             max_n_cells=max_cluster_cells)
-        for level in constellation_cache.taxonomy_tree.hierarchy
-    }
 
-    centroid_level_list = constellation_cache.taxonomy_tree.hierarchy
-    n_levels = len(centroid_level_list)
 
-    for hull_level in constellation_cache.taxonomy_tree.hierarchy[-1::-1]:
-        level_to_obj[hull_level] = _load_hulls(
+    plot_obj = _load_hulls(
             constellation_cache=constellation_cache,
-            plot_obj=level_to_obj[hull_level],
-            taxonomy_level=hull_level,
+            plot_obj=plot_obj,
+            taxonomy_level=level,
             n_limit=None,
             verbose=False
         )
 
     hull_level = constellation_cache.taxonomy_tree.hierarchy[0]
-    for centroid_level in constellation_cache.taxonomy_tree.hierarchy:
 
-        (level_to_obj[centroid_level],
-         centroid_list) = _load_centroids(
+    (plot_obj,
+     centroid_list) = _load_centroids(
              constellation_cache=constellation_cache,
-             plot_obj=level_to_obj[centroid_level],
-             taxonomy_level=centroid_level,
+             plot_obj=plot_obj,
+             taxonomy_level=level,
              color_by_level=hull_level)
 
-        level_to_obj[centroid_level] = _load_connections(
+    plot_obj = _load_connections(
                 constellation_cache=constellation_cache,
                 centroid_list=centroid_list,
-                taxonomy_level=centroid_level,
-                plot_obj=level_to_obj[centroid_level])
+                taxonomy_level=level,
+                plot_obj=plot_obj)
 
-    mode = 'w'
-    for level in constellation_cache.taxonomy_tree.hierarchy:
-        level_to_obj[level].serialize_fov(hdf5_path=dst_path, mode=mode)
-        mode = 'a'
+    with lock:
+        plot_obj.serialize_fov(hdf5_path=dst_path, mode=mode)
 
+
+def winnow_process_list(
+        process_list):
+    """
+    Loop over a list of processes, popping out any that have
+    been completed. Return the winnowed list of processes.
+    Parameters
+    ----------
+    process_list: List[multiprocessing.Process]
+    Returns
+    -------
+    process_list: List[multiprocessing.Process]
+    """
+    to_pop = []
+    for ii in range(len(process_list)-1, -1, -1):
+        if process_list[ii].exitcode is not None:
+            to_pop.append(ii)
+            if process_list[ii].exitcode != 0:
+                raise RuntimeError(
+                    "One of the processes exited with code "
+                    f"{process_list[ii].exitcode}")
+    for ii in to_pop:
+        process_list.pop(ii)
+    return process_list
 
 
 if __name__ == "__main__":
