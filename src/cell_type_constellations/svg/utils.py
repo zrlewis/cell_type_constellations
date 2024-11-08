@@ -385,7 +385,9 @@ def _load_single_hull(
             bare_hull_list=bare_hull_list,
             label=label,
             name=name,
-            n_cells=n_cells
+            n_cells=n_cells,
+            level=leaf_level,
+            fill=False
         )
 
     as_leaves = constellation_cache.taxonomy_tree.as_leaves

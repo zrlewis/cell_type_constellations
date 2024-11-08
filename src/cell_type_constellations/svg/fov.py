@@ -127,13 +127,14 @@ class ConstellationPlot(object):
                 'hull_list': hull_list}
 
 
-    def serialize_fov(self, hdf5_path):
+    def serialize_fov(self, hdf5_path, mode='w'):
 
-        with h5py.File(hdf5_path, 'a') as dst:
-            if 'fov' not in dst.keys():
-                dst.create_group('fov')
-            dst['fov'].create_dataset('height', data=self.height)
-            dst['fov'].create_dataset('width', data=self.width)
+        if mode == 'w':
+            with h5py.File(hdf5_path, mode) as dst:
+                if 'fov' not in dst.keys():
+                    dst.create_group('fov')
+                dst['fov'].create_dataset('height', data=self.height)
+                dst['fov'].create_dataset('width', data=self.width)
 
         element_lookup = self._parametrize_elements()
         _centroid_list = element_lookup['centroid_list']
