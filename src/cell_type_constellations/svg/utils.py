@@ -296,44 +296,40 @@ def _load_hulls(
         n_limit=None,
         verbose=False):
 
-    t0 = time.time()
-    ct = 0
-
-    if not hasattr(_load_hulls, "_hull_cache"):
-        _load_hulls._hull_cache = dict()
-
-    if taxonomy_level not in _load_hulls._hull_cache:
-        _load_hulls._hull_cache[taxonomy_level] = dict()
-
     label_list = constellation_cache.taxonomy_tree.nodes_at_level(taxonomy_level)
+    hull_list = _get_hull_list(
+        constellation_cache=constellation_cache,
+        label_list=label_list,
+        taxonomy_level=taxonomy_level,
+        verbose=verbose)
+
+    for hull in hull_list:
+        plot_obj.add_element(hull)
+    return plot_obj
+
+
+def _get_hull_list(
+        constellation_cache,
+        label_list,
+        taxonomy_level,
+        verbose=False):
+
+    hull_list = []
+
     n_labels = len(label_list)
     for label in label_list:
 
-        if label not in _load_hulls._hull_cache[taxonomy_level]:
-
-            _hull = _load_single_hull(
+        hull = _load_single_hull(
                 constellation_cache=constellation_cache,
                 taxonomy_level=taxonomy_level,
                 label=label,
                 verbose=verbose
-            )
-            _load_hulls._hull_cache[taxonomy_level][label] = _hull
-
-        hull = _load_hulls._hull_cache[taxonomy_level][label]
+        )
 
         if hull is not None:
-            plot_obj.add_element(hull)
+            hull_list.append(hull)
 
-        dur = time.time()-t0
-        ct += 1
-        per = dur/ct
-        pred = per*n_labels
-        print(f'{ct} of {n_labels} in {dur:.2e} seconds '
-              f'predict {pred-dur:.2e} of {pred:.2e} remain')
-        if n_limit is not None and ct >= n_limit:
-            break
-
-    return plot_obj
+    return hull_list
 
 
 def _load_single_hull(

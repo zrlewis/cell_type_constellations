@@ -181,6 +181,7 @@ def _write_svg_cache_worker(
 
     with lock:
         plot_obj.serialize_fov(hdf5_path=dst_path, mode=mode)
+        print(f'=======COMPLETED {level}=======')
 
 
 def winnow_process_list(
