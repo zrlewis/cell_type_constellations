@@ -22,10 +22,6 @@ from cell_type_constellations.svg.utils import (
     _load_connections
 )
 
-from cell_type_constellations.utils.multiprocessing_utils import (
-    winnow_process_list
-)
-
 
 def main():
     parser = argparse.ArgumentParser()
@@ -113,7 +109,9 @@ def write_out_svg_cache(
     lock = mgr.Lock()
     mode = 'w'
     for level in constellation_cache.taxonomy_tree.hierarchy:
-        config = {
+        p = multiprocessing.Process(
+            target=_write_svg_cache_worker,
+            kwargs = {
                 'constellation_cache': constellation_cache,
                 'dst_path': dst_path,
                 'level': level,
@@ -121,16 +119,11 @@ def write_out_svg_cache(
                 'width': width,
                 'lock': lock,
                 'mode': mode
-        }
-        _write_svg_cache_worker(**config)
-
-        #p = multiprocessing.Process(
-        #    target=_write_svg_cache_worker,
-        #    kwargs = config
-        #)
-        #p.start()
+            }
+        )
+        p.start()
         mode = 'a'
-        #process_list.append(p)
+        process_list.append(p)
 
     while len(process_list) > 0:
         process_list = winnow_process_list(process_list)
@@ -168,8 +161,7 @@ def _write_svg_cache_worker(
             plot_obj=plot_obj,
             taxonomy_level=level,
             n_limit=None,
-            verbose=False,
-            n_processors=6
+            verbose=False
         )
 
     hull_level = constellation_cache.taxonomy_tree.hierarchy[0]
@@ -190,6 +182,31 @@ def _write_svg_cache_worker(
     with lock:
         plot_obj.serialize_fov(hdf5_path=dst_path, mode=mode)
         print(f'=======COMPLETED {level}=======')
+
+
+def winnow_process_list(
+        process_list):
+    """
+    Loop over a list of processes, popping out any that have
+    been completed. Return the winnowed list of processes.
+    Parameters
+    ----------
+    process_list: List[multiprocessing.Process]
+    Returns
+    -------
+    process_list: List[multiprocessing.Process]
+    """
+    to_pop = []
+    for ii in range(len(process_list)-1, -1, -1):
+        if process_list[ii].exitcode is not None:
+            to_pop.append(ii)
+            if process_list[ii].exitcode != 0:
+                raise RuntimeError(
+                    "One of the processes exited with code "
+                    f"{process_list[ii].exitcode}")
+    for ii in to_pop:
+        process_list.pop(ii)
+    return process_list
 
 
 if __name__ == "__main__":
