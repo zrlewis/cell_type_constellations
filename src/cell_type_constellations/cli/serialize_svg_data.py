@@ -128,7 +128,6 @@ def write_out_svg_cache(
     process_list = []
     mgr = multiprocessing.Manager()
     lock = mgr.Lock()
-    mode = 'w'
     for level in constellation_cache.taxonomy_tree.hierarchy:
         p = multiprocessing.Process(
             target=_write_svg_cache_worker,
@@ -138,11 +137,9 @@ def write_out_svg_cache(
                 'level': level,
                 'height': height,
                 'width': width,
-                'lock': lock,
-                'mode': mode
+                'lock': lock
             }
         )
-        mode = 'a'
         p.start()
         process_list.append(p)
 
@@ -165,8 +162,7 @@ def _write_svg_cache_worker(
         level,
         height,
         width,
-        lock,
-        mode
+        lock
     ):
     t0 = time.time()
     max_cluster_cells = constellation_cache.n_cells_lookup[
@@ -207,6 +203,11 @@ def _write_svg_cache_worker(
                 plot_obj=plot_obj)
 
     with lock:
+        dst_path = pathlib.Path(dst_path)
+        if dst_path.exists():
+            mode = 'a'
+        else:
+            mode = 'w'
         plot_obj.serialize_fov(hdf5_path=dst_path, mode=mode)
         dur = (time.time()-t0)/60.0
         print(f'=======COMPLETED {level} in {dur:.2e} minutes=======')
