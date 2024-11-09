@@ -4,6 +4,8 @@ all of the data needed to render and svg
 """
 
 import argparse
+import h5py
+import json
 import multiprocessing
 import pathlib
 import time
@@ -104,6 +106,25 @@ def write_out_svg_cache(
             )
 
     constellation_cache = ConstellationCache_HDF5(src_path)
+
+    tree = constellation_cache.taxonomy_tree
+    color_lookup = dict()
+    for level in tree.hierarchy:
+        color_lookup[level] = dict()
+        for node in tree.nodes_at_level(level):
+            this = {level: constellation_cache.color(
+                        level=level,
+                        label=node,
+                        color_by_level=level)}
+            parentage = tree.parents(level=level, node=node)
+            for parent_level in parentage:
+                this[parent_level] = constellation_cache.color(
+                    level=level,
+                    label=node,
+                    color_by_level=parent_level
+                )
+            color_lookup[level][node] = this
+
     process_list = []
     mgr = multiprocessing.Manager()
     lock = mgr.Lock()
@@ -121,12 +142,18 @@ def write_out_svg_cache(
                 'mode': mode
             }
         )
-        p.start()
         mode = 'a'
+        p.start()
         process_list.append(p)
 
     while len(process_list) > 0:
         process_list = winnow_process_list(process_list)
+
+    with h5py.File(dst_path, 'a') as dst:
+        dst.create_dataset(
+            'color_lookup',
+            data=json.dumps(color_lookup).encode('utf-8')
+        )
 
     print(f'======SUCCESS=======')
     print(f'that took {(time.time()-t0)/60.0:.2e} minutes')
@@ -141,7 +168,7 @@ def _write_svg_cache_worker(
         lock,
         mode
     ):
-
+    t0 = time.time()
     max_cluster_cells = constellation_cache.n_cells_lookup[
         constellation_cache.taxonomy_tree.leaf_level].max()
 
@@ -181,7 +208,8 @@ def _write_svg_cache_worker(
 
     with lock:
         plot_obj.serialize_fov(hdf5_path=dst_path, mode=mode)
-        print(f'=======COMPLETED {level}=======')
+        dur = (time.time()-t0)/60.0
+        print(f'=======COMPLETED {level} in {dur:.2e} minutes=======')
 
 
 def winnow_process_list(

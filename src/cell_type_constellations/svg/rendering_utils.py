@@ -1,4 +1,5 @@
 import h5py
+import json
 import numpy as np
 
 
@@ -11,15 +12,20 @@ def render_fov_from_hdf5(
         hdf5_path,
         centroid_level,
         hull_level,
-        base_url):
+        base_url,
+        color_by):
 
     with h5py.File(hdf5_path, 'r', swmr=True) as src:
         width = src['fov/width'][()]
         height = src['fov/height'][()]
+        color_lookup = json.loads(
+            src['color_lookup'][()].decode('utf-8'))
 
     centroid_lookup = centroid_lookup_from_hdf5(
         hdf5_path=hdf5_path,
-        level=centroid_level)
+        level=centroid_level,
+        color_lookup=color_lookup,
+        color_by=color_by)
 
     connection_list = connection_list_from_hdf5(
         hdf5_path=hdf5_path,
@@ -272,7 +278,7 @@ def centroid_list_to_hdf5_single_level(
             dst_grp.create_dataset(k, data=data)
 
 
-def centroid_lookup_from_hdf5(hdf5_path, level):
+def centroid_lookup_from_hdf5(hdf5_path, level, color_lookup, color_by):
     this_key = f'centroids/{level}'
     data_lookup = dict()
     with h5py.File(hdf5_path, 'r', swmr=True) as src:
@@ -288,7 +294,7 @@ def centroid_lookup_from_hdf5(hdf5_path, level):
             'pixel_r': data_lookup['pixel_r'][idx],
             'pixel_x': data_lookup['pixel_x'][idx],
             'pixel_y': data_lookup['pixel_y'][idx],
-            'color': data_lookup['color'][idx].decode('utf-8'),
+            'color': color_lookup[level][label][color_by],
             'level': level
         }
         result[label] = Centroid.from_dict(params)
