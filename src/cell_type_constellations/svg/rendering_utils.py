@@ -6,6 +6,9 @@ import numpy as np
 from cell_type_constellations.svg.centroid import Centroid
 from cell_type_constellations.svg.connection import Connection
 from cell_type_constellations.svg.hull import CompoundBareHull
+from cell_type_constellations.taxonomy.taxonomy_tree import (
+    TaxonomyTree
+)
 
 
 def render_fov_from_hdf5(
@@ -20,6 +23,10 @@ def render_fov_from_hdf5(
         height = src['fov/height'][()]
         color_lookup = json.loads(
             src['color_lookup'][()].decode('utf-8'))
+        taxonomy_tree = TaxonomyTree(
+                data=json.loads(src['taxonomy_tree'][()].decode('utf-8')
+            )
+        )
 
     centroid_lookup = centroid_lookup_from_hdf5(
         hdf5_path=hdf5_path,
@@ -48,18 +55,22 @@ def render_fov_from_hdf5(
         hull_list=hull_list,
         base_url=base_url,
         width=width,
-        height=height)
+        height=height,
+        taxonomy_tree=taxonomy_tree,
+        color_by=color_by)
 
     return result
 
 
 def render_fov(
         centroid_list,
+        color_by,
         connection_list,
         hull_list,
         base_url,
         height,
-        width):
+        width,
+        taxonomy_tree):
 
     result = (
             f'<svg height="{height}px" width="{width}px" '
@@ -68,26 +79,37 @@ def render_fov(
 
     centroid_code = render_centroid_list(
                         centroid_list=centroid_list,
-                        base_url=base_url)
+                        base_url=base_url,
+                        taxonomy_tree=taxonomy_tree,
+                        color_by=color_by)
+
     connection_code = render_connection_list(connection_list=connection_list)
-    hull_code = render_hull_list(hull_list, base_url=base_url)
+
+    hull_code = render_hull_list(
+        hull_list,
+        base_url=base_url,
+        taxonomy_tree=taxonomy_tree)
+
     result += hull_code + connection_code + centroid_code
     result += "</svg>\n"
 
     return result
 
 
-def render_hull_list(hull_list, base_url):
+def render_hull_list(hull_list, base_url, taxonomy_tree):
     hull_code = ""
     for hull in hull_list:
-        hull_code += render_compound_hull(hull, base_url)
+        hull_code += render_compound_hull(hull, base_url, taxonomy_tree)
     return hull_code
 
 
-def render_compound_hull(compound_hull, base_url):
+def render_compound_hull(compound_hull, base_url, taxonomy_tree):
     url = (
         f"{base_url}/{compound_hull.relative_url}"
     )
+
+    level_name = taxonomy_tree.level_to_name(compound_hull.level)
+    hover_msg = f"{level_name}: {compound_hull.name} -- {compound_hull.n_cells:.2e} cells"
 
     result = f"""    <a href="{url}">\n"""
 
@@ -98,7 +120,7 @@ def render_compound_hull(compound_hull, base_url):
                     fill=compound_hull.fill)
 
     result += """        <title>\n"""
-    result += f"""        {compound_hull.name}: {compound_hull.n_cells:.2e} cells\n"""
+    result += f"""        {hover_msg}\n"""
     result += """        </title>\n"""
     result += "    </a>\n"
     return result
@@ -191,20 +213,42 @@ def get_bezier_curve(src, dst, ctrl):
 
 
 
-def render_centroid_list(centroid_list, base_url):
+def render_centroid_list(
+        centroid_list,
+        base_url,
+        taxonomy_tree,
+        color_by):
 
     centroid_code = ""
     for el in centroid_list:
         centroid_code += render_centroid(
             centroid=el,
-            base_url=base_url)
+            base_url=base_url,
+            taxonomy_tree=taxonomy_tree,
+            color_by=color_by)
 
     return centroid_code
 
 
 def render_centroid(
         centroid,
-        base_url):
+        base_url,
+        taxonomy_tree,
+        color_by):
+
+    level_name = taxonomy_tree.level_to_name(centroid.level)
+    hover_msg = f"{level_name}: {centroid.name} -- {centroid.n_cells:.2e} cells"
+    if color_by != centroid.level:
+        parents = taxonomy_tree.parents(
+            level=centroid.level,
+            node=centroid.label
+        )
+        parent_level = taxonomy_tree.level_to_name(color_by)
+        parent_name = taxonomy_tree.label_to_name(
+            level=color_by,
+            label=parents[color_by]
+        )
+        hover_msg += f"\n        ({parent_level}: {parent_name})"
 
     result = f"""    <a href="{base_url}/{centroid.relative_url}">\n"""
 
@@ -213,7 +257,7 @@ def render_centroid(
         f"""fill="{centroid.color}" stroke="transparent"/>\n"""
     )
     result += """        <title>\n"""
-    result += f"""        {centroid.name}: {centroid.n_cells:.2e} cells\n"""
+    result += f"""        {hover_msg}\n"""
     result += """        </title>\n"""
     result += "    </a>\n"
     return result

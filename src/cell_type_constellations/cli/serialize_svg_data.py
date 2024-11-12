@@ -151,6 +151,10 @@ def write_out_svg_cache(
             'color_lookup',
             data=json.dumps(color_lookup).encode('utf-8')
         )
+        dst.create_dataset(
+            'taxonomy_tree',
+            data=constellation_cache.taxonomy_tree.to_str(drop_cells=True).encode('utf-8')
+        )
 
     print(f'======SUCCESS=======')
     print(f'that took {(time.time()-t0)/60.0:.2e} minutes')
