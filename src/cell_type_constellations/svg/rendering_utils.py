@@ -40,10 +40,13 @@ def render_fov_from_hdf5(
         centroid_lookup=centroid_lookup
     )
 
-    hull_lookup = hull_lookup_from_hdf5(
-        hdf5_path=hdf5_path,
-        level=hull_level
-    )
+    if hull_level is not None:
+        hull_lookup = hull_lookup_from_hdf5(
+            hdf5_path=hdf5_path,
+            level=hull_level
+        )
+    else:
+        hull_lookup = dict()
 
     centroid_list = list(centroid_lookup.values())
     hull_list = list(hull_lookup.values())
