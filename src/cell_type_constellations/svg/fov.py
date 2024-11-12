@@ -245,7 +245,18 @@ class ConstellationPlot(object):
             x,
             y):
 
-        return x, y
+        if self.world_origin is None:
+            raise RuntimeError("world origin not set")
+
+        x_pix = (
+            self.pixel_origin[0]
+            + self.pixel_extent[0]*(x-self.world_origin[0])/self.world_extent[0]
+        )
+        y_pix = (
+            self.pixel_origin[1]
+            + self.pixel_extent[1]*(self.world_origin[1]+self.world_extent[1]-y)/self.world_extent[1]
+        )
+        return x_pix, y_pix
 
 
 def get_bezier_control_points(
