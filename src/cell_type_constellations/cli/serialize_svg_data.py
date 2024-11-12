@@ -62,8 +62,16 @@ def main():
         default=False,
         action='store_true'
     )
+    parser.add_argument(
+        '--taxonomy_name',
+        default=None,
+        type=str
+    )
 
     args = parser.parse_args()
+
+    if args.taxonomy_name is None:
+        raise RuntimeError("must specify taxonomy_name")
 
     src_path = pathlib.Path(args.data_cache_path)
     if not src_path.is_file():
@@ -84,7 +92,8 @@ def main():
         dst_path=dst_path,
         height=args.height,
         width=args.width,
-        clobber=args.clobber)
+        clobber=args.clobber,
+        taxonomy_name=args.taxonomy_name)
 
 
 def write_out_svg_cache(
@@ -92,6 +101,7 @@ def write_out_svg_cache(
         dst_path,
         height,
         width,
+        taxonomy_name,
         clobber=False):
 
     t0 = time.time()
@@ -154,6 +164,10 @@ def write_out_svg_cache(
         dst.create_dataset(
             'taxonomy_tree',
             data=constellation_cache.taxonomy_tree.to_str(drop_cells=True).encode('utf-8')
+        )
+        dst.create_dataset(
+            'taxonomy_name',
+            data=taxonomy_name.encode('utf-8')
         )
 
     print(f'======SUCCESS=======')
