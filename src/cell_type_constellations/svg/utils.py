@@ -346,12 +346,16 @@ def _load_hulls_multiprocessing(
     t0 = time.time()
     label_list = np.array(copy.deepcopy(label_list))
 
-    n_hulls = [
-        len(constellation_cache.convex_hull_list_from_label(
+    n_hulls = []
+    for label in label_list:
+        hull_list = constellation_cache.convex_hull_list_from_label(
                 level=taxonomy_level,
-                label=l))
-        for l in label_list
-    ]
+                label=label)
+        if hull_list is None:
+            n_hulls.append(0)
+        else:
+            n_hulls.append(len(hull_list))
+    n_hulls = np.array(n_hulls)
 
     sorted_dex = np.argsort(n_hulls)
     label_list = label_list[sorted_dex[-1::-1]]
