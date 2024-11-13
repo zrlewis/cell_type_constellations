@@ -6,7 +6,6 @@ all of the data needed to render and svg
 import argparse
 import h5py
 import json
-import multiprocessing
 import pathlib
 import time
 
@@ -22,6 +21,10 @@ from cell_type_constellations.svg.utils import (
     _load_centroids,
     _load_hulls,
     _load_connections
+)
+
+from cell_type_constellations.utils.multiprocessing_utils import (
+    DummyLock
 )
 
 
@@ -135,26 +138,17 @@ def write_out_svg_cache(
                 )
             color_lookup[level][node] = this
 
-    process_list = []
-    mgr = multiprocessing.Manager()
-    lock = mgr.Lock()
     for level in constellation_cache.taxonomy_tree.hierarchy:
-        p = multiprocessing.Process(
-            target=_write_svg_cache_worker,
-            kwargs = {
-                'constellation_cache': constellation_cache,
-                'dst_path': dst_path,
-                'level': level,
-                'height': height,
-                'width': width,
-                'lock': lock
-            }
-        )
-        p.start()
-        process_list.append(p)
 
-    while len(process_list) > 0:
-        process_list = winnow_process_list(process_list)
+        config = {
+            'constellation_cache': constellation_cache,
+            'dst_path': dst_path,
+            'level': level,
+            'height': height,
+            'width': width,
+            'lock': DummyLock()
+        }
+        _write_svg_cache_worker(**config)
 
     with h5py.File(dst_path, 'a') as dst:
         dst.create_dataset(
@@ -229,31 +223,6 @@ def _write_svg_cache_worker(
         plot_obj.serialize_fov(hdf5_path=dst_path, mode=mode)
         dur = (time.time()-t0)/60.0
         print(f'=======COMPLETED {level} in {dur:.2e} minutes=======')
-
-
-def winnow_process_list(
-        process_list):
-    """
-    Loop over a list of processes, popping out any that have
-    been completed. Return the winnowed list of processes.
-    Parameters
-    ----------
-    process_list: List[multiprocessing.Process]
-    Returns
-    -------
-    process_list: List[multiprocessing.Process]
-    """
-    to_pop = []
-    for ii in range(len(process_list)-1, -1, -1):
-        if process_list[ii].exitcode is not None:
-            to_pop.append(ii)
-            if process_list[ii].exitcode != 0:
-                raise RuntimeError(
-                    "One of the processes exited with code "
-                    f"{process_list[ii].exitcode}")
-    for ii in to_pop:
-        process_list.pop(ii)
-    return process_list
 
 
 if __name__ == "__main__":
