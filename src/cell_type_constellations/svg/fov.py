@@ -40,6 +40,8 @@ class ConstellationPlot(object):
             max_n_cells,
             width=None):
 
+        self._umap_to_pixel = None
+
         self._base_url = "http://35.92.115.7:8883"
 
         pixel_buffer = 3*max_radius//2
@@ -133,6 +135,7 @@ class ConstellationPlot(object):
                 dst['fov'].create_dataset('height', data=self.height)
                 dst['fov'].create_dataset('width', data=self.width)
 
+
         element_lookup = self._parametrize_elements()
         _centroid_list = element_lookup['centroid_list']
         _connection_list = element_lookup['connection_list']
@@ -141,6 +144,21 @@ class ConstellationPlot(object):
         centroid_list_to_hdf5(hdf5_path=hdf5_path, centroid_list=_centroid_list)
         connection_list_to_hdf5(hdf5_path=hdf5_path, connection_list=_connection_list)
         hull_list_to_hdf5(hdf5_path=hdf5_path, hull_list=_hull_list)
+
+        # record the transformation matrix between umap and pixel coords
+        if mode == 'w':
+            with h5py.File(hdf5_path, 'a') as dst:
+                dst['fov'].create_dataset(
+                    'umap_to_pixel', data=self.umap_to_pixel_transform)
+        else:
+            with h5py.File(hdf5_path, 'r', swmr=True) as dst:
+                test = dst['fov']['umap_to_pixel'][()]
+            np.testing.assert_allclose(
+                test,
+                self.umap_to_pixel_transform,
+                atol=0.0,
+                rtol=1.0e-6
+            )
 
     def _parametrize_all_hulls(self):
         hull_list = [
@@ -220,23 +238,52 @@ class ConstellationPlot(object):
             y=y_pix,
             radius=radius)
 
+    def _set_umap_to_pixel(self):
+        if self.world_origin is None:
+            raise RuntimeError("world origin not set")
+
+        e0 = self.pixel_extent[0]
+        e1 = self.pixel_extent[1]
+        we0 = self.world_extent[0]
+        we1 = self.world_extent[1]
+        p0 = self.pixel_origin[0]
+        p1 = self.pixel_origin[1]
+        w0 = self.world_origin[0]
+        w1 = self.world_origin[1]
+
+        self._umap_to_pixel = np.array([
+            [e0/we0, 0.0, p0-e0*w0/we0],
+            [0.0, -e1/we1, p1+e1*(w1+we1)/we1],
+            [0.0, 0.0, 1.0]
+        ])
+
+
+    @property
+    def umap_to_pixel_transform(self):
+        if self._umap_to_pixel is None:
+            self._set_umap_to_pixel()
+        return self._umap_to_pixel
+
+
     def convert_to_pixel_coords(
             self,
             x,
             y):
 
-        if self.world_origin is None:
-            raise RuntimeError("world origin not set")
+        as_arrays = False
+        if isinstance(x, np.ndarray):
+            as_arrays = True
+            vec = np.array(
+                [x, y, np.ones(len(x), dtype=float)]
+            )
+        else:
+            vec = np.array([x, y, 1.0])
 
-        x_pix = (
-            self.pixel_origin[0]
-            + self.pixel_extent[0]*(x-self.world_origin[0])/self.world_extent[0]
-        )
-        y_pix = (
-            self.pixel_origin[1]
-            + self.pixel_extent[1]*(self.world_origin[1]+self.world_extent[1]-y)/self.world_extent[1]
-        )
-        return x_pix, y_pix
+        result = np.dot(self.umap_to_pixel_transform, vec)
+        if as_arrays:
+            return result[0, :], result[1, :]
+        else:
+            return result[0], result[1]
 
 
 def get_bezier_control_points(
