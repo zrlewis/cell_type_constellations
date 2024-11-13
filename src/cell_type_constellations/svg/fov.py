@@ -14,9 +14,6 @@ from cell_type_constellations.svg.connection import (
 )
 
 from cell_type_constellations.svg.hull import (
-    Hull,
-    RawHull,
-    BareHull,
     CompoundBareHull
 )
 
@@ -148,10 +145,7 @@ class ConstellationPlot(object):
     def _parametrize_all_hulls(self):
         hull_list = [
             el for el in self.elements
-            if isinstance(el, Hull)
-            or isinstance(el, RawHull)
-            or isinstance(el, BareHull)
-            or isinstance(el, CompoundBareHull)
+            if isinstance(el, CompoundBareHull)
         ]
         for this_hull in hull_list:
             this_hull.set_parameters(plot_obj=self)

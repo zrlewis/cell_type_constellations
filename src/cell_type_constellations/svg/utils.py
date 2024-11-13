@@ -13,8 +13,6 @@ from cell_type_constellations.svg.connection import (
     Connection
 )
 from cell_type_constellations.svg.hull import (
-    Hull,
-    RawHull,
     BareHull,
     CompoundBareHull,
     merge_bare_hulls,
