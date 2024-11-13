@@ -185,24 +185,12 @@ class ConstellationPlot(object):
 
     def _parametrize_all_centroids(self):
 
-        x_bounds = (
-            self.world_origin[0],
-            self.world_origin[0]+self.world_extent[0]
-        )
-
-        y_bounds = (
-            self.world_origin[1],
-            self.world_origin[1]+self.world_extent[1]
-        )
-
         centroid_list = []
         for el in self.elements:
             if isinstance(el, Centroid):
                 self._parametrize_centroid(
                     centroid=el,
-                    max_n_cells=self.max_n_cells,
-                    x_bounds=x_bounds,
-                    y_bounds=y_bounds)
+                    max_n_cells=self.max_n_cells)
                 centroid_list.append(el)
 
         return centroid_list
@@ -211,9 +199,7 @@ class ConstellationPlot(object):
     def _parametrize_centroid(
             self,
             centroid,
-            max_n_cells,
-            x_bounds,
-            y_bounds):
+            max_n_cells):
         """
         Set the internal parametrs of a Centroid
 
