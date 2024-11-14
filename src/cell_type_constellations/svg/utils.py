@@ -180,7 +180,6 @@ def render_neighborhood_svg(
 
     plot_obj = _load_neighborhood_hulls(
         constellation_cache=constellation_cache,
-        centroid_list=centroid_list,
         plot_obj=plot_obj,
         neighborhood_assignments=neighborhood_assignments,
         neighborhood_colors=neighborhood_colors,
@@ -589,7 +588,6 @@ def _load_single_hull(
 
 def _load_neighborhood_hulls(
         constellation_cache,
-        centroid_list,
         plot_obj,
         neighborhood_assignments,
         neighborhood_colors,
@@ -643,8 +641,7 @@ def _load_single_neighborhood(
 
     merged_hull_list = merge_hulls_from_leaf_list(
         constellation_cache=constellation_cache,
-        leaf_list=leaf_list,
-        leaf_hull_lookup=leaf_lookup)
+        leaf_list=leaf_list)
 
     bare_hull_list = [
         BareHull.from_convex_hull(h, color=color)
