@@ -1,3 +1,4 @@
+import h5py
 import numpy as np
 from scipy.spatial import ConvexHull
 
@@ -15,68 +16,6 @@ from cell_type_constellations.svg.hull_utils import (
 )
 
 
-class Hull(object):
-    """
-    Take a list of Centroids. Ingest their pixel_pts into
-    a scipy ConvexHull. Render SVG.
-    """
-
-    def __init__(
-            self,
-            centroid_list,
-            color):
-
-        self.color = color
-        self.centroid_list = centroid_list
-
-    def render(self, plot_obj=None):
-        pts = np.array(
-            [c.pixel_pt for c in self.centroid_list]
-        )
-
-        return _path_from_hull(hull=ConvexHull(pts), stroke_color=self.color)
-
-    @property
-    def x_values(self):
-        return []
-
-    @property
-    def y_values(self):
-        return []
-
-
-class RawHull(object):
-    """
-    Take an array of points. Ingest into a scipy ConvexHull.
-    Render SVG.
-    """
-
-    def __init__(
-            self,
-            pts,
-            color):
-
-        self.color = color
-        self.pts = pts
-
-    def render(self, plot_obj=None):
-        (xx,
-         yy) = plot_obj.convert_to_pixel_coords(
-             x=self.pts[:, 0],
-             y=self.pts[:, 1])
-
-        pts = np.array([xx, yy]).transpose()
-        return _path_from_hull(hull=ConvexHull(pts), stroke_color=self.color)
-
-    @property
-    def x_values(self):
-        return []
-
-    @property
-    def y_values(self):
-        return []
-
-
 class BareHull(object):
     """
     Take a counterclockwise path of points. Store this as a boundary.
@@ -87,10 +26,16 @@ class BareHull(object):
             points,
             color=None):
 
-        self._points = np.copy(points)
-        self._vertices = np.arange(self._points.shape[0], dtype=int)
-        self._set_segments()
+        if points is not None:
+            self._points = np.copy(points)
+            self._vertices = np.arange(self._points.shape[0], dtype=int)
+            self._set_segments()
+        else:
+            self._points = None
+            self._vertices = None
+
         self.color = color
+        self._path_points = None
 
     @classmethod
     def from_convex_hull(cls, convex_hull, color=None):
@@ -125,6 +70,12 @@ class BareHull(object):
     def i_segments(self):
         return self._i_segments
 
+    @property
+    def path_points(self):
+        if self._path_points is None:
+            raise RuntimeError("self._path_points is None")
+        return self._path_points
+
     def _set_segments(self):
         segments = []
         i_segments = []
@@ -136,17 +87,31 @@ class BareHull(object):
         self._segments = segments
         self._i_segments = i_segments
 
-    def render(self, plot_obj=None, fill=False):
+    def set_path(self, plot_obj=None):
         (xx,
          yy) = plot_obj.convert_to_pixel_coords(
              x=self.points[:, 0],
              y=self.points[:, 1])
 
         pts = np.array([xx, yy]).transpose()
-        return _path_from_hull(
-            hull=BareHull(points=pts),
-            stroke_color=self.color,
-            fill=fill)
+
+        self._path_points = _path_points_from_hull(
+            hull=BareHull(points=pts))
+
+    def to_dict(self):
+        return {
+            "color": self.color,
+            "path_points": self.path_points
+        }
+
+    @classmethod
+    def from_dict(cls, params):
+        result = cls(
+            points=None,
+            color=params['color']
+        )
+        result._path_points = params['path_points']
+        return result
 
 
 class CompoundBareHull(object):
@@ -154,11 +119,13 @@ class CompoundBareHull(object):
     def __init__(
             self,
             bare_hull_list,
+            level,
             label=None,
             name=None,
             n_cells=None,
             fill=False):
 
+        self.level = level
         self.label = label
         self.name = name
         self.bare_hull_list = bare_hull_list
@@ -178,25 +145,127 @@ class CompoundBareHull(object):
          [h.points[:, 1] for h in self.bare_hull_list]
         )
 
-    def render(self, plot_obj=None):
-        url = (
-            f"http://35.92.115.7:8883/display_entity?entity_id={self.label}"
-        )
-        result = f"""    <a href="{url}">\n"""
+    @property
+    def relative_url(self):
+        return f"display_entity?entity_id={self.label}"
+
+    def set_parameters(self, plot_obj=None):
         for hull in self.bare_hull_list:
-            result += hull.render(plot_obj=plot_obj, fill=self.fill)
-        result += """        <title>\n"""
-        result += f"""        {self.name}: {self.n_cells:.2e} cells\n"""
-        result += """        </title>\n"""
-        result += "    </a>\n"
+            hull.set_path(plot_obj=plot_obj)
+
+    def to_dict(self):
+        return {
+            "fill": self.fill,
+            "label": self.label,
+            "name": self.name,
+            "n_cells": self.n_cells,
+            "bare_hull_list": [h.to_dict() for h in self.bare_hull_list]
+        }
+
+    @classmethod
+    def from_dict(cls, params):
+        result = cls(
+            level=params['level'],
+            label=params['label'],
+            name=params['name'],
+            n_cells=params['n_cells'],
+            fill=params['fill'],
+            bare_hull_list=[BareHull.from_dict(h) for h in params['bare_hull_list']]
+        )
         return result
 
 
-def _path_from_hull(hull, stroke_color='green', fill=False):
-    if fill:
-        fill_color = stroke_color
-    else:
-        fill_color = 'transparent'
+    def to_hdf5(self, hdf5_path, level):
+        this_key = f'hulls/{level}/{self.label}'
+        color_list = np.array([
+            h.color.encode('utf-8')
+            for h in self.bare_hull_list])
+        n_path_points = np.array([h.path_points.shape[0] for h in self.bare_hull_list])
+        path_points = np.vstack([h.path_points for h in self.bare_hull_list])
+        with h5py.File(hdf5_path, 'a') as dst:
+            if this_key in dst.keys():
+                np.testing.assert_allclose(
+                    path_points,
+                    dst[f'{this_key}/path_points'][()],
+                    atol=0.0,
+                    rtol=1.0e-7
+                )
+                np.testing.assert_array_equal(
+                    n_path_points,
+                    dst[f'{this_key}/n_path_points']
+                )
+                np.testing.assert_array_equal(
+                    color_list,
+                    dst[f'{this_key}/color_list'][()]
+                )
+                assert dst[f'{this_key}/n_cells'][()] == self.n_cells
+                assert dst[f'{this_key}/fill'][()] == self.fill
+                assert dst[f'{this_key}/name'][()] == self.name.encode('utf-8')
+            else:
+                dst.create_dataset(
+                    f'{this_key}/path_points',
+                    data=path_points,
+                    compression='lzf'
+                )
+                dst.create_dataset(
+                    f'{this_key}/n_path_points',
+                    data=n_path_points,
+                    compression='lzf'
+                )
+                dst.create_dataset(
+                    f'{this_key}/fill',
+                    data=self.fill
+                )
+                dst.create_dataset(
+                    f'{this_key}/n_cells',
+                    data=self.n_cells
+                )
+                dst.create_dataset(
+                    f'{this_key}/name',
+                    data=self.name.encode('utf-8')
+                )
+                dst.create_dataset(
+                    f'{this_key}/color_list',
+                    data=color_list
+                )
+
+    @classmethod
+    def from_hdf5(cls, hdf5_handle, label, level):
+        this_key = f'hulls/{level}/{label}'
+        path_points = hdf5_handle[f'{this_key}/path_points'][()]
+        n_path_points = hdf5_handle[f'{this_key}/n_path_points'][()]
+        color_list = hdf5_handle[f'{this_key}/color_list'][()]
+        n_cells = hdf5_handle[f'{this_key}/n_cells'][()]
+        fill = hdf5_handle[f'{this_key}/fill'][()]
+        name = hdf5_handle[f'{this_key}/name'][()]
+
+        bare_hull_list = []
+        i0 = 0
+        for idx in range(len(n_path_points)):
+            n = n_path_points[idx]
+            i1 = i0 + n
+            these = path_points[i0:i1, :]
+            color = color_list[idx].decode('utf-8')
+            bare_hull_list.append(
+                {'color': color,
+                 'path_points': these}
+            )
+            i0 = i1
+
+        params = {
+            'fill': fill,
+            'label': label,
+            'name': name.decode('utf-8'),
+            'n_cells': n_cells,
+            'bare_hull_list': bare_hull_list,
+            'level': level
+        }
+        return cls.from_dict(params)
+
+
+def _path_points_from_hull(hull):
+
+    points = []
 
     vertices = hull.vertices
     pts = hull.points
@@ -225,22 +294,13 @@ def _path_from_hull(hull, stroke_color='green', fill=False):
             dst,
             src)
 
-        if np.isfinite(src_ctrl).all() and np.isfinite(dst_ctrl).all():
-            update = (
-                f"C {src_ctrl[0]} {src_ctrl[1]} "
-                f"{dst_ctrl[0]} {dst_ctrl[1]} "
-                f"{dst[0]} {dst[1]} "
-            )
-        else:
-            update = (
-                f"L {dst[0]} {dst[1]} "
-            )
+        points.append(src)
+        points.append(src_ctrl)
+        points.append(dst)
+        points.append(dst_ctrl)
 
-        path_code += update
-
-    path_code += f'" stroke="{stroke_color}" fill="{fill_color}" fill-opacity="0.1"/>\n'
-
-    return path_code
+    points = np.array(points)
+    return points
 
 
 def _get_ctrl_point(pre, center, post):
@@ -411,6 +471,7 @@ def create_compound_bare_hull(
         label,
         name,
         n_cells,
+        taxonomy_level,
         fill=False):
 
     while True:
@@ -447,4 +508,5 @@ def create_compound_bare_hull(
         label=label,
         name=name,
         n_cells=n_cells,
-        fill=fill)
+        fill=fill,
+        level=taxonomy_level)

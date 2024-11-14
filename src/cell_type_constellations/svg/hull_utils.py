@@ -363,7 +363,7 @@ def merge_hulls_from_leaf_list(
 
     hull_list = winnow_hull_list(
         hull_list,
-        cutoff_quantile=0.05)
+        cutoff_quantile=0.01)
 
     raw_hull_list = [
         {'hull': hull}
@@ -397,7 +397,6 @@ def merge_hulls_from_leaf_list(
     min_f1 = 0.0
     nn_cutoff = 2
     while keep_going:
-        print(f'    {len(raw_hull_list)} hulls now -- final_pass: {final_pass}')
         centroid_array = np.array([
             _get_hull_centroid(h['hull']) for h in raw_hull_list
         ])

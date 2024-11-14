@@ -10,7 +10,8 @@ class Centroid(object):
             n_cells,
             color,
             label,
-            name):
+            name,
+            level):
 
         self._x = x
         self._y = y
@@ -18,6 +19,7 @@ class Centroid(object):
         self._n_cells = n_cells
         self._name = name
         self._label = label
+        self._level = level
 
         self._pixel_coords = None
 
@@ -52,6 +54,10 @@ class Centroid(object):
     @property
     def label(self):
         return self._label
+
+    @property
+    def level(self):
+        return self._level
 
     @property
     def pixel_x(self):
@@ -90,3 +96,35 @@ class Centroid(object):
             self.pixel_x,
             self.pixel_y
         ])
+
+    @property
+    def relative_url(self):
+        return f"display_entity?entity_id={self.label}"
+
+    def to_dict(self):
+        return {
+            "pixel_r": self.pixel_r,
+            "pixel_x": self.pixel_x,
+            "pixel_y": self.pixel_y,
+            "label": self.label,
+            "name": self.name,
+            "n_cells": self.n_cells,
+            "color": self.color
+        }
+
+    @classmethod
+    def from_dict(cls, params):
+        result = cls(
+            x=None,
+            y=None,
+            n_cells=params['n_cells'],
+            color=params['color'],
+            label=params['label'],
+            name=params['name'],
+            level=params['level']
+        )
+        result.set_pixel_coords(
+            x=params['pixel_x'],
+            y=params['pixel_y'],
+            radius=params['pixel_r'])
+        return result

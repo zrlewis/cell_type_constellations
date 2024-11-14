@@ -1,6 +1,16 @@
+import copy
+import h5py
+import multiprocessing
 import numpy as np
+import pathlib
 from scipy.spatial import ConvexHull
+import tempfile
 import time
+
+from cell_type_constellations.utils.data import (
+    _clean_up,
+    mkstemp_clean
+)
 
 from cell_type_constellations.svg.fov import (
     ConstellationPlot
@@ -12,8 +22,6 @@ from cell_type_constellations.svg.connection import (
     Connection
 )
 from cell_type_constellations.svg.hull import (
-    Hull,
-    RawHull,
     BareHull,
     CompoundBareHull,
     merge_bare_hulls,
@@ -30,6 +38,14 @@ from cell_type_constellations.cells.utils import (
 )
 from cell_type_constellations.utils.geometry import (
     pairwise_distance_sq
+)
+
+from cell_type_constellations.svg.rendering_utils import (
+    render_fov_from_hdf5
+)
+
+from cell_type_constellations.utils.multiprocessing_utils import (
+    winnow_process_list
 )
 
 
@@ -103,7 +119,6 @@ def render_hull_svg(
 
     plot_obj = _load_hulls(
         constellation_cache=constellation_cache,
-        centroid_list=centroid_list,
         plot_obj=plot_obj,
         taxonomy_level=hull_level,
         n_limit=n_limit,
@@ -117,8 +132,20 @@ def render_hull_svg(
                 taxonomy_level=centroid_level,
                 plot_obj=plot_obj)
 
+    hdf5_path = pathlib.Path('hdf5_dummy.h5')
+    if hdf5_path.exists():
+        hdf5_path.unlink()
+    plot_obj.serialize_fov(hdf5_path=hdf5_path)
+
     with open(dst_path, 'w') as dst:
-        dst.write(plot_obj.render())
+        dst.write(
+            render_fov_from_hdf5(
+                hdf5_path=hdf5_path,
+                centroid_level=centroid_level,
+                hull_level=hull_level,
+                base_url=plot_obj.base_url
+            )
+        )
 
 
 def render_neighborhood_svg(
@@ -153,7 +180,6 @@ def render_neighborhood_svg(
 
     plot_obj = _load_neighborhood_hulls(
         constellation_cache=constellation_cache,
-        centroid_list=centroid_list,
         plot_obj=plot_obj,
         neighborhood_assignments=neighborhood_assignments,
         neighborhood_colors=neighborhood_colors,
@@ -204,7 +230,8 @@ def _load_centroids(
             color=color,
             n_cells=n_cells,
             label=label,
-            name=name)
+            name=name,
+            level=taxonomy_level)
 
         centroid_list.append(this)
 
@@ -274,50 +301,207 @@ def _load_connections(
 
 def _load_hulls(
         constellation_cache,
-        centroid_list,
         plot_obj,
         taxonomy_level,
         n_limit=None,
-        verbose=False):
-
-    t0 = time.time()
-    ct = 0
-
-    if not hasattr(_load_hulls, "_hull_cache"):
-        _load_hulls._hull_cache = dict()
-
-    if taxonomy_level not in _load_hulls._hull_cache:
-        _load_hulls._hull_cache[taxonomy_level] = dict()
+        verbose=False,
+        n_processors=4):
 
     label_list = constellation_cache.taxonomy_tree.nodes_at_level(taxonomy_level)
+    if n_processors == 1:
+        hull_list = _get_hull_list(
+            constellation_cache=constellation_cache,
+            label_list=label_list,
+            taxonomy_level=taxonomy_level,
+            verbose=verbose)
+    else:
+        tmp_dir = tempfile.mkdtemp()
+        try:
+            hull_list = _load_hulls_multiprocessing(
+                constellation_cache=constellation_cache,
+                plot_obj=plot_obj,
+                taxonomy_level=taxonomy_level,
+                label_list=label_list,
+                n_processors=n_processors,
+                tmp_dir=tmp_dir
+            )
+        finally:
+            print(f'=======REMOVING {tmp_dir}=======')
+            _clean_up(tmp_dir)
+
+    for hull in hull_list:
+        plot_obj.add_element(hull)
+    return plot_obj
+
+
+def _load_hulls_multiprocessing(
+        constellation_cache,
+        plot_obj,
+        taxonomy_level,
+        label_list,
+        n_processors,
+        tmp_dir):
+
+    t0 = time.time()
+    label_list = np.array(copy.deepcopy(label_list))
+
+    n_hulls = []
+    for label in label_list:
+        hull_list = constellation_cache.convex_hull_list_from_label(
+                level=taxonomy_level,
+                label=label)
+        if hull_list is None:
+            n_hulls.append(0)
+        else:
+            n_hulls.append(len(hull_list))
+    n_hulls = np.array(n_hulls)
+
+    sorted_dex = np.argsort(n_hulls)
+    label_list = label_list[sorted_dex[-1::-1]]
+
+    if len(label_list) > 20*n_processors:
+        n_lists = 3*n_processors
+    else:
+        n_lists = n_processors
+
+    sub_list_list = []
+    for ii in range(n_lists):
+        sub_list_list.append([])
+    for ii, label in enumerate(label_list):
+        i_sub_list = ii % n_lists
+        sub_list_list[i_sub_list].append(label)
+
+    dur = (time.time()-t0)/60.0
+    print(f'=======SUBDIVIDING LABELS TOOK {dur:.2e} minutes=======')
+
+    process_list = []
+    tmp_path_list = []
+    for sub_list in sub_list_list:
+        #i1 = min(n_labels, i0+n_per)
+        #sub_list = label_list[i0:i1]
+
+        tmp_path = mkstemp_clean(
+            dir=tmp_dir,
+            suffix='.h5'
+        )
+
+        tmp_path_list.append(tmp_path)
+
+        p = multiprocessing.Process(
+            target=_get_hull_list_and_serialize,
+            kwargs={
+                'constellation_cache': constellation_cache,
+                'label_list': sub_list,
+                'taxonomy_level': taxonomy_level,
+                'dst_path': tmp_path
+            }
+        )
+        p.start()
+        process_list.append(p)
+        while len(process_list) >= n_processors:
+            process_list = winnow_process_list(process_list)
+    while len(process_list) > 0:
+        process_list = winnow_process_list(process_list)
+
+    t0 = time.time()
+    hull_list = []
+    for tmp_path in tmp_path_list:
+        with h5py.File(tmp_path, 'r') as src:
+            for label in src.keys():
+                hull_list.append(
+                    _read_compound_hull(
+                        grp_handle=src[label],
+                        label=label
+                    )
+                )
+    dur = (time.time()-t0)/60.0
+    print(f'=======DE-SERIALIZING TOOK {dur:.2e} minutes=======')
+
+    return hull_list
+
+
+def _get_hull_list(
+        constellation_cache,
+        label_list,
+        taxonomy_level,
+        verbose=False):
+
+    hull_list = []
+
     n_labels = len(label_list)
     for label in label_list:
 
-        if label not in _load_hulls._hull_cache[taxonomy_level]:
-
-            _hull = _load_single_hull(
+        hull = _load_single_hull(
                 constellation_cache=constellation_cache,
                 taxonomy_level=taxonomy_level,
                 label=label,
                 verbose=verbose
-            )
-            _load_hulls._hull_cache[taxonomy_level][label] = _hull
-
-        hull = _load_hulls._hull_cache[taxonomy_level][label]
+        )
 
         if hull is not None:
-            plot_obj.add_element(hull)
+            hull_list.append(hull)
 
-        dur = time.time()-t0
-        ct += 1
-        per = dur/ct
-        pred = per*n_labels
-        print(f'{ct} of {n_labels} in {dur:.2e} seconds '
-              f'predict {pred-dur:.2e} of {pred:.2e} remain')
-        if n_limit is not None and ct >= n_limit:
-            break
+    return hull_list
 
-    return plot_obj
+
+def _get_hull_list_and_serialize(
+        constellation_cache,
+        label_list,
+        taxonomy_level,
+        dst_path):
+
+    hull_list = _get_hull_list(
+        constellation_cache=constellation_cache,
+        label_list=label_list,
+        taxonomy_level=taxonomy_level,
+        verbose=False
+    )
+
+    with h5py.File(dst_path, 'w') as dst:
+        for hull in hull_list:
+            hull_grp = dst.create_group(hull.label)
+            if hull.name is not None:
+                hull_grp.create_dataset('name', data=hull.name.encode('utf-8'))
+            hull_grp.create_dataset('n_cells', data=hull.n_cells)
+            hull_grp.create_dataset('level', data=hull.level.encode('utf-8'))
+            hull_grp.create_dataset('fill', data=hull.fill)
+            bare_grp = hull_grp.create_group('bare_hulls')
+            for ii, bare_hull in enumerate(hull.bare_hull_list):
+                tag = f'bare_{ii}'
+                this_grp = bare_grp.create_group(tag)
+                if bare_hull.color is not None:
+                    this_grp.create_dataset(
+                        'color', data=bare_hull.color.encode('utf-8'))
+                this_grp.create_dataset('points', data=bare_hull.points)
+
+
+def _read_compound_hull(grp_handle, label):
+    name = None
+    if 'name' in grp_handle.keys():
+        name = grp_handle['name'][()].decode('utf-8')
+    n_cells = grp_handle['n_cells'][()]
+    level = grp_handle['level'][()].decode('utf-8')
+    fill = grp_handle['fill'][()]
+    bare_hull_list = []
+    for bare_key in grp_handle['bare_hulls'].keys():
+        bare_grp = grp_handle['bare_hulls'][bare_key]
+        color = None
+        if 'color'in bare_grp.keys():
+            color = bare_grp['color'][()].decode('utf-8')
+        points = bare_grp['points'][()]
+        bare_hull_list.append(
+            BareHull(points=points, color=color)
+        )
+
+    hull = CompoundBareHull(
+        bare_hull_list=bare_hull_list,
+        level=level,
+        label=label,
+        name=name,
+        n_cells=n_cells,
+        fill=fill)
+
+    return hull
 
 
 def _load_single_hull(
@@ -369,7 +553,9 @@ def _load_single_hull(
             bare_hull_list=bare_hull_list,
             label=label,
             name=name,
-            n_cells=n_cells
+            n_cells=n_cells,
+            level=leaf_level,
+            fill=False
         )
 
     as_leaves = constellation_cache.taxonomy_tree.as_leaves
@@ -396,12 +582,12 @@ def _load_single_hull(
         bare_hull_list=bare_hull_list,
         label=label,
         name=name,
-        n_cells=n_cells)
+        n_cells=n_cells,
+        taxonomy_level=taxonomy_level)
 
 
 def _load_neighborhood_hulls(
         constellation_cache,
-        centroid_list,
         plot_obj,
         neighborhood_assignments,
         neighborhood_colors,
@@ -455,8 +641,7 @@ def _load_single_neighborhood(
 
     merged_hull_list = merge_hulls_from_leaf_list(
         constellation_cache=constellation_cache,
-        leaf_list=leaf_list,
-        leaf_hull_lookup=leaf_lookup)
+        leaf_list=leaf_list)
 
     bare_hull_list = [
         BareHull.from_convex_hull(h, color=color)
@@ -470,4 +655,5 @@ def _load_single_neighborhood(
         label=label,
         name=name,
         n_cells=n_cells,
-        fill=True)
+        fill=True,
+        taxonomy_level='neighborhood')
