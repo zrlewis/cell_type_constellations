@@ -457,6 +457,13 @@ def _get_hull_list_and_serialize(
         verbose=False
     )
 
+    _serialize_hull_list(
+        hull_list=hull_list,
+        dst_path=dst_path)
+
+
+def _serialize_hull_list(hull_list, dst_path):
+
     with h5py.File(dst_path, 'w') as dst:
         for hull in hull_list:
             hull_grp = dst.create_group(hull.label)
@@ -591,7 +598,39 @@ def _load_neighborhood_hulls(
         plot_obj,
         neighborhood_assignments,
         neighborhood_colors,
-        n_limit=None):
+        n_limit=None,
+        n_processors=4):
+
+    tmp_dir = tempfile.mkdtemp()
+
+    try:
+        plot_obj = _load_neighborhood_hulls_multiprocessing(
+            constellation_cache=constellation_cache,
+            plot_obj=plot_obj,
+            neighborhood_assignments=neighborhood_assignments,
+            neighborhood_colors=neighborhood_colors,
+            tmp_dir=tmp_dir,
+            n_limit=n_limit,
+            n_processors=n_processors)
+
+    finally:
+        print(f'=======CLEANING UP NEIGHBORHOOD TMP_DIR {tmp_dir}=======')
+        _clean_up(tmp_dir)
+
+    return plot_obj
+
+
+def _load_neighborhood_hulls_multiprocessing(
+        constellation_cache,
+        plot_obj,
+        neighborhood_assignments,
+        neighborhood_colors,
+        tmp_dir,
+        n_limit=None,
+        n_processors=4):
+
+    process_list = []
+    tmp_path_list = []
 
     ct = 0
     for neighborhood in neighborhood_assignments:
@@ -601,21 +640,61 @@ def _load_neighborhood_hulls(
         leaf_list = neighborhood_assignments[neighborhood]
         color = neighborhood_colors[neighborhood]
 
-        hull = _load_single_neighborhood(
-            constellation_cache=constellation_cache,
-            leaf_list=leaf_list,
-            color=color,
-            label=neighborhood,
-            name=neighborhood
+        tmp_path = mkstemp_clean(
+            dir=tmp_dir,
+            suffix='.h5'
         )
-        if hull is not None:
-            plot_obj.add_element(hull)
+        tmp_path_list.append((neighborhood, tmp_path))
+        p = multiprocessing.Process(
+            target=_load_single_neighborhood_and_serialize,
+            kwargs={
+                'constellation_cache': constellation_cache,
+                'leaf_list': leaf_list,
+                'color': color,
+                'label': neighborhood,
+                'name': neighborhood,
+                'dst_path': tmp_path
+            }
+        )
+        p.start()
+        process_list.append(p)
+        while len(process_list) >= n_processors:
+            process_list = winnow_process_list(process_list)
+    while len(process_list) > 0:
+        process_list = winnow_process_list(process_list)
 
-        ct += 1
-        if n_limit is not None and ct >= n_limit:
-            break
+    for pair in tmp_path_list:
+        neighborhood = pair[0]
+        tmp_path = pair[1]
+        with h5py.File(tmp_path, 'r') as src:
+            hull = _read_compound_hull(
+                grp_handle=src[neighborhood],
+                label=neighborhood)
+
+        plot_obj.add_element(hull)
 
     return plot_obj
+
+
+def _load_single_neighborhood_and_serialize(
+        constellation_cache,
+        leaf_list,
+        color,
+        label,
+        name,
+        dst_path):
+
+    hull = _load_single_neighborhood(
+        constellation_cache=constellation_cache,
+        leaf_list=leaf_list,
+        color=color,
+        label=label,
+        name=name
+    )
+    _serialize_hull_list(
+        hull_list=[hull],
+        dst_path=dst_path
+    )
 
 
 def _load_single_neighborhood(

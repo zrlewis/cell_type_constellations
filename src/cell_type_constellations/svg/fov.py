@@ -34,11 +34,18 @@ class ConstellationPlot(object):
 
     def __init__(
             self,
-            height,
+            constellation_cache,
+            fov_factor,
             max_radius,
-            min_radius,
-            max_n_cells,
-            width=None):
+            min_radius):
+
+        dimensions = get_width_and_height(
+            constellation_cache=constellation_cache,
+            fov_factor=fov_factor,
+            max_radius=max_radius)
+
+        self._width = dimensions['width']
+        self._height = dimensions['height']
 
         self._umap_to_pixel = None
 
@@ -48,16 +55,13 @@ class ConstellationPlot(object):
         self.elements = []
         self._max_radius = max_radius
         self._min_radius = min_radius
-        self._max_n_cells = max_n_cells
-        self._height = height
-        if width is None:
-            self._width = height
-        else:
-            self._width = width
+        self._max_n_cells = constellation_cache.n_cells_lookup[
+            constellation_cache.taxonomy_tree.leaf_level].max()
+
         self._origin = None
         self.pixel_origin = np.array([pixel_buffer, pixel_buffer])
-        self.pixel_extent = np.array([width-2*pixel_buffer,
-                                      height-2*pixel_buffer])
+        self.pixel_extent = np.array([self.width-2*pixel_buffer,
+                                      self.height-2*pixel_buffer])
         self.world_origin = None
         self.world_extent = None
 
@@ -356,3 +360,22 @@ def compute_force(
     weights = charges/np.power(rsq, 2.0)
     force = (vectors.transpose()*weights).sum(axis=1)
     return force
+
+def get_width_and_height(
+        constellation_cache,
+        fov_factor,
+        max_radius):
+    xmax = constellation_cache.umap_coords[:, 0].max()
+    xmin = constellation_cache.umap_coords[:, 0].min()
+    ymax = constellation_cache.umap_coords[:, 1].max()
+    ymin = constellation_cache.umap_coords[:, 1].min()
+
+    dx = 6*max_radius + xmax - xmin
+    dy = 6*max_radius + ymax - ymin
+
+    ratio = dx/dy
+
+    return {
+        'height': fov_factor,
+        'width': np.round(fov_factor*ratio).astype(int)
+    }

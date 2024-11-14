@@ -47,19 +47,11 @@ def main():
        )
     )
     parser.add_argument(
-        '--height',
+        '--fov_factor',
         type=int,
         default=1080,
         help=(
-            "FOV height in pixels"
-        )
-    )
-    parser.add_argument(
-        '--width',
-        type=int,
-        default=800,
-        help=(
-            "FOV width in pixels"
+            "baseline dimension for FOV"
         )
     )
     parser.add_argument(
@@ -110,8 +102,7 @@ def main():
     write_out_svg_cache(
         src_path=src_path,
         dst_path=dst_path,
-        height=args.height,
-        width=args.width,
+        fov_factor=args.fov_factor,
         clobber=args.clobber,
         taxonomy_name=args.taxonomy_name,
         neighborhood_color_path=args.neighborhood_colors,
@@ -121,12 +112,14 @@ def main():
 def write_out_svg_cache(
         src_path,
         dst_path,
-        height,
-        width,
+        fov_factor,
         taxonomy_name,
         neighborhood_color_path=None,
         group_membership_path=None,
         clobber=False):
+
+    min_radius = 2
+    max_radius = 20
 
     t0 = time.time()
 
@@ -164,14 +157,20 @@ def write_out_svg_cache(
                 )
             color_lookup[level][node] = this
 
-    for level in constellation_cache.taxonomy_tree.hierarchy:
+    #levels_to_serialize = [constellation_cache.taxonomy_tree.hierarchy[0],
+    #                        constellation_cache.taxonomy_tree.hierarchy[-1]]
+
+    levels_to_serialize = constellation_cache.taxonomy_tree.hierarchy
+
+    for level in levels_to_serialize:
 
         config = {
             'constellation_cache': constellation_cache,
             'dst_path': dst_path,
             'level': level,
-            'height': height,
-            'width': width,
+            'fov_factor': fov_factor,
+            'max_radius': max_radius,
+            'min_radius': min_radius,
             'lock': DummyLock()
         }
         _write_svg_cache_worker(**config)
@@ -180,8 +179,9 @@ def write_out_svg_cache(
         _write_neighborhoods_to_svg_cache(
             constellation_cache=constellation_cache,
             dst_path=dst_path,
-            height=height,
-            width=width,
+            max_radius=max_radius,
+            min_radius=min_radius,
+            fov_factor=fov_factor,
             neighborhood_color_path=neighborhood_color_path,
             group_membership_path=group_membership_path,
             lock=DummyLock())
@@ -208,24 +208,22 @@ def _write_svg_cache_worker(
         constellation_cache,
         dst_path,
         level,
-        height,
-        width,
+        fov_factor,
+        max_radius,
+        min_radius,
         lock
     ):
     t0 = time.time()
-    max_cluster_cells = constellation_cache.n_cells_lookup[
-        constellation_cache.taxonomy_tree.leaf_level].max()
 
     # each level gets its own plot object so that, when finding
     # the positions of bezier control points, we do not account for
     # centroids not at that level
-    plot_obj = ConstellationPlot(
-            height=height,
-            width=width,
-            max_radius=20,
-            min_radius=2,
-            max_n_cells=max_cluster_cells)
 
+    plot_obj = ConstellationPlot(
+            fov_factor=fov_factor,
+            constellation_cache=constellation_cache,
+            max_radius=max_radius,
+            min_radius=min_radius)
 
     plot_obj = _load_hulls(
             constellation_cache=constellation_cache,
@@ -264,8 +262,9 @@ def _write_svg_cache_worker(
 def _write_neighborhoods_to_svg_cache(
         constellation_cache,
         dst_path,
-        height,
-        width,
+        max_radius,
+        min_radius,
+        fov_factor,
         neighborhood_color_path,
         group_membership_path,
         lock
@@ -295,18 +294,15 @@ def _write_neighborhoods_to_svg_cache(
 
         neighborhood_assignments[neighborhood].append(alias_to_label[alias])
 
-    max_cluster_cells = constellation_cache.n_cells_lookup[
-        constellation_cache.taxonomy_tree.leaf_level].max()
-
     # each level gets its own plot object so that, when finding
     # the positions of bezier control points, we do not account for
     # centroids not at that level
+
     plot_obj = ConstellationPlot(
-            height=height,
-            width=width,
-            max_radius=20,
-            min_radius=2,
-            max_n_cells=max_cluster_cells)
+            fov_factor=fov_factor,
+            constellation_cache=constellation_cache,
+            max_radius=max_radius,
+            min_radius=min_radius)
 
     plot_obj = _load_neighborhood_hulls(
             constellation_cache=constellation_cache,
