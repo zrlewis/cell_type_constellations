@@ -6,6 +6,7 @@ all of the data needed to render and svg
 import argparse
 import h5py
 import json
+import pandas as pd
 import pathlib
 import time
 
@@ -20,7 +21,8 @@ from cell_type_constellations.svg.fov import (
 from cell_type_constellations.svg.utils import (
     _load_centroids,
     _load_hulls,
-    _load_connections
+    _load_connections,
+    _load_neighborhood_hulls
 )
 
 from cell_type_constellations.utils.multiprocessing_utils import (
@@ -70,11 +72,26 @@ def main():
         default=None,
         type=str
     )
+    parser.add_argument(
+        '--neighborhood_colors',
+        type=str,
+        default=None
+    )
+    parser.add_argument(
+        '--group_membership',
+        type=str,
+        default=None
+    )
 
     args = parser.parse_args()
 
     if args.taxonomy_name is None:
         raise RuntimeError("must specify taxonomy_name")
+
+    if args.neighborhood_colors is None:
+        assert args.group_membership is None
+    if args.group_membership is None:
+        assert args.neighborhood_colors is None
 
     src_path = pathlib.Path(args.data_cache_path)
     if not src_path.is_file():
@@ -96,7 +113,9 @@ def main():
         height=args.height,
         width=args.width,
         clobber=args.clobber,
-        taxonomy_name=args.taxonomy_name)
+        taxonomy_name=args.taxonomy_name,
+        neighborhood_color_path=args.neighborhood_colors,
+        group_membership_path=args.group_membership)
 
 
 def write_out_svg_cache(
@@ -105,9 +124,16 @@ def write_out_svg_cache(
         height,
         width,
         taxonomy_name,
+        neighborhood_color_path=None,
+        group_membership_path=None,
         clobber=False):
 
     t0 = time.time()
+
+    if neighborhood_color_path is None:
+        assert group_membership_path is None
+    if group_membership_path is None:
+        assert neighborhood_color_path is None
 
     dst_path = pathlib.Path(dst_path)
     if dst_path.exists():
@@ -149,6 +175,16 @@ def write_out_svg_cache(
             'lock': DummyLock()
         }
         _write_svg_cache_worker(**config)
+
+    if neighborhood_color_path is not None:
+        _write_neighborhoods_to_svg_cache(
+            constellation_cache=constellation_cache,
+            dst_path=dst_path,
+            height=height,
+            width=width,
+            neighborhood_color_path=neighborhood_color_path,
+            group_membership_path=group_membership_path,
+            lock=DummyLock())
 
     with h5py.File(dst_path, 'a') as dst:
         dst.create_dataset(
@@ -223,6 +259,72 @@ def _write_svg_cache_worker(
         plot_obj.serialize_fov(hdf5_path=dst_path, mode=mode)
         dur = (time.time()-t0)/60.0
         print(f'=======COMPLETED {level} in {dur:.2e} minutes=======')
+
+
+def _write_neighborhoods_to_svg_cache(
+        constellation_cache,
+        dst_path,
+        height,
+        width,
+        neighborhood_color_path,
+        group_membership_path,
+        lock
+    ):
+
+    print('=======SERIALIZING NEIGHBORHOODS=======')
+    t0 = time.time()
+
+    with open(neighborhood_color_path, 'rb') as src:
+        neighborhood_colors = json.load(src)
+
+    assn_df = pd.read_csv(group_membership_path).to_dict(orient='records')
+
+    leaf_level = constellation_cache.taxonomy_tree.leaf_level
+    alias_to_label = dict()
+    for leaf in constellation_cache.taxonomy_tree.nodes_at_level(leaf_level):
+        alias = int(constellation_cache.taxonomy_tree.label_to_name(
+            level=leaf_level, label=leaf, name_key='alias'))
+        alias_to_label[alias] = leaf
+
+    neighborhood_assignments = dict()
+    for record in assn_df:
+        neighborhood = record['cluster_group_name']
+        alias = int(record['cluster_alias'])
+        if neighborhood not in neighborhood_assignments:
+            neighborhood_assignments[neighborhood] = []
+
+        neighborhood_assignments[neighborhood].append(alias_to_label[alias])
+
+    max_cluster_cells = constellation_cache.n_cells_lookup[
+        constellation_cache.taxonomy_tree.leaf_level].max()
+
+    # each level gets its own plot object so that, when finding
+    # the positions of bezier control points, we do not account for
+    # centroids not at that level
+    plot_obj = ConstellationPlot(
+            height=height,
+            width=width,
+            max_radius=20,
+            min_radius=2,
+            max_n_cells=max_cluster_cells)
+
+    plot_obj = _load_neighborhood_hulls(
+            constellation_cache=constellation_cache,
+            plot_obj=plot_obj,
+            neighborhood_assignments=neighborhood_assignments,
+            neighborhood_colors=neighborhood_colors,
+            n_limit=None
+        )
+
+    with lock:
+        dst_path = pathlib.Path(dst_path)
+        if dst_path.exists():
+            mode = 'a'
+        else:
+            mode = 'w'
+        plot_obj.serialize_fov(hdf5_path=dst_path, mode=mode)
+        dur = (time.time()-t0)/60.0
+        print(f'=======COMPLETED NEIGHBORHOODS in {dur:.2e} minutes=======')
 
 
 if __name__ == "__main__":
