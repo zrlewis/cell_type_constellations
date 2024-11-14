@@ -16,7 +16,8 @@ def render_fov_from_hdf5(
         centroid_level,
         hull_level,
         base_url,
-        color_by):
+        color_by,
+        fill_hulls=False):
 
     with h5py.File(hdf5_path, 'r', swmr=True) as src:
         width = src['fov/width'][()]
@@ -60,7 +61,8 @@ def render_fov_from_hdf5(
         width=width,
         height=height,
         taxonomy_tree=taxonomy_tree,
-        color_by=color_by)
+        color_by=color_by,
+        fill_hulls=fill_hulls)
 
     return result
 
@@ -73,7 +75,8 @@ def render_fov(
         base_url,
         height,
         width,
-        taxonomy_tree):
+        taxonomy_tree,
+        fill_hulls=False):
 
     result = (
             f'<svg height="{height}px" width="{width}px" '
@@ -91,7 +94,8 @@ def render_fov(
     hull_code = render_hull_list(
         hull_list,
         base_url=base_url,
-        taxonomy_tree=taxonomy_tree)
+        taxonomy_tree=taxonomy_tree,
+        fill=fill_hulls)
 
     result += hull_code + connection_code + centroid_code
     result += "</svg>\n"
@@ -99,14 +103,26 @@ def render_fov(
     return result
 
 
-def render_hull_list(hull_list, base_url, taxonomy_tree):
+def render_hull_list(
+        hull_list,
+        base_url,
+        taxonomy_tree,
+        fill=False):
     hull_code = ""
     for hull in hull_list:
-        hull_code += render_compound_hull(hull, base_url, taxonomy_tree)
+        hull_code += render_compound_hull(
+            hull,
+            base_url,
+            taxonomy_tree,
+            fill=fill)
     return hull_code
 
 
-def render_compound_hull(compound_hull, base_url, taxonomy_tree):
+def render_compound_hull(
+        compound_hull,
+        base_url,
+        taxonomy_tree,
+        fill=False):
     url = (
         f"{base_url}/{compound_hull.relative_url}"
     )
@@ -120,7 +136,7 @@ def render_compound_hull(compound_hull, base_url, taxonomy_tree):
         result += render_path_points(
                     path_points=hull.path_points,
                     color=hull.color,
-                    fill=compound_hull.fill)
+                    fill=fill)
 
     result += """        <title>\n"""
     result += f"""        {hover_msg}\n"""
