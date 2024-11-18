@@ -108,7 +108,7 @@ class ConstellationCache_HDF5(object):
         return cell_mask
 
     def umap_coords_from_label(self, level, label):
-        cell_mask = _cell_mask_from_label(
+        cell_mask = self._cell_mask_from_label(
             level=level,
             label=label
         )
