@@ -517,18 +517,14 @@ def clean_for_json(data):
 
 def fix_centroids(temp_path, dst_path):
     print("=======final centroid patch=======")
+
+    leaf_hull_lookup = get_leaf_hull_lookup(
+        src_path=temp_path
+    )
+
     new_centroid_lookup = dict()
     old_cache = ConstellationCache_HDF5(temp_path)
     taxonomy_tree = old_cache.taxonomy_tree
-
-    leaf_hull_lookup = {
-        leaf: get_hulls_for_leaf(
-            constellation_cache=old_cache,
-            label=leaf
-        )
-        for leaf in old_cache.taxonomy_tree.nodes_at_level(
-            old_cache.taxonomy_tree.leaf_level)
-    }
 
     as_leaves = taxonomy_tree.as_leaves
     for level in taxonomy_tree.hierarchy:
@@ -602,6 +598,27 @@ def fix_centroids(temp_path, dst_path):
                     )
 
     print('========copied over cache=========')
+
+
+def get_leaf_hull_lookup(
+        src_path):
+    """
+    Get a dict mapping leaf label to a list of points
+    defining the convex hulls containing that leaf
+    """
+
+    old_cache = ConstellationCache_HDF5(src_path)
+
+    leaf_hull_lookup = {
+        leaf: get_hulls_for_leaf(
+            constellation_cache=old_cache,
+            label=leaf
+        )
+        for leaf in old_cache.taxonomy_tree.nodes_at_level(
+            old_cache.taxonomy_tree.leaf_level)
+    }
+
+    return leaf_hull_lookup
 
 
 def get_hulls_for_leaf(
