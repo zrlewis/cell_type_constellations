@@ -123,14 +123,20 @@ def render_compound_hull(
         base_url,
         taxonomy_tree,
         fill=False):
-    url = (
-        f"{base_url}/{compound_hull.relative_url}"
-    )
+    if base_url is not None:
+        url = (
+            f"{base_url}/{compound_hull.relative_url}"
+        )
+    else:
+        url = None
 
     level_name = taxonomy_tree.level_to_name(compound_hull.level)
     hover_msg = f"{level_name}: {compound_hull.name} -- {compound_hull.n_cells:.2e} cells"
 
-    result = f"""    <a href="{url}">\n"""
+    if url is not None:
+        result = f"""    <a href="{url}">\n"""
+    else:
+        result = f"""    <a>\n"""
 
     for hull in compound_hull.bare_hull_list:
         result += render_path_points(
@@ -202,7 +208,7 @@ def render_connection(this_connection):
     pts = this_connection.rendering_corners
     ctrl = this_connection.bezier_control_points
 
-    result = """    <a href="">\n"""
+    result = """    <a>\n"""
     result += "        <path "
     result +=f"""d="M {pts[0][0]} {pts[0][1]} """
     result += get_bezier_curve(
@@ -269,7 +275,10 @@ def render_centroid(
         )
         hover_msg += f"\n        ({parent_level}: {parent_name})"
 
-    result = f"""    <a href="{base_url}/{centroid.relative_url}">\n"""
+    if base_url is not None:
+        result = f"""    <a href="{base_url}/{centroid.relative_url}">\n"""
+    else:
+        result = f"""    <a>\n"""
 
     result += (
         f"""        <circle r="{centroid.pixel_r}px" cx="{centroid.pixel_x}px" cy="{centroid.pixel_y}px" """
@@ -278,7 +287,9 @@ def render_centroid(
     result += """        <title>\n"""
     result += f"""        {hover_msg}\n"""
     result += """        </title>\n"""
+
     result += "    </a>\n"
+
     return result
 
 
