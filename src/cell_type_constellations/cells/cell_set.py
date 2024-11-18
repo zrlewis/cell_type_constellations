@@ -1,5 +1,6 @@
 import h5py
 import json
+import multiprocessing
 import numpy as np
 import os
 import pandas as pd
@@ -8,8 +9,14 @@ import time
 import tempfile
 
 from cell_type_constellations.utils.data import (
-    _clean_up
+    _clean_up,
+    mkstemp_clean
 )
+
+from cell_type_constellations.utils.multiprocessing_utils import (
+    winnow_process_list
+)
+
 from cell_type_constellations.cells.utils import (
     get_hull_points
 )
@@ -245,6 +252,24 @@ def get_neighbor_linkage(
     return mixture
 
 
+def create_mixture_matrix_to_file(
+        cell_set,
+        cell_filter,
+        level,
+        k_nn,
+        dst_path):
+
+    mm = create_mixture_matrix(
+        cell_set=cell_set,
+        cell_filter=cell_filter,
+        level=level,
+        k_nn=k_nn)
+
+    with h5py.File(dst_path, 'w') as dst:
+        dst.create_dataset('mixture_matrix', data=mm)
+        dst.create_dataset('level', data=level.encode('utf-8'))
+
+
 def create_mixture_matrix(
         cell_set,
         cell_filter,
@@ -323,6 +348,7 @@ def create_constellation_cache(
         tmp_dir=None,
         prune_taxonomy=False):
 
+    t0 = time.time()
     tmp_dir = tempfile.mkdtemp(dir=tmp_dir)
     try:
         _create_constellation_cache(
@@ -336,6 +362,8 @@ def create_constellation_cache(
             prune_taxonomy=prune_taxonomy)
     finally:
         _clean_up(tmp_dir)
+    dur = (time.time()-t0)/60.0
+    print(f'=======CREATED CONSTELLATION CACHE IN {dur:.2e} minutes=======')
 
 def _create_constellation_cache(
         cell_metadata_path,
@@ -386,12 +414,37 @@ def _create_constellation_cache(
     centroid_lookup = dict()
     n_cells_lookup = dict()
     idx_to_label = dict()
+
+    process_list = []
+    level_to_tmp_path = dict()
     for level in cell_filter.taxonomy_tree.hierarchy:
-        mixture_matrix_lookup[level] = create_mixture_matrix(
-            cell_set=cell_set,
-            cell_filter=cell_filter,
-            level=level,
-            k_nn=k_nn)
+        tmp_path = mkstemp_clean(
+            dir=tmp_dir,
+            prefix=f'{level}_mixture_matrix_',
+            suffix='.h5'
+        )
+        p = multiprocessing.Process(
+            target=create_mixture_matrix_to_file,
+            kwargs={
+                'cell_set': cell_set,
+                'cell_filter': cell_filter,
+                'level': level,
+                'k_nn': k_nn,
+                'dst_path': tmp_path
+            }
+        )
+        level_to_tmp_path[level] = tmp_path
+        p.start()
+        process_list.append(p)
+    while len(process_list) >0:
+        process_list = winnow_process_list(process_list)
+
+    dur = (time.time()-t0)/60.0
+    print(f'=======CREATED ALL MIXTURE MATRICES IN {dur:.2e} minutes=======')
+
+    for level in cell_filter.taxonomy_tree.hierarchy:
+        with h5py.File(level_to_tmp_path[level], 'r') as src:
+            mixture_matrix_lookup[level] = src['mixture_matrix'][()]
 
         n_nodes = len(cell_filter.taxonomy_tree.nodes_at_level(level))
         centroid_lookup[level] = [None]*n_nodes
@@ -474,7 +527,7 @@ def _create_constellation_cache(
                                 (centroid_grp, centroid_lookup)]:
                 grp.create_dataset(level, data=np.array(lookup[level]))
 
-    fix_centroids(temp_path=temp_path, dst_path=dst_path)
+    fix_centroids(temp_path=temp_path, dst_path=dst_path, tmp_dir=tmp_dir)
     os.unlink(temp_path)
 
 
@@ -515,12 +568,21 @@ def clean_for_json(data):
     return data
 
 
-def fix_centroids(temp_path, dst_path):
+def fix_centroids(temp_path, dst_path, tmp_dir='../tmp'):
     print("=======final centroid patch=======")
 
-    leaf_hull_lookup = get_leaf_hull_lookup(
-        src_path=temp_path
-    )
+    leaf_tmp_dir = tempfile.mkdtemp(dir=tmp_dir)
+
+    t0 = time.time()
+    try:
+        leaf_hull_lookup = get_leaf_hull_lookup(
+            src_path=temp_path,
+            tmp_dir=leaf_tmp_dir
+        )
+    finally:
+        _clean_up(leaf_tmp_dir)
+    dur = (time.time()-t0)/60.0
+    print(f'=======GOT ALL LEAF HULLS IN {dur:.2e} minutes=======')
 
     new_centroid_lookup = dict()
     old_cache = ConstellationCache_HDF5(temp_path)
@@ -601,24 +663,104 @@ def fix_centroids(temp_path, dst_path):
 
 
 def get_leaf_hull_lookup(
-        src_path):
+        src_path,
+        n_processors=4,
+        tmp_dir='../tmp'):
     """
     Get a dict mapping leaf label to a list of points
     defining the convex hulls containing that leaf
     """
 
     old_cache = ConstellationCache_HDF5(src_path)
+    leaf_level = old_cache.taxonomy_tree.leaf_level
 
-    leaf_hull_lookup = {
+    leaf_label_list = []
+    n_cells_list = []
+    for leaf in old_cache.taxonomy_tree.nodes_at_level(leaf_level):
+        leaf_label_list.append(leaf)
+        n_cells_list.append(
+            old_cache.n_cells_from_label(
+                level=leaf_level,
+                label=leaf
+            )
+        )
+    sorted_idx = np.argsort(n_cells_list)
+    sub_lists = []
+
+    for ii in range(2*n_processors):
+        sub_lists.append([])
+
+    for ct, idx in enumerate(sorted_idx):
+        i_list = ct % len(sub_lists)
+        sub_lists[i_list].append(leaf_label_list[idx])
+
+    process_list = []
+    tmp_path_list = []
+    for i_sub_list in range(len(sub_lists)):
+        tmp_path = mkstemp_clean(
+            dir=tmp_dir,
+            prefix='hull_subset_',
+            suffix='.h5'
+        )
+        tmp_path_list.append(tmp_path)
+        p = multiprocessing.Process(
+            target=get_hulls_for_leaf_worker,
+            kwargs={
+                'leaf_list': sub_lists[i_sub_list],
+                'constellation_cache': old_cache,
+                'dst_path': tmp_path
+            }
+        )
+        p.start()
+        process_list.append(p)
+        while len(process_list) >= n_processors:
+            process_list = winnow_process_list(process_list)
+
+    while len(process_list) > 0:
+        process_list = winnow_process_list(process_list)
+
+
+    leaf_hull_lookup = ()
+    for tmp_path in tmp_path_list:
+        with h5py.File(tmp_path, 'r') as src:
+            leaf_list = src.keys()
+            for leaf in leaf_list:
+                src_grp = src[leaf]
+                if len(src_grp.keys()) == 0:
+                    this = None
+                else:
+                    this = []
+                    for idx in src_grp.keys():
+                        this.append(src_grp[idx][()])
+                leaf_hull_lookup[leaf] = this
+    return leaf_hull_lookup
+
+
+def get_hulls_for_leaf_worker(
+        leaf_list,
+        constellation_cache,
+        dst_path):
+    t0 = time.time()
+    this_lookup = {
         leaf: get_hulls_for_leaf(
-            constellation_cache=old_cache,
+            constellation_cache=constellation_cache,
             label=leaf
         )
-        for leaf in old_cache.taxonomy_tree.nodes_at_level(
-            old_cache.taxonomy_tree.leaf_level)
+        for leaf in leaf_list
     }
 
-    return leaf_hull_lookup
+    with h5py.File(dst_path, 'w') as dst:
+        for leaf in this_lookup:
+           dst_grp = dst.create_group(leaf)
+           if this_lookup[leaf] is None:
+               continue
+           for idx in range(len(this_lookup[leaf])):
+               dst_grp.create_dataset(
+                   f'{idx}',
+                   data=this_lookup[leaf][idx]
+               )
+    dur = (time.time()-t0)/60.0
+    print(f'=======FINISHED BATCH IN {dur:.2e} minutes=======')
 
 
 def get_hulls_for_leaf(
@@ -661,10 +803,11 @@ def get_hulls_for_leaf(
             pass
 
     if len(sub_hulls) == 0:
-        print('    lumping all points together')
+        #print('    lumping all points together')
         sub_hulls.append(pts)
     else:
-        print(f'    kept {len(sub_hulls)} sub hulls')
+        #print(f'    kept {len(sub_hulls)} sub hulls')
+        pass
 
     return sub_hulls
 
