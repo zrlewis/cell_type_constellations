@@ -451,27 +451,14 @@ def merge_bare_hulls(
     current_hull = 0
     final_points = [starting_idx]
     final_set = set(final_points)
-    loop_de_loop = False
-    hull_path = []
     while True:
         next_pt = new_bare_hulls[current_hull][final_points[-1]]
-        hull_path.append((current_hull, next_pt, next_pt in final_set))
         if next_pt == final_points[0]:
             break
         final_points.append(next_pt)
-        if next_pt in final_set:
-            loop_de_loop = True
         final_set.add(next_pt)
         if next_pt in new_bare_hulls[(current_hull+1)%2]:
             current_hull = ((current_hull+1)%2)
-
-    if loop_de_loop:
-        print('=======')
-        for el in hull_path:
-            print(os.getpid(),el)
-        print('=======')
-        print(new_bare_hulls)
-        print('=======')
 
     return [
         BareHull(
@@ -505,7 +492,6 @@ def create_compound_bare_hull(
                 break
         if not found_match:
             to_keep.append(b0)
-    print(f'started with {len(bare_hull_list)} ended with {len(to_keep)}')
     bare_hull_list = to_keep
 
     while True:
