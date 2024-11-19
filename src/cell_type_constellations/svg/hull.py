@@ -1,5 +1,6 @@
 import h5py
 import numpy as np
+import os
 from scipy.spatial import ConvexHull
 
 import json
@@ -345,7 +346,7 @@ def merge_bare_hulls(
             if _are_segments_identical(seg0, seg1):
                 intersection = 0.5*(seg0[0]+seg0[1])
             elif np.allclose(seg0[0], seg1[1], atol=0.0, rtol=1.0e-4):
-                intersection = seg0[0]
+                intersection = seg1[1]
             else:
                 intersection = find_intersection_pt(
                     seg0,
@@ -443,19 +444,34 @@ def merge_bare_hulls(
         if vertex >= bare0.points.shape[0]:
             continue
         starting_idx = vertex
+        break
+
     assert starting_idx is not None
 
     current_hull = 0
     final_points = [starting_idx]
     final_set = set(final_points)
+    loop_de_loop = False
+    hull_path = []
     while True:
         next_pt = new_bare_hulls[current_hull][final_points[-1]]
+        hull_path.append((current_hull, next_pt, next_pt in final_set))
         if next_pt == final_points[0]:
             break
         final_points.append(next_pt)
+        if next_pt in final_set:
+            loop_de_loop = True
         final_set.add(next_pt)
         if next_pt in new_bare_hulls[(current_hull+1)%2]:
             current_hull = ((current_hull+1)%2)
+
+    if loop_de_loop:
+        print('=======')
+        for el in hull_path:
+            print(os.getpid(),el)
+        print('=======')
+        print(new_bare_hulls)
+        print('=======')
 
     return [
         BareHull(
