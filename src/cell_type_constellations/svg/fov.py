@@ -1,4 +1,6 @@
+import h5py
 import numpy as np
+import pathlib
 
 from cell_type_constellations.utils.geometry import(
     rot
@@ -12,10 +14,17 @@ from cell_type_constellations.svg.connection import (
 )
 
 from cell_type_constellations.svg.hull import (
-    Hull,
-    RawHull,
-    BareHull,
     CompoundBareHull
+)
+
+from cell_type_constellations.svg.rendering_utils import (
+    render_fov,
+    centroid_list_to_hdf5,
+    centroid_lookup_from_hdf5,
+    hull_list_to_hdf5,
+    hull_lookup_from_hdf5,
+    connection_list_to_hdf5,
+    connection_list_from_hdf5
 )
 
 import time
@@ -25,28 +34,40 @@ class ConstellationPlot(object):
 
     def __init__(
             self,
-            height,
+            constellation_cache,
+            fov_factor,
             max_radius,
-            min_radius,
-            max_n_cells,
-            width=None):
+            min_radius):
+
+        dimensions = get_width_and_height(
+            constellation_cache=constellation_cache,
+            fov_factor=fov_factor,
+            max_radius=max_radius)
+
+        self._width = dimensions['width']
+        self._height = dimensions['height']
+
+        self._umap_to_pixel = None
+
+        self._base_url = "http://35.92.115.7:8883"
 
         pixel_buffer = 3*max_radius//2
         self.elements = []
         self._max_radius = max_radius
         self._min_radius = min_radius
-        self._max_n_cells = max_n_cells
-        self._height = height
-        if width is None:
-            self._width = height
-        else:
-            self._width = width
+        self._max_n_cells = constellation_cache.n_cells_lookup[
+            constellation_cache.taxonomy_tree.leaf_level].max()
+
         self._origin = None
         self.pixel_origin = np.array([pixel_buffer, pixel_buffer])
-        self.pixel_extent = np.array([width-2*pixel_buffer,
-                                      height-2*pixel_buffer])
+        self.pixel_extent = np.array([self.width-2*pixel_buffer,
+                                      self.height-2*pixel_buffer])
         self.world_origin = None
         self.world_extent = None
+
+    @property
+    def base_url(self):
+        return self._base_url
 
     @property
     def height(self):
@@ -83,7 +104,7 @@ class ConstellationPlot(object):
         result += "</svg>\n"
         return result
 
-    def _render_elements(self):
+    def _parametrize_elements(self):
 
         x_values = np.concatenate(
             [el.x_values for el in self.elements]
@@ -99,28 +120,61 @@ class ConstellationPlot(object):
         self.world_extent = [x_bounds[1]-x_bounds[0],
                              y_bounds[1]-y_bounds[0]]
 
-        centroid_code = self._render_all_centroids()
-        connection_code = self._render_all_connections()
-        hull_code = self._render_all_hulls()
-        result = hull_code + connection_code + centroid_code
 
-        return result
+        centroid_list = self._parametrize_all_centroids()
+        connection_list = self._parametrize_all_connections()
+        hull_list = self._parametrize_all_hulls()
+
+        return {'centroid_list': centroid_list,
+                'connection_list': connection_list,
+                'hull_list': hull_list}
 
 
-    def _render_all_hulls(self):
+    def serialize_fov(self, hdf5_path, mode='w'):
+
+        if mode == 'w':
+            with h5py.File(hdf5_path, mode) as dst:
+                if 'fov' not in dst.keys():
+                    dst.create_group('fov')
+                dst['fov'].create_dataset('height', data=self.height)
+                dst['fov'].create_dataset('width', data=self.width)
+
+
+        element_lookup = self._parametrize_elements()
+        _centroid_list = element_lookup['centroid_list']
+        _connection_list = element_lookup['connection_list']
+        _hull_list = element_lookup['hull_list']
+
+        centroid_list_to_hdf5(hdf5_path=hdf5_path, centroid_list=_centroid_list)
+        connection_list_to_hdf5(hdf5_path=hdf5_path, connection_list=_connection_list)
+        hull_list_to_hdf5(hdf5_path=hdf5_path, hull_list=_hull_list)
+
+        # record the transformation matrix between umap and pixel coords
+        if mode == 'w':
+            with h5py.File(hdf5_path, 'a') as dst:
+                dst['fov'].create_dataset(
+                    'umap_to_pixel', data=self.umap_to_pixel_transform)
+        else:
+            with h5py.File(hdf5_path, 'r', swmr=True) as dst:
+                test = dst['fov']['umap_to_pixel'][()]
+            np.testing.assert_allclose(
+                test,
+                self.umap_to_pixel_transform,
+                atol=0.0,
+                rtol=1.0e-6
+            )
+
+    def _parametrize_all_hulls(self):
         hull_list = [
             el for el in self.elements
-            if isinstance(el, Hull)
-            or isinstance(el, RawHull)
-            or isinstance(el, BareHull)
-            or isinstance(el, CompoundBareHull)
+            if isinstance(el, CompoundBareHull)
         ]
-        hull_code = ""
         for this_hull in hull_list:
-            hull_code += this_hull.render(plot_obj=self)
-        return hull_code
+            this_hull.set_parameters(plot_obj=self)
 
-    def _render_all_connections(self):
+        return hull_list
+
+    def _parametrize_all_connections(self):
 
         max_connection_ratio = None
         connection_list = []
@@ -134,7 +188,7 @@ class ConstellationPlot(object):
                 max_connection_ratio = rr
             connection_list.append(el)
         if len(connection_list) == 0:
-            return ""
+            return connection_list
 
         t0 = time.time()
         bezier_controls = get_bezier_control_points(connection_list=connection_list)
@@ -148,56 +202,35 @@ class ConstellationPlot(object):
         for conn, bez in zip(connection_list, bezier_controls):
             conn.set_bezier_controls(bez)
 
-        connection_code = ""
-        for conn in connection_list:
-            connection_code += self._render_connection(conn)
-
-        print(f'n_conn {len(connection_list)}')
-        return connection_code
+        return connection_list
 
 
+    def _parametrize_all_centroids(self):
 
-    def _render_all_centroids(self):
-
-        x_bounds = (
-            self.world_origin[0],
-            self.world_origin[0]+self.world_extent[0]
-        )
-
-        y_bounds = (
-            self.world_origin[1],
-            self.world_origin[1]+self.world_extent[1]
-        )
-
-        centroid_code = ""
+        centroid_list = []
         for el in self.elements:
             if isinstance(el, Centroid):
-                centroid_code += self._render_centroid(
+                self._parametrize_centroid(
                     centroid=el,
-                    max_n_cells=self.max_n_cells,
-                    x_bounds=x_bounds,
-                    y_bounds=y_bounds)
+                    max_n_cells=self.max_n_cells)
+                centroid_list.append(el)
 
-        return centroid_code
+        return centroid_list
 
-    def _render_centroid(
+
+    def _parametrize_centroid(
             self,
             centroid,
-            max_n_cells,
-            x_bounds,
-            y_bounds):
+            max_n_cells):
         """
+        Set the internal parametrs of a Centroid
+
         x_bounds and y_bounds are (min, max) tuples in 'scientific'
         coordinates (i.e. not image coordinates)
         """
-
         dr = self.max_radius-self.min_radius
         logarithmic_r = np.log2(1.0+centroid.n_cells/max_n_cells)
         radius = self.min_radius+dr*logarithmic_r
-
-        #print(f'{centroid.n_cells:.2e} cells; {radius:.2e} radius')
-
-        color = centroid.color
 
         (x_pix,
          y_pix) = self.convert_to_pixel_coords(
@@ -209,80 +242,52 @@ class ConstellationPlot(object):
             y=y_pix,
             radius=radius)
 
-        url = (
-            f"http://35.92.115.7:8883/display_entity?entity_id={centroid.label}"
-        )
-        result = f"""    <a href="{url}">\n"""
+    def _set_umap_to_pixel(self):
+        if self.world_origin is None:
+            raise RuntimeError("world origin not set")
 
-        result += (
-            f"""        <circle r="{radius}px" cx="{x_pix}px" cy="{y_pix}px" """
-            f"""fill="{color}" stroke="transparent"/>\n"""
-        )
-        result += """        <title>\n"""
-        result += f"""        {centroid.name}: {centroid.n_cells:.2e} cells\n"""
-        result += """        </title>\n"""
-        result += "    </a>\n"
-        return result
+        e0 = self.pixel_extent[0]
+        e1 = self.pixel_extent[1]
+        we0 = self.world_extent[0]
+        we1 = self.world_extent[1]
+        p0 = self.pixel_origin[0]
+        p1 = self.pixel_origin[1]
+        w0 = self.world_origin[0]
+        w1 = self.world_origin[1]
+
+        self._umap_to_pixel = np.array([
+            [e0/we0, 0.0, p0-e0*w0/we0],
+            [0.0, -e1/we1, p1+e1*(w1+we1)/we1],
+            [0.0, 0.0, 1.0]
+        ])
+
+
+    @property
+    def umap_to_pixel_transform(self):
+        if self._umap_to_pixel is None:
+            self._set_umap_to_pixel()
+        return self._umap_to_pixel
+
 
     def convert_to_pixel_coords(
             self,
             x,
             y):
 
-        if self.world_origin is None:
-            raise RuntimeError("world origin not set")
+        as_arrays = False
+        if isinstance(x, np.ndarray):
+            as_arrays = True
+            vec = np.array(
+                [x, y, np.ones(len(x), dtype=float)]
+            )
+        else:
+            vec = np.array([x, y, 1.0])
 
-        x_pix = (
-            self.pixel_origin[0]
-            + self.pixel_extent[0]*(x-self.world_origin[0])/self.world_extent[0]
-        )
-        y_pix = (
-            self.pixel_origin[1]
-            + self.pixel_extent[1]*(self.world_origin[1]+self.world_extent[1]-y)/self.world_extent[1]
-        )
-        return x_pix, y_pix
-
-
-    def _render_connection(self, this_connection):
-
-        title = (
-            f"{this_connection.src.name} "
-            f"({this_connection.src_neighbor_fraction:.2e} of neighbors) "
-            "-> "
-            f"{this_connection.dst.name} "
-            f"({this_connection.dst_neighbor_fraction:.2e} of neighbors)"
-        )
-
-        pts = this_connection.rendering_corners
-        ctrl = this_connection.bezier_control_points
-
-        result = """    <a href="">\n"""
-        result += "        <path "
-        result +=f"""d="M {pts[0][0]} {pts[0][1]} """
-        result += get_bezier_curve(
-                    src=pts[0],
-                    dst=pts[1],
-                    ctrl=ctrl[0])
-        result += f"L {pts[2][0]} {pts[2][1]} "
-        result += get_bezier_curve(
-                    src=pts[2],
-                    dst=pts[3],
-                    ctrl=ctrl[1])
-        result += f"""L {pts[0][0]} {pts[0][1]}" """
-        result += f"""stroke="transparent" fill="#bbbbbb"/>\n"""
-        result += "        <title>\n"
-        result += f"        {title}\n"
-        result += "        </title>\n"
-        result += "    </a>"
-
-        return result
-
-
-def get_bezier_curve(src, dst, ctrl):
-
-    result = f"Q {ctrl[0]} {ctrl[1]} "
-    result += f"{dst[0]} {dst[1]} "
-    return result
+        result = np.dot(self.umap_to_pixel_transform, vec)
+        if as_arrays:
+            return result[0, :], result[1, :]
+        else:
+            return result[0], result[1]
 
 
 def get_bezier_control_points(
@@ -355,3 +360,22 @@ def compute_force(
     weights = charges/np.power(rsq, 2.0)
     force = (vectors.transpose()*weights).sum(axis=1)
     return force
+
+def get_width_and_height(
+        constellation_cache,
+        fov_factor,
+        max_radius):
+    xmax = constellation_cache.umap_coords[:, 0].max()
+    xmin = constellation_cache.umap_coords[:, 0].min()
+    ymax = constellation_cache.umap_coords[:, 1].max()
+    ymin = constellation_cache.umap_coords[:, 1].min()
+
+    dx = 6*max_radius + xmax - xmin
+    dy = 6*max_radius + ymax - ymin
+
+    ratio = dx/dy
+
+    return {
+        'height': fov_factor,
+        'width': np.round(fov_factor*ratio).astype(int)
+    }

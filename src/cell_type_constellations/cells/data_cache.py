@@ -100,11 +100,18 @@ class ConstellationCache_HDF5(object):
     def n_cells_from_level(self, level):
         return self.n_cells_lookup[level]
 
-    def umap_coords_from_label(self, level, label):
+    def _cell_mask_from_label(self, level, label):
         alias_values = self.parentage_to_alias[level][label]
         cell_mask = np.zeros(len(self.cluster_aliases), dtype=bool)
         for alias in alias_values:
             cell_mask[self.cluster_aliases==alias] = True
+        return cell_mask
+
+    def umap_coords_from_label(self, level, label):
+        cell_mask = self._cell_mask_from_label(
+            level=level,
+            label=label
+        )
         return self.umap_coords[cell_mask, :]
 
     def nn_from_cell_idx(self, cell_idx):

@@ -8,7 +8,8 @@ from cell_type_constellations.taxonomy.utils import (
     convert_tree_to_leaves,
     get_all_pairs,
     get_child_to_parent,
-    clean_for_json)
+    clean_for_json,
+    prune_tree)
 
 from cell_type_constellations.taxonomy.data_release_utils import (
     get_tree_above_leaves,
@@ -96,7 +97,8 @@ class TaxonomyTree(object):
             cell_metadata_path,
             cluster_annotation_path,
             cluster_membership_path,
-            hierarchy):
+            hierarchy,
+            do_pruning=False):
         """
         Construct a TaxonomyTree from the canonical CSV files
         encoding a taxonomy for a data release
@@ -228,6 +230,9 @@ class TaxonomyTree(object):
                     leaves[child] = []
 
         data[hierarchy[-1]] = leaves
+
+        if do_pruning:
+            data = prune_tree(data)
 
         return cls(data=data)
 

@@ -149,7 +149,7 @@ def iteratively_subdivide_points(point_array, k_nn=20, n_sig=2):
                 child_idx = np.sort(np.array(list(child_subset)))
                 child_idx = parent_subset[child_idx]
                 next_subdivision.append(child_idx)
-        print(len(next_subdivision), len(current_subdivision))
+        #print(len(next_subdivision), len(current_subdivision))
         if len(next_subdivision) == len(current_subdivision):
             break
         current_subdivision = next_subdivision
