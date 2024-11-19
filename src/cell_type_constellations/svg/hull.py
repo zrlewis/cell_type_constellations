@@ -494,6 +494,20 @@ def create_compound_bare_hull(
         taxonomy_level,
         fill=False):
 
+    to_keep = []
+    for i0 in range(len(bare_hull_list)):
+        b0 = bare_hull_list[i0]
+        found_match = False
+        for i1 in range(i0+1, len(bare_hull_list), 1):
+            b1 = bare_hull_list[i1]
+            if _are_bare_hulls_identical(b0, b1):
+                found_match = True
+                break
+        if not found_match:
+            to_keep.append(b0)
+    print(f'started with {len(bare_hull_list)} ended with {len(to_keep)}')
+    bare_hull_list = to_keep
+
     while True:
         new_hull = None
         n0 = len(bare_hull_list)
@@ -530,6 +544,29 @@ def create_compound_bare_hull(
         n_cells=n_cells,
         fill=fill,
         level=taxonomy_level)
+
+
+def _are_bare_hulls_identical(b0, b1):
+    if b0.points.shape != b1.points.shape:
+        return False
+    points1 = [
+        b1.points[ii, :]
+        for ii in range(b1.points.shape[0])
+    ]
+
+    for ii in range(b0.points.shape[0]):
+        p0 = b0.points[ii, :]
+        found_it = False
+        i_found = None
+        for i1, p1 in enumerate(points1):
+            if np.allclose(p0, p1, atol=0.0, rtol=1.0e-6):
+                found_it = True
+                i_found = i1
+        if not found_it:
+            return False
+        points1.pop(i_found)
+    return True
+
 
 
 def _are_segments_identical(seg0, seg1):
