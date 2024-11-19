@@ -1,5 +1,6 @@
 import h5py
 import numpy as np
+import os
 from scipy.spatial import ConvexHull
 
 import json
@@ -341,9 +342,15 @@ def merge_bare_hulls(
     n_all = bare0.points.shape[0]+bare1.points.shape[0]
     for i0, seg0 in enumerate(bare0.segments):
         for i1, seg1 in enumerate(bare1.segments):
-            intersection = find_intersection_pt(
-                seg0,
-                seg1)
+            intersection = None
+            if _are_segments_identical(seg0, seg1):
+                intersection = 0.5*(seg0[0]+seg0[1])
+            elif np.allclose(seg0[0], seg1[1], atol=0.0, rtol=1.0e-4):
+                intersection = seg1[1]
+            else:
+                intersection = find_intersection_pt(
+                    seg0,
+                    seg1)
             if intersection is not None:
                 if i0 not in bare0_to_1:
                     bare0_to_1[i0] = dict()
@@ -356,9 +363,7 @@ def merge_bare_hulls(
     intersection_points = np.array(intersection_points)
     n_intersections = intersection_points.shape[0]
 
-    # either no intersection, or there is an odd numbe of intersections
-    # (which signals an edge case we are not prepared for)
-    if n_intersections == 0 or n_intersections %2 == 1:
+    if n_intersections < 2:
 
         bare1_in_0 = pts_in_hull(
             pts=bare1.points,
@@ -439,6 +444,8 @@ def merge_bare_hulls(
         if vertex >= bare0.points.shape[0]:
             continue
         starting_idx = vertex
+        break
+
     assert starting_idx is not None
 
     current_hull = 0
@@ -473,6 +480,19 @@ def create_compound_bare_hull(
         n_cells,
         taxonomy_level,
         fill=False):
+
+    to_keep = []
+    for i0 in range(len(bare_hull_list)):
+        b0 = bare_hull_list[i0]
+        found_match = False
+        for i1 in range(i0+1, len(bare_hull_list), 1):
+            b1 = bare_hull_list[i1]
+            if _are_bare_hulls_identical(b0, b1):
+                found_match = True
+                break
+        if not found_match:
+            to_keep.append(b0)
+    bare_hull_list = to_keep
 
     while True:
         new_hull = None
@@ -510,3 +530,37 @@ def create_compound_bare_hull(
         n_cells=n_cells,
         fill=fill,
         level=taxonomy_level)
+
+
+def _are_bare_hulls_identical(b0, b1):
+    if b0.points.shape != b1.points.shape:
+        return False
+    points1 = [
+        b1.points[ii, :]
+        for ii in range(b1.points.shape[0])
+    ]
+
+    for ii in range(b0.points.shape[0]):
+        p0 = b0.points[ii, :]
+        found_it = False
+        i_found = None
+        for i1, p1 in enumerate(points1):
+            if np.allclose(p0, p1, atol=0.0, rtol=1.0e-6):
+                found_it = True
+                i_found = i1
+        if not found_it:
+            return False
+        points1.pop(i_found)
+    return True
+
+
+
+def _are_segments_identical(seg0, seg1):
+    for p0 in seg0:
+        this_identical = False
+        for p1 in seg1:
+            if np.allclose(p1, p0, atol=0.0, rtol=1.0e-4):
+                this_identical = True
+        if not this_identical:
+            return False
+    return True
