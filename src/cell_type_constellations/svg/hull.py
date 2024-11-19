@@ -341,9 +341,15 @@ def merge_bare_hulls(
     n_all = bare0.points.shape[0]+bare1.points.shape[0]
     for i0, seg0 in enumerate(bare0.segments):
         for i1, seg1 in enumerate(bare1.segments):
-            intersection = find_intersection_pt(
-                seg0,
-                seg1)
+            intersection = None
+            if _are_segments_identical(seg0, seg1):
+                intersection = 0.5*(seg0[0]+seg0[1])
+            elif np.allclose(seg0[0], seg1[1], atol=0.0, rtol=1.0e-4):
+                intersection = seg0[0]
+            else:
+                intersection = find_intersection_pt(
+                    seg0,
+                    seg1)
             if intersection is not None:
                 if i0 not in bare0_to_1:
                     bare0_to_1[i0] = dict()
@@ -356,9 +362,7 @@ def merge_bare_hulls(
     intersection_points = np.array(intersection_points)
     n_intersections = intersection_points.shape[0]
 
-    # either no intersection, or there is an odd numbe of intersections
-    # (which signals an edge case we are not prepared for)
-    if n_intersections == 0 or n_intersections %2 == 1:
+    if n_intersections < 2:
 
         bare1_in_0 = pts_in_hull(
             pts=bare1.points,
@@ -510,3 +514,14 @@ def create_compound_bare_hull(
         n_cells=n_cells,
         fill=fill,
         level=taxonomy_level)
+
+
+def _are_segments_identical(seg0, seg1):
+    for p0 in seg0:
+        this_identical = False
+        for p1 in seg1:
+            if np.allclose(p1, p0, atol=0.0, rtol=1.0e-4):
+                this_identical = True
+        if not this_identical:
+            return False
+    return True
