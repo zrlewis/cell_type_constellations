@@ -448,14 +448,10 @@ def _create_constellation_cache(
         'cluster_annotation_path': str(cluster_annotation_path),
         'cluster_membership_path': str(cluster_membership_path),
         'hierarchy': hierarchy,
-        'k_nn': int(k_nn)
+        'k_nn': int(k_nn),
+        'prune_taxonomy': prune_taxonomy
     }
     json.dumps(config)
-
-    temp_path = tempfile.mkstemp(dir=tmp_dir, suffix='.h5')
-    os.close(temp_path[0])
-    temp_path = temp_path[1]
-    print(f'writing temp to {temp_path}')
 
     if prune_taxonomy:
         filter_cell_metadata_path=cell_metadata_path
@@ -469,6 +465,41 @@ def _create_constellation_cache(
         cell_metadata_path=filter_cell_metadata_path)
 
     cell_set = CellSet(cell_metadata_path)
+
+    # get color_lookup
+    annotation = pd.read_csv(cluster_annotation_path)
+    label_to_color = {
+        l:c for l, c in
+        zip(annotation.label.values,
+            annotation.color_hex_triplet.values)
+    }
+    del annotation
+
+    _constellation_cache_from_obj(
+        cell_filter=cell_filter,
+        cell_set=cell_set,
+        k_nn=k_nn,
+        dst_path=dst_path,
+        tmp_dir=tmp_dir,
+        label_to_color=label_to_color,
+        config=config
+    )
+
+
+def _constellation_cache_from_obj(
+        cell_filter,
+        cell_set,
+        k_nn,
+        dst_path,
+        tmp_dir,
+        label_to_color,
+        config):
+
+    temp_path = mkstemp_clean(
+        dir=tmp_dir,
+        suffix='.h5')
+
+    print(f'writing temp to {temp_path}')
 
     cell_to_nn_aliases = cell_set.get_nn_from_mask(
             query_mask=np.ones(cell_set.cluster_aliases.shape, dtype=bool),
@@ -526,14 +557,6 @@ def _create_constellation_cache(
         dur = time.time()-t0
         print(f'=====processed {level} after {dur:.2e} seconds=======')
 
-    # get color_lookup
-    annotation = pd.read_csv(cluster_annotation_path)
-    label_to_color = {
-        l:c for l, c in
-        zip(annotation.label.values,
-            annotation.color_hex_triplet.values)
-    }
-    del annotation
     cluster_alias_array = np.array([int(a) for a in cell_set.cluster_aliases])
 
     with h5py.File(temp_path, 'w') as dst:
