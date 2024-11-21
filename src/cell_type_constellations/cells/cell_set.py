@@ -21,7 +21,7 @@ from cell_type_constellations.cells.utils import (
     get_hull_points
 )
 
-from cell_type_constellations.taxonomy.taxonomy_tree import (
+from cell_type_mapper.taxonomy.taxonomy_tree import (
     TaxonomyTree
 )
 
@@ -102,7 +102,6 @@ class CellFilter(object):
 
         self._create_name_to_idx()
         self._create_parentage_to_alias()
-
 
     def _create_name_to_idx(self):
         self._name_to_idx = dict()

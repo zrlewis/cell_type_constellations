@@ -6,7 +6,8 @@ import numpy as np
 from cell_type_constellations.svg.centroid import Centroid
 from cell_type_constellations.svg.connection import Connection
 from cell_type_constellations.svg.hull import CompoundBareHull
-from cell_type_constellations.taxonomy.taxonomy_tree import (
+
+from cell_type_mapper.taxonomy.taxonomy_tree import (
     TaxonomyTree
 )
 

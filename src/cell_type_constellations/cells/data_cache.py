@@ -3,7 +3,7 @@ import json
 import numpy as np
 import scipy.spatial
 
-from cell_type_constellations.taxonomy.taxonomy_tree import (
+from cell_type_mapper.taxonomy.taxonomy_tree import (
     TaxonomyTree
 )
 
