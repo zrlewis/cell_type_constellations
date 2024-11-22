@@ -91,7 +91,7 @@ class CellSet(object):
 
 
 
-class CellFilter(object):
+class TaxonomyFilter(object):
 
     def __init__(
             self,
@@ -220,16 +220,16 @@ class CellFilter(object):
 
 def get_neighbor_linkage(
         cell_set,
-        cell_filter,
+        taxonomy_filter,
         src_level,
         src_node,
         k_nn=15):
 
-    src_idx = cell_filter.idx_from_label(
+    src_idx = taxonomy_filter.idx_from_label(
         level=src_level,
         node=src_node)
 
-    mask = cell_filter.filter_cells(
+    mask = taxonomy_filter.filter_cells(
         alias_array=cell_set.cluster_aliases,
         level=src_level,
         node=src_node)
@@ -239,11 +239,11 @@ def get_neighbor_linkage(
         k_nn=k_nn+1)
 
     # convert to array of dst_idx
-    neighbors = cell_filter.idx_array_from_alias_array(
+    neighbors = taxonomy_filter.idx_array_from_alias_array(
         alias_array=cell_set.cluster_aliases[neighbors[:, 1:].flatten()],
         level=src_level)
 
-    n_dst_nodes = len(cell_filter.taxonomy_tree.nodes_at_level(src_level))
+    n_dst_nodes = len(taxonomy_filter.taxonomy_tree.nodes_at_level(src_level))
 
     mixture = np.zeros(n_dst_nodes, dtype=int)
     unq, ct = np.unique(neighbors, return_counts=True)
@@ -253,7 +253,7 @@ def get_neighbor_linkage(
 
 def create_mixture_matrix_to_file(
         cell_set,
-        cell_filter,
+        taxonomy_filter,
         level,
         k_nn,
         dst_path,
@@ -263,7 +263,7 @@ def create_mixture_matrix_to_file(
     try:
         mm = create_mixture_matrix(
             cell_set=cell_set,
-            cell_filter=cell_filter,
+            taxonomy_filter=taxonomy_filter,
             level=level,
             k_nn=k_nn,
             tmp_dir=mm_tmp_dir)
@@ -277,7 +277,7 @@ def create_mixture_matrix_to_file(
 
 def create_mixture_matrix(
         cell_set,
-        cell_filter,
+        taxonomy_filter,
         level,
         k_nn,
         tmp_dir,
@@ -287,7 +287,7 @@ def create_mixture_matrix(
     for ii in range(n_processors):
         i_node_sub_lists.append([])
 
-    node_list = list(cell_filter.taxonomy_tree.nodes_at_level(level))
+    node_list = list(taxonomy_filter.taxonomy_tree.nodes_at_level(level))
     n_nodes = len(node_list)
     for i_node, node in enumerate(node_list):
         i_list = i_node % (len(i_node_sub_lists))
@@ -305,7 +305,7 @@ def create_mixture_matrix(
             target=_create_sub_mixture_matrix,
             kwargs={
                 'cell_set': cell_set,
-                'cell_filter': cell_filter,
+                'taxonomy_filter': taxonomy_filter,
                 'level': level,
                 'i_node_list': i_node_sub_lists[i_list],
                 'k_nn': k_nn,
@@ -334,24 +334,24 @@ def create_mixture_matrix(
 
 def _create_sub_mixture_matrix(
         cell_set,
-        cell_filter,
+        taxonomy_filter,
         level,
         i_node_list,
         k_nn,
         dst_path):
 
-    n_nodes = len(cell_filter.taxonomy_tree.nodes_at_level(level))
+    n_nodes = len(taxonomy_filter.taxonomy_tree.nodes_at_level(level))
     matrix = np.zeros((n_nodes, n_nodes), dtype=int)
-    node_list = list(cell_filter.taxonomy_tree.nodes_at_level(level))
+    node_list = list(taxonomy_filter.taxonomy_tree.nodes_at_level(level))
     for i_node in i_node_list:
         node = node_list[i_node]
-        src_idx = cell_filter.idx_from_label(
+        src_idx = taxonomy_filter.idx_from_label(
             level=level,
             node=node)
 
         matrix[src_idx, :] = get_neighbor_linkage(
             cell_set=cell_set,
-            cell_filter=cell_filter,
+            taxonomy_filter=taxonomy_filter,
             src_level=level,
             src_node=node,
             k_nn=k_nn)
@@ -457,7 +457,7 @@ def _create_constellation_cache(
     else:
         filter_cell_metadata_path=None
 
-    cell_filter = CellFilter.from_data_release(
+    taxonomy_filter = TaxonomyFilter.from_data_release(
         cluster_annotation_path=cluster_annotation_path,
         cluster_membership_path=cluster_membership_path,
         hierarchy=hierarchy,
@@ -475,7 +475,7 @@ def _create_constellation_cache(
     del annotation
 
     _constellation_cache_from_obj(
-        cell_filter=cell_filter,
+        taxonomy_filter=taxonomy_filter,
         cell_set=cell_set,
         k_nn=k_nn,
         dst_path=dst_path,
@@ -486,7 +486,7 @@ def _create_constellation_cache(
 
 
 def _constellation_cache_from_obj(
-        cell_filter,
+        taxonomy_filter,
         cell_set,
         k_nn,
         dst_path,
@@ -513,10 +513,10 @@ def _constellation_cache_from_obj(
     n_cells_lookup = dict()
     idx_to_label = dict()
 
-    for level in cell_filter.taxonomy_tree.hierarchy:
+    for level in taxonomy_filter.taxonomy_tree.hierarchy:
         mixture_matrix_lookup[level] = create_mixture_matrix(
             cell_set=cell_set,
-            cell_filter=cell_filter,
+            taxonomy_filter=taxonomy_filter,
             level=level,
             k_nn=k_nn,
             tmp_dir=tmp_dir
@@ -527,27 +527,27 @@ def _constellation_cache_from_obj(
     dur = (time.time()-t0)/60.0
     print(f'=======CREATED ALL MIXTURE MATRICES IN {dur:.2e} minutes=======')
 
-    for level in cell_filter.taxonomy_tree.hierarchy:
+    for level in taxonomy_filter.taxonomy_tree.hierarchy:
 
-        n_nodes = len(cell_filter.taxonomy_tree.nodes_at_level(level))
+        n_nodes = len(taxonomy_filter.taxonomy_tree.nodes_at_level(level))
         centroid_lookup[level] = [None]*n_nodes
         n_cells_lookup[level] = [None]*n_nodes
         idx_to_label[level] = [None]*n_nodes
 
-        for node in cell_filter.taxonomy_tree.nodes_at_level(level):
+        for node in taxonomy_filter.taxonomy_tree.nodes_at_level(level):
 
-            node_idx = cell_filter.idx_from_label(
+            node_idx = taxonomy_filter.idx_from_label(
                 level=level,
                 node=node)
 
-            alias_array = cell_filter.alias_array_from_idx(
+            alias_array = taxonomy_filter.alias_array_from_idx(
                 level=level,
                 idx=node_idx)
 
             centroid_lookup[level][node_idx] = cell_set.centroid_from_alias_array(
                 alias_array=alias_array)
 
-            idx_to_label[level][node_idx] = cell_filter.name_from_idx(
+            idx_to_label[level][node_idx] = taxonomy_filter.name_from_idx(
                 level=level,
                 idx=node_idx)
 
@@ -571,7 +571,7 @@ def _constellation_cache_from_obj(
             data=json.dumps(idx_to_label).encode('utf-8'))
         dst.create_dataset(
             'taxonomy_tree',
-            data=cell_filter.taxonomy_tree.to_str(drop_cells=True).encode('utf-8')
+            data=taxonomy_filter.taxonomy_tree.to_str(drop_cells=True).encode('utf-8')
         )
         dst.create_dataset(
             'k_nn', data=k_nn)
@@ -581,7 +581,7 @@ def _constellation_cache_from_obj(
         dst.create_dataset(
             'parentage_to_alias',
             data=json.dumps(
-                clean_for_json(cell_filter._parentage_to_alias)).encode('utf-8')
+                clean_for_json(taxonomy_filter._parentage_to_alias)).encode('utf-8')
         )
         dst.create_dataset(
             'cluster_aliases',
@@ -596,7 +596,7 @@ def _constellation_cache_from_obj(
             data=cell_to_nn_aliases,
             chunks=(10000, cell_to_nn_aliases.shape[1])
         )
-        for level in cell_filter.taxonomy_tree.hierarchy:
+        for level in taxonomy_filter.taxonomy_tree.hierarchy:
             for grp, lookup in [(n_grp, n_cells_lookup),
                                 (mm_grp, mixture_matrix_lookup),
                                 (centroid_grp, centroid_lookup)]:
