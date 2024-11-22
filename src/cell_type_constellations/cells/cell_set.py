@@ -416,31 +416,6 @@ def create_constellation_cache(
         prune_taxonomy=False):
 
     t0 = time.time()
-    tmp_dir = tempfile.mkdtemp(dir=tmp_dir)
-    try:
-        _create_constellation_cache(
-            cell_metadata_path=cell_metadata_path,
-            cluster_annotation_path=cluster_annotation_path,
-            cluster_membership_path=cluster_membership_path,
-            hierarchy=hierarchy,
-            k_nn=k_nn,
-            dst_path=dst_path,
-            tmp_dir=tmp_dir,
-            prune_taxonomy=prune_taxonomy)
-    finally:
-        _clean_up(tmp_dir)
-    dur = (time.time()-t0)/60.0
-    print(f'=======CREATED CONSTELLATION CACHE IN {dur:.2e} minutes=======')
-
-def _create_constellation_cache(
-        cell_metadata_path,
-        cluster_annotation_path,
-        cluster_membership_path,
-        hierarchy,
-        k_nn,
-        dst_path,
-        tmp_dir,
-        prune_taxonomy=False):
 
     config = {
         'cell_metadata_path': str(cell_metadata_path),
@@ -474,7 +449,7 @@ def _create_constellation_cache(
     }
     del annotation
 
-    _constellation_cache_from_obj(
+    constellation_cache_from_obj(
         taxonomy_filter=taxonomy_filter,
         cell_set=cell_set,
         k_nn=k_nn,
@@ -484,8 +459,34 @@ def _create_constellation_cache(
         config=config
     )
 
+    dur = (time.time()-t0)/60.0
+    print(f'=======CREATED CONSTELLATION CACHE IN {dur:.2e} minutes=======')
 
-def _constellation_cache_from_obj(
+
+def constellation_cache_from_obj(
+        taxonomy_filter,
+        cell_set,
+        k_nn,
+        dst_path,
+        tmp_dir,
+        label_to_color,
+        config):
+    tmp_dir = tempfile.mkdtemp(dir=tmp_dir)
+    try:
+        _constellation_cache_from_obj_worker(
+            taxonomy_filter=taxonomy_filter,
+            cell_set=cell_set,
+            k_nn=k_nn,
+            dst_path=dst_path,
+            tmp_dir=tmp_dir,
+            label_to_color=label_to_color,
+            config=config
+        )
+    finally:
+        _clean_up(tmp_dir)
+
+
+def _constellation_cache_from_obj_worker(
         taxonomy_filter,
         cell_set,
         k_nn,
