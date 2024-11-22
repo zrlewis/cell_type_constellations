@@ -7,12 +7,10 @@ import numpy as np
 import pandas as pd
 import pathlib
 
-from cell_type_constellations.cells.cell_set import (
-    create_constellation_cache
-)
 
 from cell_type_constellations.cells.data_cache import (
-    ConstellationCache_HDF5
+    ConstellationCache_HDF5,
+    create_constellation_cache
 )
 
 import time
