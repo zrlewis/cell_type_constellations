@@ -425,7 +425,6 @@ def create_constellation_cache(
         'k_nn': int(k_nn),
         'prune_taxonomy': prune_taxonomy
     }
-    json.dumps(config)
 
     if prune_taxonomy:
         filter_cell_metadata_path=cell_metadata_path
@@ -440,14 +439,9 @@ def create_constellation_cache(
 
     cell_set = CellSet(cell_metadata_path)
 
-    # get color_lookup
-    annotation = pd.read_csv(cluster_annotation_path)
-    label_to_color = {
-        l:c for l, c in
-        zip(annotation.label.values,
-            annotation.color_hex_triplet.values)
-    }
-    del annotation
+    label_to_color = color_lookup_from_cluster_annotation(
+        cluster_annotation_path=cluster_annotation_path
+    )
 
     constellation_cache_from_obj(
         taxonomy_filter=taxonomy_filter,
@@ -462,6 +456,17 @@ def create_constellation_cache(
     dur = (time.time()-t0)/60.0
     print(f'=======CREATED CONSTELLATION CACHE IN {dur:.2e} minutes=======')
 
+
+def color_lookup_from_cluster_annotation(
+        cluster_annotation_path):
+    # get color_lookup
+    annotation = pd.read_csv(cluster_annotation_path)
+    label_to_color = {
+        l:c for l, c in
+        zip(annotation.label.values,
+            annotation.color_hex_triplet.values)
+    }
+    return label_to_color
 
 def constellation_cache_from_obj(
         taxonomy_filter,
