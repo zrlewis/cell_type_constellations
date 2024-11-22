@@ -9,18 +9,7 @@ import time
 import tempfile
 
 
-class CellSet(object):
-
-    def __init__(
-            self,
-            cell_metadata_path):
-
-        (self._cluster_aliases,
-         self._umap_coords) = _get_umap_coords(cell_metadata_path)
-
-        self.kd_tree = scipy.spatial.cKDTree(
-            data=self._umap_coords
-        )
+class CellSetAccessMixin(object):
 
     @property
     def cluster_aliases(self):
@@ -64,6 +53,19 @@ class CellSet(object):
             mask[self._cluster_aliases==alias] = True
         return int(mask.sum())
 
+
+class CellSet(CellSetAccessMixin):
+
+    def __init__(
+            self,
+            cell_metadata_path):
+
+        (self._cluster_aliases,
+         self._umap_coords) = _get_umap_coords(cell_metadata_path)
+
+        self.kd_tree = scipy.spatial.cKDTree(
+            data=self._umap_coords
+        )
 
 
 def _get_umap_coords(cell_metadata_path):
