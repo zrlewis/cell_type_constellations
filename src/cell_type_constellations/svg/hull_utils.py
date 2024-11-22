@@ -263,17 +263,18 @@ def get_pixellized_test_pts_from_alias_list(
     dd_res = 100000.0
     resx = dd_res
     resy = dd_res
-    if valid_pts.shape[0] < 1000:
-        dd = np.sqrt(pairwise_distance_sq(valid_pts))
-        dd_max = dd.max()
-        idx_arr = np.arange(valid_pts.shape[0], dtype=int)
-        dd[idx_arr, idx_arr] = dd_max
-        dd_min = dd.min(axis=1)
-        assert dd_min.shape == (valid_pts.shape[0], )
-        del dd
-        dd_res = max(min_res, np.median(dd_min))
-    else:
-        dd_res = 1000.0
+    with np.errstate(invalid='ignore'):
+        if valid_pts.shape[0] < 1000:
+            dd = np.sqrt(pairwise_distance_sq(valid_pts))
+            dd_max = dd.max()
+            idx_arr = np.arange(valid_pts.shape[0], dtype=int)
+            dd[idx_arr, idx_arr] = dd_max
+            dd_min = dd.min(axis=1)
+            assert dd_min.shape == (valid_pts.shape[0], )
+            del dd
+            dd_res = max(min_res, np.median(dd_min))
+        else:
+            dd_res = 1000.0
 
     resx = max(min_res, (xmax-xmin)/100.0)
     resy = max(min_res, (ymax-ymin)/100.0)

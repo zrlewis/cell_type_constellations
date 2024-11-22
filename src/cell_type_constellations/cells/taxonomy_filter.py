@@ -104,10 +104,14 @@ class TaxonomyFilter(object):
         pair, return a boolean mask indicating which of the cells
         specified by cluster_aliases are in the specified node, level
         """
+
         desired_aliases = self._parentage_to_alias[level][node]
+
         mask = np.zeros(len(alias_array), dtype=bool)
+
         for alias in desired_aliases:
             mask[alias_array==alias] = True
+
         return mask
 
     def idx_from_label(self, level, node):

@@ -4,6 +4,7 @@ import multiprocessing
 import numpy as np
 import os
 import pandas as pd
+import pathlib
 import scipy.spatial
 import time
 import tempfile
@@ -17,7 +18,8 @@ from cell_type_constellations.cells.taxonomy_filter import (
 )
 
 from cell_type_constellations.cells.cell_set import (
-    CellSet
+    CellSet,
+    CellSetFromH5ad
 )
 
 from cell_type_constellations.utils.data import (
@@ -217,6 +219,82 @@ def create_constellation_cache(
 
     dur = (time.time()-t0)/60.0
     print(f'=======CREATED CONSTELLATION CACHE IN {dur:.2e} minutes=======')
+
+
+def create_constellation_cache_from_h5ad(
+        h5ad_path,
+        cluster_annotation_path,
+        cluster_membership_path,
+        visualization_coords,
+        connection_coords,
+        cluster_alias_key,
+        hierarchy,
+        k_nn,
+        dst_path,
+        tmp_dir=None):
+
+    t0 = time.time()
+
+    config = {
+        'h5ad_path': str(h5ad_path),
+        'cluster_annotation_path': str(cluster_annotation_path),
+        'cluster_membership_path': str(cluster_membership_path),
+        'visualization_coords': visualization_coords,
+        'connection_coords': connection_coords,
+        'cluster_alias_key': cluster_alias_key,
+        'hierarchy': hierarchy,
+        'k_nn': int(k_nn)
+    }
+
+    cell_set = CellSetFromH5ad(
+        h5ad_path=h5ad_path,
+        visualization_coord_key=visualization_coords,
+        connection_coord_key=connection_coords,
+        cluster_alias_key=cluster_alias_key
+    )
+
+    try:
+        tmp_cell_metadata_path = pathlib.Path(
+            mkstemp_clean(dir=tmp_dir),
+            prefix='cell_metadata_tmp_',
+            suffix='.csv'
+        )
+
+        cell_metadata = []
+        for ii, alias in enumerate(cell_set.cluster_aliases):
+            this = {'cell_label': f'c_{ii}', 'cluster_alias': alias}
+            cell_metadata.append(this)
+        cell_metadata = pd.DataFrame(cell_metadata)
+        cell_metadata.to_csv(tmp_cell_metadata_path, index=False)
+
+        taxonomy_filter = TaxonomyFilter.from_data_release(
+            cluster_annotation_path=cluster_annotation_path,
+            cluster_membership_path=cluster_membership_path,
+            hierarchy=hierarchy,
+            cell_metadata_path=tmp_cell_metadata_path
+        )
+
+    finally:
+        if tmp_cell_metadata_path.exists():
+            tmp_cell_metadata_path.unlink()
+
+    label_to_color = color_lookup_from_cluster_annotation(
+        cluster_annotation_path=cluster_annotation_path
+    )
+
+    constellation_cache_from_obj(
+        taxonomy_filter=taxonomy_filter,
+        cell_set=cell_set,
+        k_nn=k_nn,
+        dst_path=dst_path,
+        tmp_dir=tmp_dir,
+        label_to_color=label_to_color,
+        config=config
+    )
+
+    dur = (time.time()-t0)/60.0
+    print(f'=======CREATED CONSTELLATION CACHE IN {dur:.2e} minutes=======')
+
 
 
 def constellation_cache_from_obj(

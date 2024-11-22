@@ -32,6 +32,7 @@ def create_mixture_matrix(
         i_node_sub_lists.append([])
 
     node_list = list(taxonomy_filter.taxonomy_tree.nodes_at_level(level))
+
     n_nodes = len(node_list)
     for i_node, node in enumerate(node_list):
         i_list = i_node % (len(i_node_sub_lists))
@@ -40,6 +41,9 @@ def create_mixture_matrix(
     tmp_data = []
     process_list = []
     for i_list in range(len(i_node_sub_lists)):
+        this_sub_list = i_node_sub_lists[i_list]
+        if len(this_sub_list) == 0:
+            continue
         tmp_path = mkstemp_clean(
             dir=tmp_dir,
             prefix='sub_mixture_matrix_',
@@ -51,7 +55,7 @@ def create_mixture_matrix(
                 'cell_set': cell_set,
                 'taxonomy_filter': taxonomy_filter,
                 'level': level,
-                'i_node_list': i_node_sub_lists[i_list],
+                'i_node_list': this_sub_list,
                 'k_nn': k_nn,
                 'dst_path': tmp_path
             }
