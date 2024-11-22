@@ -253,6 +253,8 @@ def create_constellation_cache_from_h5ad(
         cluster_alias_key=cluster_alias_key
     )
 
+    print('=======CREATED CELL_SET=======')
+
     try:
         tmp_cell_metadata_path = pathlib.Path(
             mkstemp_clean(dir=tmp_dir),
@@ -277,6 +279,8 @@ def create_constellation_cache_from_h5ad(
     finally:
         if tmp_cell_metadata_path.exists():
             tmp_cell_metadata_path.unlink()
+
+    print('=======CREATED TAXONOMY_FILTER=======')
 
     label_to_color = color_lookup_from_cluster_annotation(
         cluster_annotation_path=cluster_annotation_path

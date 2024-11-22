@@ -139,7 +139,11 @@ def _get_coords_from_h5ad(
     obsm = src.obsm
     if coord_key not in obsm.keys():
         raise KeyError(f'key {coord_key} not in obsm')
-    coords = obsm[coord_key][()]
+    coords = obsm[coord_key]
     src.file.close()
     del src
+
+    if isinstance(coords, pd.DataFrame):
+        coords = coords.to_numpy()
+
     return coords
