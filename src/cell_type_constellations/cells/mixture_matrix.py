@@ -143,7 +143,7 @@ def get_neighbor_linkage(
         level=src_level,
         node=src_node)
 
-    neighbors = cell_set.get_nn_from_mask(
+    neighbors = cell_set.get_connection_nn_from_mask(
         query_mask=mask,
         k_nn=k_nn+1)
 

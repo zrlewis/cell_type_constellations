@@ -81,7 +81,6 @@ class ConstellationCache_HDF5(object):
             )
 
             self.cluster_aliases = src['cluster_aliases'][()]
-            self.cell_to_nn_aliases = src['cell_to_nn_aliases'][()]
 
             self.umap_coords = src['umap_coords'][()]
 
@@ -146,9 +145,6 @@ class ConstellationCache_HDF5(object):
             label=label
         )
         return self.umap_coords[cell_mask, :]
-
-    def nn_from_cell_idx(self, cell_idx):
-        return self.cell_to_nn_aliases[cell_idx, :]
 
     def convex_hull_list_from_label(self, level, label):
         alias_values = self.parentage_to_alias[level][label]
@@ -261,13 +257,6 @@ def _constellation_cache_from_obj_worker(
 
     print(f'writing temp to {temp_path}')
 
-    cell_to_nn_aliases = cell_set.get_nn_from_mask(
-            query_mask=np.ones(cell_set.cluster_aliases.shape, dtype=bool),
-            k_nn=20)
-    final_shape = cell_to_nn_aliases.shape
-    cell_to_nn_aliases = cell_set.cluster_aliases[cell_to_nn_aliases.flatten()].reshape(final_shape)
-    print(f'got cell_to_nn_aliases {cell_to_nn_aliases.shape}')
-
     t0 = time.time()
     mixture_matrix_lookup = dict()
     centroid_lookup = dict()
@@ -350,12 +339,7 @@ def _constellation_cache_from_obj_worker(
         )
         dst.create_dataset(
             'umap_coords',
-            data=cell_set.umap_coords
-        )
-        dst.create_dataset(
-            'cell_to_nn_aliases',
-            data=cell_to_nn_aliases,
-            chunks=(10000, cell_to_nn_aliases.shape[1])
+            data=cell_set.visualization_coords
         )
         for level in taxonomy_filter.taxonomy_tree.hierarchy:
             for grp, lookup in [(n_grp, n_cells_lookup),
