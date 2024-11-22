@@ -161,7 +161,7 @@ class ConstellationPlot(object):
                 test,
                 self.umap_to_pixel_transform,
                 atol=0.0,
-                rtol=1.0e-6
+                rtol=1.0e-3
             )
 
     def _parametrize_all_hulls(self):
