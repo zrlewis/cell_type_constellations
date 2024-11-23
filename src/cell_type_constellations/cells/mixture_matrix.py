@@ -27,6 +27,12 @@ def create_mixture_matrix(
         tmp_dir,
         n_processors=4):
 
+    cell_set.create_neighbor_cache(
+        k_nn=k_nn+1,
+        n_processors=n_processors,
+        tmp_dir=tmp_dir
+    )
+
     i_node_sub_lists = []
     for ii in range(n_processors):
         i_node_sub_lists.append([])

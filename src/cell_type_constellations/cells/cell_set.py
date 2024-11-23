@@ -9,10 +9,21 @@ import scipy.spatial
 import time
 import tempfile
 
+from cell_type_constellations.utils.data import (
+    mkstemp_clean,
+    _clean_up
+)
+
+from cell_type_constellations.utils.multiprocessing_utils import (
+    winnow_process_list
+)
+
 
 class CellSetAccessMixin(object):
 
     def __init__(self):
+
+        self._neighbor_cache = dict()
 
         self.kd_tree = scipy.spatial.cKDTree(
             data=self._connection_coords
@@ -30,6 +41,24 @@ class CellSetAccessMixin(object):
     def connection_coords(self):
         return np.copy(self._connection_coords)
 
+    def create_neighbor_cache(
+            self,
+            k_nn,
+            n_processors=4,
+            tmp_dir=None):
+
+        if k_nn in self._neighbor_cache:
+            return
+
+        cache = create_neighbor_cache(
+            tree=self.kd_tree,
+            pts=self._connection_coords,
+            k_nn=k_nn,
+            n_processors=n_processors,
+            tmp_dir=tmp_dir
+        )
+        self._neighbor_cache[k_nn] = cache
+
     def get_connection_nn(self, query_data, k_nn):
         results = self.kd_tree.query(
             x=query_data,
@@ -41,9 +70,13 @@ class CellSetAccessMixin(object):
          query_mask is a boolean mask indicating which
          cells within self we are qureying the neighbors of
          """
-         return self.get_connection_nn(
-             query_data=self._connection_coords[query_mask, :],
-             k_nn=k_nn)
+         if k_nn in self._neighbor_cache:
+             query_idx = np.where(query_mask)[0]
+             return self._neighbor_cache[k_nn][query_idx, :]
+         else:
+             return self.get_connection_nn(
+                 query_data=self._connection_coords[query_mask, :],
+                 k_nn=k_nn)
 
     def centroid_from_alias_array(self, alias_array):
         mask = np.zeros(self._cluster_aliases.shape, dtype=bool)
@@ -147,3 +180,96 @@ def _get_coords_from_h5ad(
         coords = coords.to_numpy()
 
     return coords
+
+
+def create_neighbor_cache(
+        tree,
+        pts,
+        k_nn,
+        n_processors=4,
+        tmp_dir=None):
+
+    tmp_dir = tempfile.mkdtemp(dir=tmp_dir)
+    try:
+        result = _create_neighbor_cache(
+            tree=tree,
+            pts=pts,
+            k_nn=k_nn,
+            n_processors=n_processors,
+            tmp_dir=tmp_dir
+        )
+    finally:
+        _clean_up(tmp_dir)
+    return result
+
+
+def _create_neighbor_cache(
+        tree,
+        pts,
+        k_nn,
+        n_processors,
+        tmp_dir):
+
+
+    n_col = pts.shape[1]
+    n_per_max = (2*1024**3)//n_col
+
+    n_per = np.round(pts.shape[0]/n_processors).astype(int)
+    n_per = min(n_per, n_per_max)
+
+    print(f'=======CREATING NEIGHBOR CACHE batch size {n_per}=======')
+
+    sub_dataset_list = []
+    process_list = []
+
+    i0 = 0
+
+    while i0 < pts.shape[0]:
+        i1 = min(pts.shape[0], i0+n_per)
+        if len(process_list) == (n_processors-1):
+            i1 = pts.shape[0]
+        sub_pts = pts[i0:i1, :]
+        tmp_path = mkstemp_clean(
+            dir=tmp_dir,
+            suffix='.h5'
+        )
+        p = multiprocessing.Process(
+            target=_create_neighbor_cache_worker,
+            kwargs={
+                'tree': tree,
+                'pts': sub_pts,
+                'k_nn': k_nn,
+                'dst_path': tmp_path
+            }
+        )
+        p.start()
+        process_list.append(p)
+        sub_dataset_list.append((i0, i1, tmp_path))
+        i0 = i1
+        while len(process_list) >= n_processors:
+            process_list = winnow_process_list(process_list)
+
+    while len(process_list) > 0:
+        process_list = winnow_process_list(process_list)
+
+    result = np.zeros((pts.shape[0], k_nn), dtype=int)
+    for dataset in sub_dataset_list:
+        with h5py.File(dataset[2], 'r') as src:
+            i0 = dataset[0]
+            i1 = dataset[1]
+            result[i0:i1, :] = src['neighbors'][()]
+    return result
+
+
+def _create_neighbor_cache_worker(
+        tree,
+        pts,
+        k_nn,
+        dst_path):
+    t0 = time.time()
+    neighbors = tree.query(pts, k=k_nn)
+    with h5py.File(dst_path, 'w') as dst:
+        dst.create_dataset('neighbors', data=neighbors[1])
+    dur = (time.time() - t0)/60.0
+    n = pts.shape[0]
+    print(f'=======FINISHED NEIGHBOR BATCH OF SIZE {n} in {dur:.2e} minutes=======')

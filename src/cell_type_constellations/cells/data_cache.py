@@ -311,6 +311,7 @@ def constellation_cache_from_obj(
         config):
     tmp_dir = tempfile.mkdtemp(dir=tmp_dir)
     try:
+
         _constellation_cache_from_obj_worker(
             taxonomy_filter=taxonomy_filter,
             cell_set=cell_set,
