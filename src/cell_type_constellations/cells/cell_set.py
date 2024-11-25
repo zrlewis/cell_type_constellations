@@ -122,7 +122,7 @@ class CellSetAccessMixin(object):
         mask = self.mask_from_alias_array(alias_array)
         result = {
             col_key: np.mean(self.color_by_columns[col_key][mask])
-            for col_key in self.color_by_colums
+            for col_key in self.color_by_columns
         }
         return result
 

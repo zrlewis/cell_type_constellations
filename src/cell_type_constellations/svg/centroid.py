@@ -23,8 +23,6 @@ class Centroid(object):
 
         self._pixel_coords = None
 
-        self._alt_color_stats = dict()
-
 
     @property
     def x(self):
@@ -103,12 +101,6 @@ class Centroid(object):
     @property
     def relative_url(self):
         return f"display_entity?entity_id={self.label}"
-
-    def set_alt_color(self, stat_key, stat_val):
-        self._alt_color_stats[stat_key] = stat_val
-
-    def alt_color(self, stat_key):
-        return self._alt_color_stats[stat_key]
 
     def to_dict(self):
         return {

@@ -1,3 +1,4 @@
+import copy
 import h5py
 import json
 import multiprocessing
@@ -125,6 +126,11 @@ class ConstellationCache_HDF5(object):
         )
         return self.label_to_color[color_by_level][parentage[color_by_level]]['taxonomy']
 
+    def alt_colors(self, level, label):
+        result = copy.deepcopy(self.label_to_color[level][label])
+        result.pop('taxonomy')
+        return result
+
     def mixture_matrix_from_level(self, level):
         return self.mixture_matrix_lookup[level]
 
@@ -228,6 +234,7 @@ def create_constellation_cache_from_h5ad(
         hierarchy,
         k_nn,
         dst_path,
+        color_by_columns=None,
         tmp_dir=None):
 
     t0 = time.time()
@@ -240,14 +247,16 @@ def create_constellation_cache_from_h5ad(
         'connection_coords': connection_coords,
         'cluster_alias_key': cluster_alias_key,
         'hierarchy': hierarchy,
-        'k_nn': int(k_nn)
+        'k_nn': int(k_nn),
+        'color_by_columns': color_by_columns
     }
 
     cell_set = CellSetFromH5ad(
         h5ad_path=h5ad_path,
         visualization_coord_key=visualization_coords,
         connection_coord_key=connection_coords,
-        cluster_alias_key=cluster_alias_key
+        cluster_alias_key=cluster_alias_key,
+        color_by_columns=color_by_columns
     )
 
     print('=======CREATED CELL_SET=======')
@@ -305,7 +314,8 @@ def constellation_cache_from_obj(
         dst_path,
         tmp_dir,
         label_to_color,
-        config):
+        config,
+        color_by_columns=None):
     tmp_dir = tempfile.mkdtemp(dir=tmp_dir)
     try:
 
@@ -343,11 +353,6 @@ def _constellation_cache_from_obj_worker(
     n_cells_lookup = dict()
     idx_to_label = dict()
 
-    if cell_set.color_by_columns is not None:
-        color_stat_lookup = dict()
-    else:
-        color_stat_lookup = None
-
     for level in taxonomy_filter.taxonomy_tree.hierarchy:
         mixture_matrix_lookup[level] = create_mixture_matrix(
             cell_set=cell_set,
@@ -370,11 +375,6 @@ def _constellation_cache_from_obj_worker(
         n_cells_lookup[level] = [None]*n_nodes
         idx_to_label[level] = [None]*n_nodes
 
-        if color_stat_lookup is not None:
-            color_stat_lookup[level] = dict()
-            for col_key in cell_set.color_by_columns:
-                color_stat_lookup[level][col_key] = [None]*n_nodes
-
         for node in taxonomy_filter.taxonomy_tree.nodes_at_level(level):
 
             node_idx = taxonomy_filter.idx_from_label(
@@ -395,11 +395,10 @@ def _constellation_cache_from_obj_worker(
             n_cells_lookup[level][node_idx] = cell_set.n_cells_from_alias_array(
                 alias_array=alias_array)
 
-            if color_stat_lookup is not None:
+            if cell_set.color_by_columns is not None:
                 this_lookup = cell_set.color_lookup_from_alias_array(alias_array)
                 for col_key in cell_set.color_by_columns:
-                    color_stat_lookup[level][col_key][node_idx] = this_lookup[col_key]
-
+                    label_to_color[level][node][col_key] = this_lookup[col_key]
 
         dur = time.time()-t0
         print(f'=====processed {level} after {dur:.2e} seconds=======')

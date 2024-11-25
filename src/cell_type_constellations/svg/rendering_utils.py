@@ -1,5 +1,6 @@
 import h5py
 import json
+import matplotlib
 import numpy as np
 
 
@@ -20,6 +21,8 @@ def render_fov_from_hdf5(
         color_by,
         fill_hulls=False):
 
+    mpl_color_map = matplotlib.colormaps['coolwarm']
+
     with h5py.File(hdf5_path, 'r', swmr=True) as src:
         width = src['fov/width'][()]
         height = src['fov/height'][()]
@@ -28,6 +31,56 @@ def render_fov_from_hdf5(
         taxonomy_tree = TaxonomyTree(
                 data=json.loads(src['taxonomy_tree'][()].decode('utf-8')
             )
+        )
+
+    # if not coloring by a cell type, need to construct the
+    # mapping from value to color
+
+    dx = np.round(width*0.1)
+    dy = np.round(height*0.2)
+
+    width += 2*dx
+
+    color_bar_code = None
+    if color_by not in taxonomy_tree.hierarchy:
+        node_to_value = dict()
+        for node in color_lookup[centroid_level]:
+            node_to_value[node] = color_lookup[centroid_level][node][color_by]
+        color_vmin = min(node_to_value.values())
+        color_vmax = max(node_to_value.values())
+        normalizer = matplotlib.colors.Normalize(vmin=color_vmin, vmax=color_vmax)
+        node_to_hex = {
+            node: matplotlib.colors.rgb2hex(
+                      mpl_color_map(normalizer(node_to_value[node]))
+                  )
+            for node in node_to_value
+        }
+
+        color_lookup = {
+            centroid_level: {
+                node: {
+                    color_by: node_to_hex[node]
+                }
+                for node in node_to_hex
+            }
+        }
+
+        color_values = np.linspace(color_vmin, color_vmax, 100)
+        color_hexes = [matplotlib.colors.rgb2hex(
+                           mpl_color_map(normalizer(v))
+                       )
+                       for v in color_values]
+
+        x0 = width-3*dx//2
+        y0 = dy
+        color_bar_code = get_colorbar_svg(
+            x0=x0,
+            y0=y0,
+            x1=x0+dx//2,
+            y1=height-dy,
+            color_list=color_hexes,
+            value_list=color_values,
+            color_by_parameter=color_by
         )
 
     centroid_lookup = centroid_lookup_from_hdf5(
@@ -65,6 +118,10 @@ def render_fov_from_hdf5(
         color_by=color_by,
         fill_hulls=fill_hulls)
 
+    if color_bar_code is not None:
+        result += color_bar_code
+    result += "</svg>\n"
+
     return result
 
 
@@ -99,7 +156,6 @@ def render_fov(
         fill=fill_hulls)
 
     result += hull_code + connection_code + centroid_code
-    result += "</svg>\n"
 
     return result
 
@@ -264,7 +320,7 @@ def render_centroid(
 
     level_name = taxonomy_tree.level_to_name(centroid.level)
     hover_msg = f"{level_name}: {centroid.name} -- {centroid.n_cells:.2e} cells"
-    if color_by != centroid.level:
+    if color_by != centroid.level and color_by in taxonomy_tree.hierarchy:
         parents = taxonomy_tree.parents(
             level=centroid.level,
             node=centroid.label
@@ -566,3 +622,48 @@ def hull_lookup_from_hdf5(
                 level=level
             )
     return result
+
+
+def get_colorbar_svg(
+        x0,
+        y0,
+        x1,
+        y1,
+        color_list,
+        value_list,
+        color_by_parameter,
+        fontsize=15):
+
+    n_steps = len(color_list)
+
+    width = x1-x0
+    height = (y1-y0)/n_steps
+    html = ""
+
+    html += f"""
+    <text x="{x0-width}px" y="{y0-3*height}px" font-size="{fontsize}">
+    {color_by_parameter}
+    </text>
+    """
+
+    for i_rect, (v, c) in enumerate(zip(value_list[-1::-1], color_list[-1::-1])):
+        color_hex = matplotlib.colors.rgb2hex(c)
+        this = f"""
+        <a>
+        <rect x="{x0}px" y="{y0+i_rect*height}px" height="{height}px" width="{width}px" fill="{color_hex}"/>
+        <title>
+        {v:.2f}
+        </title>
+        </a>
+        """
+        html += this
+
+    idx_to_tag = (0, n_steps//4, n_steps//2, 3*n_steps//4, n_steps-1)
+
+    for i_tag, val_tag in zip(idx_to_tag[-1::-1], idx_to_tag):
+        this = f"""
+        <text x="{x0+11*width//10}px" y="{y0+i_tag*height+height//2}px" font-size="{fontsize}">{value_list[val_tag]:.2e}</text>
+         """
+        html += this
+
+    return html

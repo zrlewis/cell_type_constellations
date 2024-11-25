@@ -45,6 +45,13 @@ def main():
         help='Hierarchy of taxonomy levels'
     )
     parser.add_argument(
+        '--color_by_columns',
+        type=str,
+        nargs='+',
+        default=None,
+        help='Columns in obs by which to color nodes'
+    )
+    parser.add_argument(
         '--tmp_dir',
         type=str,
         default=None,
@@ -88,7 +95,8 @@ def main():
             hierarchy=args.hierarchy,
             k_nn=15,
             dst_path=args.dst_path,
-            tmp_dir=args.tmp_dir)
+            tmp_dir=args.tmp_dir,
+            color_by_columns=args.color_by_columns)
     print(f'====cache creation took {time.time()-t0:.2e} seconds')
 
 

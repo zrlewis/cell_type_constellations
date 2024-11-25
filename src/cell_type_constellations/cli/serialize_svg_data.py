@@ -155,6 +155,11 @@ def write_out_svg_cache(
                     label=node,
                     color_by_level=parent_level
                 )
+            alt_colors = constellation_cache.alt_colors(
+                level=level,
+                label=node)
+            for k in alt_colors:
+                this[k] = alt_colors[k]
             color_lookup[level][node] = this
 
     #levels_to_serialize = [constellation_cache.taxonomy_tree.hierarchy[0],
