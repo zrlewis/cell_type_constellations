@@ -473,7 +473,7 @@ def fix_centroids(temp_path, dst_path, tmp_dir='../tmp'):
         node_list = taxonomy_tree.nodes_at_level(level)
         centroid_array = np.zeros((len(node_list), 2), dtype=float)
         for node_idx, node in enumerate(taxonomy_tree.nodes_at_level(level)):
-            print(f'    {node}')
+
             children = as_leaves[level][node]
             old_centroid = old_cache.centroid_from_label(
                 level=level,
