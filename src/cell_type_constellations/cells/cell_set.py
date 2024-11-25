@@ -30,6 +30,15 @@ class CellSetAccessMixin(object):
                 "dimensional"
             )
 
+        n_vis = self._visualization_coords.shape[0]
+        n_conn = self._connection_coords.shape[0]
+        if n_vis != n_conn:
+            raise RuntimeError(
+                f"visualization_coords have {n_vis} points; "
+                f"connection_coords have {n_conn} points; "
+                "must be equal"
+            )
+
         self._neighbor_cache = dict()
 
         self.kd_tree = scipy.spatial.cKDTree(
