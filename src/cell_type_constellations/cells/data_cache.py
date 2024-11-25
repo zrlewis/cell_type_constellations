@@ -118,12 +118,12 @@ class ConstellationCache_HDF5(object):
 
     def color(self, level, label, color_by_level):
         if color_by_level == level:
-            return self.label_to_color[level][label]
+            return self.label_to_color[level][label]['taxonomy']
         parentage = self.taxonomy_tree.parents(
             level=level,
             node=label
         )
-        return self.label_to_color[color_by_level][parentage[color_by_level]]
+        return self.label_to_color[color_by_level][parentage[color_by_level]]['taxonomy']
 
     def mixture_matrix_from_level(self, level):
         return self.mixture_matrix_lookup[level]
@@ -462,7 +462,7 @@ def color_lookup_from_cluster_annotation(
                 annotation.color_hex_triplet.values):
         if level not in label_to_color:
             label_to_color[level] = dict()
-        label_to_color[level][label] = color
+        label_to_color[level][label] = {'taxonomy': color}
 
     return label_to_color
 
