@@ -98,18 +98,33 @@ class CellSetAccessMixin(object):
                  query_data=self._connection_coords[query_mask, :],
                  k_nn=k_nn)
 
-    def centroid_from_alias_array(self, alias_array):
+    def mask_from_alias_array(self, alias_array):
         mask = np.zeros(self._cluster_aliases.shape, dtype=bool)
         for alias in alias_array:
             mask[self._cluster_aliases==alias] = True
         if mask.sum() == 0:
             msg = f"alias array {alias_array} has no cells"
             raise RuntimeError(msg)
+        return mask
+
+    def centroid_from_alias_array(self, alias_array):
+        mask = self.mask_from_alias_array(alias_array)
         pts = self._visualization_coords[mask, :]
         median_pt = np.median(pts, axis=0)
         ddsq = ((median_pt-pts)**2).sum(axis=1)
         nn_idx = np.argmin(ddsq)
         return pts[nn_idx, :]
+
+    def color_lookup_from_alias_array(self, alias_array):
+        if self.color_by_columns is None:
+            raise RuntimeError("_color_by_columns is None")
+
+        mask = self.mask_from_alias_array(alias_array)
+        result = {
+            col_key: np.mean(self.color_by_columns[col_key][mask])
+            for col_key in self.color_by_colums
+        }
+        return result
 
     def n_cells_from_alias_array(self, alias_array):
         mask = np.zeros(self._cluster_aliases.shape, dtype=bool)

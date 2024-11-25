@@ -346,6 +346,11 @@ def _constellation_cache_from_obj_worker(
     n_cells_lookup = dict()
     idx_to_label = dict()
 
+    if cell_set.color_by_columns is not None:
+        color_stat_lookup = dict()
+    else:
+        color_stat_lookup = None
+
     for level in taxonomy_filter.taxonomy_tree.hierarchy:
         mixture_matrix_lookup[level] = create_mixture_matrix(
             cell_set=cell_set,
@@ -364,8 +369,14 @@ def _constellation_cache_from_obj_worker(
 
         n_nodes = len(taxonomy_filter.taxonomy_tree.nodes_at_level(level))
         centroid_lookup[level] = [None]*n_nodes
+
         n_cells_lookup[level] = [None]*n_nodes
         idx_to_label[level] = [None]*n_nodes
+
+        if color_stat_lookup is not None:
+            color_stat_lookup[level] = dict()
+            for col_key in cell_set.color_by_columns:
+                color_stat_lookup[level][col_key] = [None]*n_nodes
 
         for node in taxonomy_filter.taxonomy_tree.nodes_at_level(level):
 
@@ -386,6 +397,13 @@ def _constellation_cache_from_obj_worker(
 
             n_cells_lookup[level][node_idx] = cell_set.n_cells_from_alias_array(
                 alias_array=alias_array)
+
+            if color_stat_lookup is not None:
+                this_lookup = cell_set.color_lookup_from_alias_array(alias_array)
+                for col_key in cell_set.color_by_columns:
+                    color_stat_lookup[level][col_key][node_idx] = this_lookup[col_key]
+
+
         dur = time.time()-t0
         print(f'=====processed {level} after {dur:.2e} seconds=======')
 
@@ -407,9 +425,11 @@ def _constellation_cache_from_obj_worker(
             data=taxonomy_filter.taxonomy_tree.to_str(drop_cells=True).encode('utf-8')
         )
         dst.create_dataset(
-            'k_nn', data=k_nn)
+            'k_nn',
+            data=k_nn)
         dst.create_dataset(
-            'label_to_color', data=json.dumps(label_to_color).encode('utf-8')
+            'label_to_color',
+            data=json.dumps(label_to_color).encode('utf-8')
         )
         dst.create_dataset(
             'parentage_to_alias',
