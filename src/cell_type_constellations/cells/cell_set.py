@@ -57,6 +57,10 @@ class CellSetAccessMixin(object):
     def connection_coords(self):
         return np.copy(self._connection_coords)
 
+    @property
+    def color_by_columns(self):
+        return self._color_by_columns
+
     def create_neighbor_cache(
             self,
             k_nn,
@@ -125,6 +129,7 @@ class CellSet(CellSetAccessMixin):
 
         self._visualization_coords = umap_coords
         self._connection_coords = umap_coords
+        self._color_by_columns = None
 
         super().__init__()
 
@@ -136,7 +141,8 @@ class CellSetFromH5ad(CellSetAccessMixin):
             h5ad_path,
             visualization_coord_key,
             connection_coord_key,
-            cluster_alias_key):
+            cluster_alias_key,
+            color_by_columns=None):
 
         self._visualization_coords = _get_coords_from_h5ad(
             h5ad_path=h5ad_path,
@@ -150,6 +156,13 @@ class CellSetFromH5ad(CellSetAccessMixin):
 
         src = anndata.read_h5ad(h5ad_path, backed='r')
         self._cluster_aliases = src.obs[cluster_alias_key].values.astype(int)
+
+        self._color_by_columns = None
+        if color_by_columns is not None:
+            self._color_by_columns = dict()
+            for col in color_by_columns:
+                self._color_by_columns[col] = src.obs[col].values
+
         src.file.close()
         del src
 
