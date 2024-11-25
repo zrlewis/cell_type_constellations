@@ -23,6 +23,13 @@ class CellSetAccessMixin(object):
 
     def __init__(self):
 
+        if self._visualization_coords.shape[1] != 2:
+            raise RuntimeError(
+                "visualization_coords must be 2-dimensional; "
+                f"yours are {self._visualization_coords.shape[1]} "
+                "dimensional"
+            )
+
         self._neighbor_cache = dict()
 
         self.kd_tree = scipy.spatial.cKDTree(
