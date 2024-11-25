@@ -112,21 +112,18 @@ class ConstellationCache_HDF5(object):
         idx = self.label_to_idx[level][label]
         return self.centroid_lookup[level][idx]
 
-    def color_from_label(self, label):
-        return self.label_to_color[label]
-
     def n_cells_from_label(self, level, label):
         idx = self.label_to_idx[level][label]
         return self.n_cells_lookup[level][idx]
 
     def color(self, level, label, color_by_level):
         if color_by_level == level:
-            return self.label_to_color[label]
+            return self.label_to_color[level][label]
         parentage = self.taxonomy_tree.parents(
             level=level,
             node=label
         )
-        return self.label_to_color[parentage[color_by_level]]
+        return self.label_to_color[color_by_level][parentage[color_by_level]]
 
     def mixture_matrix_from_level(self, level):
         return self.mixture_matrix_lookup[level]
@@ -458,11 +455,15 @@ def color_lookup_from_cluster_annotation(
         cluster_annotation_path):
     # get color_lookup
     annotation = pd.read_csv(cluster_annotation_path)
-    label_to_color = {
-        l:c for l, c in
-        zip(annotation.label.values,
-            annotation.color_hex_triplet.values)
-    }
+    label_to_color = dict()
+    for level, label, color in zip(
+                annotation.cluster_annotation_term_set_label.values,
+                annotation.label.values,
+                annotation.color_hex_triplet.values):
+        if level not in label_to_color:
+            label_to_color[level] = dict()
+        label_to_color[level][label] = color
+
     return label_to_color
 
 
