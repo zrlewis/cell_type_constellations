@@ -241,7 +241,7 @@ def create_constellation_cache(
     print(f'=======CREATED CONSTELLATION CACHE IN {dur:.2e} minutes=======')
 
 
-def create_constellation_cache_from_h5ad(
+def create_constellation_cache_from_h5ad_and_csv(
         h5ad_path,
         cluster_annotation_path,
         cluster_membership_path,

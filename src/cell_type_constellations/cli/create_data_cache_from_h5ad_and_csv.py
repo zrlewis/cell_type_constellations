@@ -9,7 +9,7 @@ import pathlib
 
 
 from cell_type_constellations.cells.data_cache import (
-    create_constellation_cache_from_h5ad
+    create_constellation_cache_from_h5ad_and_csv
 )
 
 import time
@@ -85,7 +85,7 @@ def main():
     t0 = time.time()
     args = parser.parse_args()
     assert args.dst_path is not None
-    create_constellation_cache_from_h5ad(
+    create_constellation_cache_from_h5ad_and_csv(
             h5ad_path=args.h5ad_path,
             cluster_annotation_path=args.cluster_annotation_path,
             cluster_membership_path=args.cluster_membership_path,
