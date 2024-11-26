@@ -72,7 +72,9 @@ def get_constellation_plot_page(
         centroid_level=centroid_level,
         color_by=color_by,
         hull_level=hull_level,
-        taxonomy_name=taxonomy_name,
+        taxonomy_name=create_taxonomy_tag(
+            hdf5_path=hdf5_path,
+            taxonomy_name=taxonomy_name),
         fill_hulls=fill_hulls,
         centroid_level_list=centroid_level_list,
         hull_level_list=hull_level_list,
@@ -192,7 +194,12 @@ def get_constellation_plot_config(
     result = dict()
     for file_path in file_path_list:
         with h5py.File(file_path, 'r') as src:
-            taxonomy_name = src['taxonomy_name'][()].decode('utf-8')
+
+            taxonomy_name = create_taxonomy_tag(
+                hdf5_path=file_path,
+                taxonomy_name=src['taxonomy_name'][()].decode('utf-8')
+            )
+
             if taxonomy_name in result:
                 raise RuntimeError(
                     f"More than one constellation plot in {data_dir} for "
@@ -211,3 +218,9 @@ def get_constellation_plot_config(
                 this['hull_level'] = None
             result[taxonomy_name] = this
     return result
+
+
+def create_taxonomy_tag(hdf5_path, taxonomy_name):
+
+    file_name = pathlib.Path(hdf5_path).name
+    return f'{file_name} -- {taxonomy_name}'
