@@ -22,7 +22,7 @@ def render_fov_from_hdf5(
         color_by,
         fill_hulls=False):
 
-    mpl_color_map = matplotlib.colormaps['coolwarm']
+    mpl_color_map = matplotlib.colormaps['cool']
 
     with h5py.File(hdf5_path, 'r', swmr=True) as src:
         width = src['fov/width'][()]
