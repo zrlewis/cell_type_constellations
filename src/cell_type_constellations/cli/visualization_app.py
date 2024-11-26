@@ -40,9 +40,7 @@ class Visualizer(object):
     def __init__(self):
 
         self.data_dir = pathlib.Path(
-            cell_type_constellations.__file__).parent
-
-        self.data_dir / 'app/data'
+            cell_type_constellations.__file__).parent.parent.parent / 'app_data'
 
         if not self.data_dir.is_dir():
             raise RuntimeError(
