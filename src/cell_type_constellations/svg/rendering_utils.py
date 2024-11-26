@@ -310,17 +310,23 @@ def render_centroid(
 
     level_name = taxonomy_tree.level_to_name(centroid.level)
     hover_msg = f"{level_name}: {centroid.name} -- {centroid.n_cells:.2e} cells"
-    if color_by != centroid.level and color_by in taxonomy_tree.hierarchy:
-        parents = taxonomy_tree.parents(
-            level=centroid.level,
-            node=centroid.label
-        )
-        parent_level = taxonomy_tree.level_to_name(color_by)
-        parent_name = taxonomy_tree.label_to_name(
-            level=color_by,
-            label=parents[color_by]
-        )
-        hover_msg += f"\n        ({parent_level}: {parent_name})"
+    if color_by in taxonomy_tree.hierarchy:
+        if color_by != centroid.level:
+            parents = taxonomy_tree.parents(
+                level=centroid.level,
+                node=centroid.label
+            )
+            parent_level = taxonomy_tree.level_to_name(color_by)
+            parent_name = taxonomy_tree.label_to_name(
+                level=color_by,
+                label=parents[color_by]
+            )
+            hover_msg += f"\n        ({parent_level}: {parent_name})"
+    else:
+        stats = centroid.get_stat(color_by)
+        mu = stats['mean']
+        std = np.sqrt(stats['variance'])
+        hover_msg += f"\n        {color_by}: {mu:.2e} +/- {std:.2e}"
 
     if base_url is not None:
         result = f"""    <a href="{base_url}/{centroid.relative_url}">\n"""
