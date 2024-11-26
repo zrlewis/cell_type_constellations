@@ -80,6 +80,16 @@ def _load_centroids(
             name=name,
             level=taxonomy_level)
 
+        stat_lookup = constellation_cache.stats_from_label(
+            level=taxonomy_level,
+            label=label
+        )
+        for stat_key in stat_lookup:
+            this.set_stat(
+                stat_key=stat_key,
+                value_lookup=stat_lookup[stat_key]
+            )
+
         centroid_list.append(this)
 
         plot_obj.add_element(this)

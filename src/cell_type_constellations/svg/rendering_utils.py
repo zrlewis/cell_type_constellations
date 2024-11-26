@@ -392,6 +392,20 @@ def centroid_list_to_hdf5_single_level(
     color = np.array([
         c.color.encode('utf-8') for c in centroid_list
     ])
+
+
+    stats_lookup = dict()
+    for stat_key in centroid_list[0].stat_keys:
+        stats_lookup[stat_key] = dict()
+        this = centroid_list[0].get_stat(stat_key)
+        for sub_key in this:
+            stats_lookup[stat_key][sub_key] = []
+    for centroid in centroid_list:
+        for stat_key in centroid.stat_keys:
+            this = centroid.get_stat(stat_key)
+            for sub_key in this:
+                stats_lookup[stat_key][sub_key].append(this[sub_key])
+
     with h5py.File(hdf5_path, 'a') as dst:
         if 'centroids' not in dst.keys():
             dst.create_group('centroids')
@@ -408,16 +422,40 @@ def centroid_list_to_hdf5_single_level(
                         ('color', color)]:
             dst_grp.create_dataset(k, data=data)
 
+        stat_grp = dst_grp.create_group('stats')
+        for stat_key in stats_lookup:
+            this_grp = stat_grp.create_group(stat_key)
+            this = stats_lookup[stat_key]
+            for sub_key in this:
+                this_grp.create_dataset(
+                    sub_key,
+                    data=np.array(this[sub_key])
+                )
+
 
 def centroid_lookup_from_hdf5(hdf5_path, level, color_lookup, color_by):
     this_key = f'centroids/{level}'
     data_lookup = dict()
+    stats_lookup = dict()
     with h5py.File(hdf5_path, 'r', swmr=True) as src:
         for k in ('pixel_r', 'pixel_x', 'pixel_y', 'label', 'name', 'n_cells', 'color'):
             data_lookup[k] = src[this_key][k][()]
+        stats_grp = src[this_key]['stats']
+        for stat_key in stats_grp.keys():
+            stats_lookup[stat_key] = dict()
+            for sub_key in stats_grp[stat_key]:
+                stats_lookup[stat_key][sub_key] = stats_grp[stat_key][sub_key][()]
+
     result = dict()
     for idx in range(len(data_lookup['pixel_r'])):
         label = data_lookup['label'][idx].decode('utf-8')
+
+        stats = dict()
+        for stat_key in stats_lookup:
+            stats[stat_key] = dict()
+            for sub_key in stats_lookup[stat_key]:
+                stats[stat_key][sub_key] = stats_lookup[stat_key][sub_key]
+
         params = {
             'label': label,
             'name': data_lookup['name'][idx].decode('utf-8'),
@@ -426,7 +464,8 @@ def centroid_lookup_from_hdf5(hdf5_path, level, color_lookup, color_by):
             'pixel_x': data_lookup['pixel_x'][idx],
             'pixel_y': data_lookup['pixel_y'][idx],
             'color': color_lookup[level][label][color_by],
-            'level': level
+            'level': level,
+            'stats': stats
         }
         result[label] = Centroid.from_dict(params)
 

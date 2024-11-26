@@ -126,6 +126,22 @@ class CellSetAccessMixin(object):
         }
         return result
 
+    def stat_lookup_from_alias_array(self, alias_array):
+        if self.color_by_columns is None:
+            raise RuntimeError("_color_by_columns is None")
+
+        mask = self.mask_from_alias_array(alias_array)
+        result = dict()
+        for col_key in self.color_by_columns:
+            values = self.color_by_columns[col_key][mask]
+            this = {
+                'mean': np.mean(values),
+                'variance': np.var(values, ddof=1)
+            }
+            result[col_key] = this
+
+        return result
+
     def n_cells_from_alias_array(self, alias_array):
         mask = np.zeros(self._cluster_aliases.shape, dtype=bool)
         for alias in alias_array:

@@ -50,6 +50,12 @@ class ConstellationCache_HDF5(object):
     def __init__(self, cache_path):
         self.cache_path = cache_path
         with h5py.File(cache_path, 'r') as src:
+            self.stats_lookup = dict()
+
+            load_stats(
+                src_handle=src['stats'],
+                result_dict=self.stats_lookup)
+
             self.k_nn = src['k_nn'][()]
 
             self.centroid_lookup = {
@@ -116,6 +122,16 @@ class ConstellationCache_HDF5(object):
     def n_cells_from_label(self, level, label):
         idx = self.label_to_idx[level][label]
         return self.n_cells_lookup[level][idx]
+
+    def stats_from_label(self, level, label):
+        idx = self.label_to_idx[level][label]
+        result = dict()
+        for stat_key in self.stats_lookup[level]:
+            this_stat = dict()
+            for sub_key in self.stats_lookup[level][stat_key]:
+                this_stat[sub_key] = self.stats_lookup[level][stat_key][sub_key][idx]
+            result[stat_key] = this_stat
+        return result
 
     def color(self, level, label, color_by_level):
         if color_by_level == level:
@@ -350,6 +366,7 @@ def _constellation_cache_from_obj_worker(
     t0 = time.time()
     mixture_matrix_lookup = dict()
     centroid_lookup = dict()
+    stats_lookup = dict()
     n_cells_lookup = dict()
     idx_to_label = dict()
 
@@ -374,6 +391,7 @@ def _constellation_cache_from_obj_worker(
 
         n_cells_lookup[level] = [None]*n_nodes
         idx_to_label[level] = [None]*n_nodes
+        stats_lookup[level] = dict()
 
         for node in taxonomy_filter.taxonomy_tree.nodes_at_level(level):
 
@@ -387,6 +405,21 @@ def _constellation_cache_from_obj_worker(
 
             centroid_lookup[level][node_idx] = cell_set.centroid_from_alias_array(
                 alias_array=alias_array)
+
+            this = cell_set.stat_lookup_from_alias_array(
+                alias_array
+            )
+
+            for stat_key in cell_set.color_by_columns:
+
+                if stat_key not in stats_lookup[level]:
+                    stats_lookup[level][stat_key] = dict()
+                    for sub_key in this[stat_key]:
+                        stats_lookup[level][stat_key][sub_key] = []
+
+                for sub_key in this[stat_key]:
+                    stats_lookup[level][stat_key][sub_key].append(
+                        this[stat_key][sub_key])
 
             idx_to_label[level][node_idx] = taxonomy_filter.name_from_idx(
                 level=level,
@@ -409,6 +442,7 @@ def _constellation_cache_from_obj_worker(
         n_grp = dst.create_group('n_cells')
         mm_grp = dst.create_group('mixture_matrix')
         centroid_grp = dst.create_group('centroid')
+        stats_grp = dst.create_group('stats')
         dst.create_dataset(
             'config',
             data=json.dumps(config).encode('utf-8')
@@ -445,6 +479,15 @@ def _constellation_cache_from_obj_worker(
                                 (mm_grp, mixture_matrix_lookup),
                                 (centroid_grp, centroid_lookup)]:
                 grp.create_dataset(level, data=np.array(lookup[level]))
+
+            stats_grp.create_group(level)
+            for stat_key in stats_lookup[level]:
+                stats_grp[level].create_group(stat_key)
+                for sub_key in stats_lookup[level][stat_key]:
+                    stats_grp[level][stat_key].create_dataset(
+                        sub_key,
+                        data=np.array(stats_lookup[level][stat_key][sub_key])
+                    )
 
     fix_centroids(temp_path=temp_path, dst_path=dst_path, tmp_dir=tmp_dir)
     os.unlink(temp_path)
@@ -523,11 +566,19 @@ def fix_centroids(temp_path, dst_path, tmp_dir='../tmp'):
 
     del old_cache
     with h5py.File(temp_path, 'r') as src:
+        print(f'src keys {src.keys()}')
         with h5py.File(dst_path, 'w') as dst:
+            dst_stats = dst.create_group('stats')
+            iteratively_copy_grp(
+                src_handle=src['stats'],
+                dst_handle=dst_stats
+            )
+
             dst.create_group('n_cells')
             dst.create_group('mixture_matrix')
             dst.create_group('centroid')
             dst.create_group('leaf_hulls')
+
             for k0 in src.keys():
                 if isinstance(src[k0], h5py.Dataset):
                     dst.create_dataset(
@@ -535,7 +586,7 @@ def fix_centroids(temp_path, dst_path, tmp_dir='../tmp'):
                         data=src[k0][()]
                     )
                 else:
-                    if k0 == 'centroid':
+                    if k0 in ('centroid', 'stats'):
                         continue
                     for k1 in src[k0]:
                         dst[k0].create_dataset(
@@ -692,6 +743,7 @@ def _pts_to_hull_pts(pts):
     #return hull.points[hull.vertices, :]
     return pts
 
+
 def get_hulls_for_leaf_worker(
         leaf_list,
         constellation_cache,
@@ -720,8 +772,6 @@ def get_hulls_for_leaf_worker(
 
 
 
-
-
 def clean_for_json(data):
     """
     Iteratively walk through data, converting np.int64 to int as needed
@@ -747,3 +797,33 @@ def clean_for_json(data):
         }
         return new_data
     return data
+
+
+def iteratively_copy_grp(
+        src_handle,
+        dst_handle):
+
+    for sub_key in src_handle.keys():
+        if isinstance(src_handle[sub_key], h5py.Dataset):
+            dst_handle.create_dataset(
+                sub_key,
+                data=src_handle[sub_key][()]
+            )
+        else:
+            new_grp = dst_handle.create_group(sub_key)
+            iteratively_copy_grp(
+                src_handle=src_handle[sub_key],
+                dst_handle=new_grp
+            )
+
+def load_stats(src_handle, result_dict):
+
+    for sub_key in src_handle:
+        if isinstance(src_handle[sub_key], h5py.Dataset):
+            result_dict[sub_key] = src_handle[sub_key][()]
+        else:
+            result_dict[sub_key] = dict()
+            load_stats(
+                src_handle=src_handle[sub_key],
+                result_dict=result_dict[sub_key]
+            )
