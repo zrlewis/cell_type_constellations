@@ -441,11 +441,12 @@ def centroid_lookup_from_hdf5(
     with h5py.File(hdf5_path, 'r', swmr=True) as src:
         for k in ('pixel_r', 'pixel_x', 'pixel_y', 'label', 'name', 'n_cells', 'color'):
             data_lookup[k] = src[this_key][k][()]
-        stats_grp = src[this_key]['stats']
-        for stat_key in stats_grp.keys():
-            stats_lookup[stat_key] = dict()
-            for sub_key in stats_grp[stat_key]:
-                stats_lookup[stat_key][sub_key] = stats_grp[stat_key][sub_key][()]
+        if 'stats' in src[this_key].keys():
+            stats_grp = src[this_key]['stats']
+            for stat_key in stats_grp.keys():
+                stats_lookup[stat_key] = dict()
+                for sub_key in stats_grp[stat_key]:
+                    stats_lookup[stat_key][sub_key] = stats_grp[stat_key][sub_key][()]
 
     calculate_colors = False
     param_list = []
