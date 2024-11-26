@@ -1,10 +1,7 @@
 import copy
 import h5py
-import matplotlib
 import multiprocessing
 import numpy as np
-import pathlib
-from scipy.spatial import ConvexHull
 import tempfile
 import time
 
@@ -13,9 +10,6 @@ from cell_type_constellations.utils.data import (
     mkstemp_clean
 )
 
-from cell_type_constellations.svg.fov import (
-    ConstellationPlot
-)
 from cell_type_constellations.svg.centroid import (
     Centroid
 )
@@ -25,7 +19,6 @@ from cell_type_constellations.svg.connection import (
 from cell_type_constellations.svg.hull import (
     BareHull,
     CompoundBareHull,
-    merge_bare_hulls,
     create_compound_bare_hull
 )
 from cell_type_constellations.svg.hull_utils import (
@@ -34,11 +27,7 @@ from cell_type_constellations.svg.hull_utils import (
     merge_hulls_from_leaf_list
 )
 from cell_type_constellations.cells.utils import (
-    choose_connections,
-    get_hull_points
-)
-from cell_type_constellations.utils.geometry import (
-    pairwise_distance_sq
+    choose_connections
 )
 
 from cell_type_constellations.utils.multiprocessing_utils import (
@@ -237,8 +226,6 @@ def _load_hulls_multiprocessing(
     process_list = []
     tmp_path_list = []
     for sub_list in sub_list_list:
-        #i1 = min(n_labels, i0+n_per)
-        #sub_list = label_list[i0:i1]
 
         tmp_path = mkstemp_clean(
             dir=tmp_dir,
@@ -288,7 +275,6 @@ def _get_hull_list(
 
     hull_list = []
 
-    n_labels = len(label_list)
     for label in label_list:
 
         hull = _load_single_hull(
@@ -353,7 +339,7 @@ def _read_compound_hull(grp_handle, label):
     for bare_key in grp_handle['bare_hulls'].keys():
         bare_grp = grp_handle['bare_hulls'][bare_key]
         color = None
-        if 'color'in bare_grp.keys():
+        if 'color' in bare_grp.keys():
             color = bare_grp['color'][()].decode('utf-8')
         points = bare_grp['points'][()]
         bare_hull_list.append(
@@ -425,7 +411,6 @@ def _load_single_hull(
             fill=False
         )
 
-    as_leaves = constellation_cache.taxonomy_tree.as_leaves
     if verbose:
         print('merging convex hulls')
 
@@ -492,7 +477,6 @@ def _load_neighborhood_hulls_multiprocessing(
     process_list = []
     tmp_path_list = []
 
-    ct = 0
     for neighborhood in neighborhood_assignments:
         if neighborhood == 'WholeBrain':
             continue
