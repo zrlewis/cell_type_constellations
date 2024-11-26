@@ -52,9 +52,10 @@ class ConstellationCache_HDF5(object):
         with h5py.File(cache_path, 'r') as src:
             self.stats_lookup = dict()
 
-            load_stats(
-                src_handle=src['stats'],
-                result_dict=self.stats_lookup)
+            if 'stats' in src.keys():
+                load_stats(
+                    src_handle=src['stats'],
+                    result_dict=self.stats_lookup)
 
             self.k_nn = src['k_nn'][()]
 
@@ -406,20 +407,21 @@ def _constellation_cache_from_obj_worker(
             centroid_lookup[level][node_idx] = cell_set.centroid_from_alias_array(
                 alias_array=alias_array)
 
-            this = cell_set.stat_lookup_from_alias_array(
-                alias_array
-            )
+            if cell_set.color_by_columns is not None:
+                this = cell_set.stat_lookup_from_alias_array(
+                    alias_array
+                )
 
-            for stat_key in cell_set.color_by_columns:
+                for stat_key in cell_set.color_by_columns:
 
-                if stat_key not in stats_lookup[level]:
-                    stats_lookup[level][stat_key] = dict()
+                    if stat_key not in stats_lookup[level]:
+                        stats_lookup[level][stat_key] = dict()
+                        for sub_key in this[stat_key]:
+                            stats_lookup[level][stat_key][sub_key] = []
+
                     for sub_key in this[stat_key]:
-                        stats_lookup[level][stat_key][sub_key] = []
-
-                for sub_key in this[stat_key]:
-                    stats_lookup[level][stat_key][sub_key].append(
-                        this[stat_key][sub_key])
+                        stats_lookup[level][stat_key][sub_key].append(
+                            this[stat_key][sub_key])
 
             idx_to_label[level][node_idx] = taxonomy_filter.name_from_idx(
                 level=level,
