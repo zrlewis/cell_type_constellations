@@ -116,7 +116,8 @@ def write_out_svg_cache(
         taxonomy_name,
         neighborhood_color_path=None,
         group_membership_path=None,
-        clobber=False):
+        clobber=False,
+        tmp_dir=None):
 
     min_radius = 2
     max_radius = 20
@@ -176,7 +177,8 @@ def write_out_svg_cache(
             'fov_factor': fov_factor,
             'max_radius': max_radius,
             'min_radius': min_radius,
-            'lock': DummyLock()
+            'lock': DummyLock(),
+            'tmp_dir': tmp_dir
         }
         _write_svg_cache_worker(**config)
 
@@ -216,7 +218,8 @@ def _write_svg_cache_worker(
         fov_factor,
         max_radius,
         min_radius,
-        lock
+        lock,
+        tmp_dir
     ):
     t0 = time.time()
 
@@ -235,7 +238,8 @@ def _write_svg_cache_worker(
             plot_obj=plot_obj,
             taxonomy_level=level,
             n_limit=None,
-            verbose=False
+            verbose=False,
+            tmp_dir=tmp_dir
         )
 
     hull_level = constellation_cache.taxonomy_tree.hierarchy[0]

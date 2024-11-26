@@ -162,6 +162,7 @@ def svg_worker(
         fov_factor=fov_factor,
         clobber=clobber,
         taxonomy_name=taxonomy_name,
+        tmp_dir=tmp_dir,
         neighborhood_color_path=None,
         group_membership_path=None
     )

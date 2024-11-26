@@ -162,9 +162,12 @@ def _load_hulls(
         taxonomy_level,
         n_limit=None,
         verbose=False,
-        n_processors=4):
+        n_processors=4,
+        tmp_dir=None):
 
-    label_list = constellation_cache.taxonomy_tree.nodes_at_level(taxonomy_level)
+    label_list = constellation_cache.taxonomy_tree.nodes_at_level(
+        taxonomy_level)
+
     if n_processors == 1:
         hull_list = _get_hull_list(
             constellation_cache=constellation_cache,
@@ -172,7 +175,7 @@ def _load_hulls(
             taxonomy_level=taxonomy_level,
             verbose=verbose)
     else:
-        tmp_dir = tempfile.mkdtemp()
+        tmp_dir = tempfile.mkdtemp(dir=tmp_dir)
         try:
             hull_list = _load_hulls_multiprocessing(
                 constellation_cache=constellation_cache,
