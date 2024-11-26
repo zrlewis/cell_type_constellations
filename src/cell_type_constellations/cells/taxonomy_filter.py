@@ -1,3 +1,4 @@
+import anndata
 import numpy as np
 
 from cell_type_mapper.taxonomy.taxonomy_tree import (
@@ -50,6 +51,7 @@ class TaxonomyFilter(object):
         """
 
         alias_to_parentage = _get_alias_to_parentage(self.taxonomy_tree)
+
         self._parentage_to_alias = dict()
         self._alias_to_idx = dict()
 
@@ -92,6 +94,50 @@ class TaxonomyFilter(object):
             hierarchy=hierarchy,
             do_pruning=True)
 
+        return cls(taxonomy_tree=taxonomy_tree)
+
+    @classmethod
+    def from_h5ad(
+            cls,
+            h5ad_path,
+            column_hierarchy,
+            cluster_alias_column):
+
+        raw_taxonomy_tree = TaxonomyTree.from_h5ad(
+             h5ad_path=h5ad_path,
+             column_hierarchy=column_hierarchy
+        )
+
+        adata = anndata.read_h5ad(h5ad_path, backed='r')
+        obs = adata.obs
+        leaf_level = column_hierarchy[-1]
+        cluster_to_alias = dict()
+        alias_to_cluster = dict()
+        for cluster, alias in zip(
+                        obs[leaf_level].values,
+                        obs[cluster_alias_column].values):
+            alias = str(alias)
+            if cluster in cluster_to_alias:
+                if cluster_to_alias[cluster] != alias:
+                    raise RuntimeError(
+                        f'cluster {cluster} maps to several aliases: '
+                        f'{alias} and {cluster_to_alias[cluster]}'
+                    )
+            if alias in alias_to_cluster:
+                if alias_to_cluster[alias] != cluster:
+                    raise RuntimeError(
+                        f'alias {alias} maps to several clusters: '
+                        f'{cluster} and {alias_to_cluster[alias]}'
+                    )
+            cluster_to_alias[cluster] = alias
+
+        name_mapper = dict()
+        name_mapper[leaf_level] = dict()
+        for cluster in cluster_to_alias:
+            name_mapper[leaf_level][cluster] = {'alias': cluster_to_alias[cluster]}
+        tree_data = raw_taxonomy_tree._data
+        tree_data['name_mapper'] = name_mapper
+        taxonomy_tree = TaxonomyTree(data=tree_data)
         return cls(taxonomy_tree=taxonomy_tree)
 
     def filter_cells(

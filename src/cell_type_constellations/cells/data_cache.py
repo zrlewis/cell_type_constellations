@@ -1,6 +1,7 @@
 import copy
 import h5py
 import json
+import matplotlib
 import multiprocessing
 import numpy as np
 import os
@@ -322,6 +323,76 @@ def create_constellation_cache_from_h5ad_and_csv(
     dur = (time.time()-t0)/60.0
     print(f'=======CREATED CONSTELLATION CACHE IN {dur:.2e} minutes=======')
 
+
+def create_constellation_cache_from_h5ad(
+        h5ad_path,
+        visualization_coords,
+        connection_coords,
+        cluster_alias_key,
+        hierarchy,
+        k_nn,
+        dst_path,
+        color_by_columns=None,
+        tmp_dir=None):
+
+    t0 = time.time()
+
+    config = {
+        'h5ad_path': str(h5ad_path),
+        'visualization_coords': visualization_coords,
+        'connection_coords': connection_coords,
+        'cluster_alias_key': cluster_alias_key,
+        'hierarchy': hierarchy,
+        'k_nn': int(k_nn),
+        'color_by_columns': color_by_columns
+    }
+
+    cell_set = CellSetFromH5ad(
+        h5ad_path=h5ad_path,
+        visualization_coord_key=visualization_coords,
+        connection_coord_key=connection_coords,
+        cluster_alias_key=cluster_alias_key,
+        color_by_columns=color_by_columns
+    )
+
+    print('=======CREATED CELL_SET=======')
+
+
+    taxonomy_filter = TaxonomyFilter.from_h5ad(
+        h5ad_path=h5ad_path,
+        column_hierarchy=hierarchy,
+        cluster_alias_column=cluster_alias_key
+    )
+
+    print('=======CREATED TAXONOMY_FILTER=======')
+
+    # create dummy color lookup
+    color_map = matplotlib.colormaps['viridis']
+    label_to_color = dict()
+    taxonomy_tree = taxonomy_filter.taxonomy_tree
+    for level in taxonomy_tree.hierarchy:
+        this_level = dict()
+        n_nodes = len(taxonomy_tree.nodes_at_level(level))
+        color_values = np.linspace(0.0, 1.0, n_nodes)
+        for i_node, node in enumerate(taxonomy_tree.nodes_at_level(level)):
+            color = matplotlib.colors.rgb2hex(
+                color_map(color_values[i_node])
+            )
+            this_level[node] = {'taxonomy': color}
+        label_to_color[level] = this_level
+
+    constellation_cache_from_obj(
+        taxonomy_filter=taxonomy_filter,
+        cell_set=cell_set,
+        k_nn=k_nn,
+        dst_path=dst_path,
+        tmp_dir=tmp_dir,
+        label_to_color=label_to_color,
+        config=config
+    )
+
+    dur = (time.time()-t0)/60.0
+    print(f'=======CREATED CONSTELLATION CACHE IN {dur:.2e} minutes=======')
 
 
 def constellation_cache_from_obj(
