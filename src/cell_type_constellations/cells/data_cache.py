@@ -428,11 +428,6 @@ def _constellation_cache_from_obj_worker(
             n_cells_lookup[level][node_idx] = cell_set.n_cells_from_alias_array(
                 alias_array=alias_array)
 
-            if cell_set.color_by_columns is not None:
-                this_lookup = cell_set.color_lookup_from_alias_array(alias_array)
-                for col_key in cell_set.color_by_columns:
-                    label_to_color[level][node][col_key] = this_lookup[col_key]
-
         dur = time.time()-t0
         print(f'=====processed {level} after {dur:.2e} seconds=======')
 

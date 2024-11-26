@@ -1,6 +1,7 @@
 import h5py
 import json
 import matplotlib
+import numbers
 import numpy as np
 
 
@@ -33,61 +34,12 @@ def render_fov_from_hdf5(
             )
         )
 
-    # if not coloring by a cell type, need to construct the
-    # mapping from value to color
-
-    dx = np.round(width*0.1)
-    dy = np.round(height*0.2)
-
-    width += 2*dx
-
-    color_bar_code = None
-    if color_by not in taxonomy_tree.hierarchy:
-        node_to_value = dict()
-        for node in color_lookup[centroid_level]:
-            node_to_value[node] = color_lookup[centroid_level][node][color_by]
-        color_vmin = min(node_to_value.values())
-        color_vmax = max(node_to_value.values())
-        normalizer = matplotlib.colors.Normalize(vmin=color_vmin, vmax=color_vmax)
-        node_to_hex = {
-            node: matplotlib.colors.rgb2hex(
-                      mpl_color_map(normalizer(node_to_value[node]))
-                  )
-            for node in node_to_value
-        }
-
-        color_lookup = {
-            centroid_level: {
-                node: {
-                    color_by: node_to_hex[node]
-                }
-                for node in node_to_hex
-            }
-        }
-
-        color_values = np.linspace(color_vmin, color_vmax, 100)
-        color_hexes = [matplotlib.colors.rgb2hex(
-                           mpl_color_map(normalizer(v))
-                       )
-                       for v in color_values]
-
-        x0 = width-3*dx//2
-        y0 = dy
-        color_bar_code = get_colorbar_svg(
-            x0=x0,
-            y0=y0,
-            x1=x0+dx//2,
-            y1=height-dy,
-            color_list=color_hexes,
-            value_list=color_values,
-            color_by_parameter=color_by
-        )
-
     centroid_lookup = centroid_lookup_from_hdf5(
         hdf5_path=hdf5_path,
         level=centroid_level,
         color_lookup=color_lookup,
-        color_by=color_by)
+        color_by=color_by,
+        color_map=mpl_color_map)
 
     connection_list = connection_list_from_hdf5(
         hdf5_path=hdf5_path,
@@ -116,11 +68,8 @@ def render_fov_from_hdf5(
         height=height,
         taxonomy_tree=taxonomy_tree,
         color_by=color_by,
+        color_map=mpl_color_map,
         fill_hulls=fill_hulls)
-
-    if color_bar_code is not None:
-        result += color_bar_code
-    result += "</svg>\n"
 
     return result
 
@@ -134,11 +83,48 @@ def render_fov(
         height,
         width,
         taxonomy_tree,
+        color_map,
         fill_hulls=False):
+
+    dx = np.round(width*0.1)
+    dy = np.round(height*0.2)
+    width += 2*dx
 
     result = (
             f'<svg height="{height}px" width="{width}px" '
             'xmlns="http://www.w3.org/2000/svg">\n'
+        )
+
+    # add color bar code if needed
+    color_bar_code = None
+    if color_by not in taxonomy_tree.hierarchy:
+        color_values = [
+            c.get_stat(color_by)['mean']
+            for c in centroid_list
+        ]
+        color_vmin = min(color_values)
+        color_vmax = max(color_values)
+        normalizer = matplotlib.colors.Normalize(
+            vmin=color_vmin,
+            vmax=color_vmax
+        )
+
+        color_values = np.linspace(color_vmin, color_vmax, 100)
+        color_hexes = [matplotlib.colors.rgb2hex(
+                           color_map(normalizer(v))
+                       )
+                       for v in color_values]
+
+        x0 = width-3*dx//2
+        y0 = dy
+        color_bar_code = get_colorbar_svg(
+            x0=x0,
+            y0=y0,
+            x1=x0+dx//2,
+            y1=height-dy,
+            color_list=color_hexes,
+            value_list=color_values,
+            color_by_parameter=color_by
         )
 
     centroid_code = render_centroid_list(
@@ -156,6 +142,10 @@ def render_fov(
         fill=fill_hulls)
 
     result += hull_code + connection_code + centroid_code
+
+    if color_bar_code is not None:
+        result += color_bar_code
+    result += "</svg>\n"
 
     return result
 
@@ -433,7 +423,12 @@ def centroid_list_to_hdf5_single_level(
                 )
 
 
-def centroid_lookup_from_hdf5(hdf5_path, level, color_lookup, color_by):
+def centroid_lookup_from_hdf5(
+        hdf5_path,
+        level,
+        color_lookup,
+        color_by,
+        color_map):
     this_key = f'centroids/{level}'
     data_lookup = dict()
     stats_lookup = dict()
@@ -446,7 +441,8 @@ def centroid_lookup_from_hdf5(hdf5_path, level, color_lookup, color_by):
             for sub_key in stats_grp[stat_key]:
                 stats_lookup[stat_key][sub_key] = stats_grp[stat_key][sub_key][()]
 
-    result = dict()
+    calculate_colors = False
+    param_list = []
     for idx in range(len(data_lookup['pixel_r'])):
         label = data_lookup['label'][idx].decode('utf-8')
 
@@ -454,7 +450,17 @@ def centroid_lookup_from_hdf5(hdf5_path, level, color_lookup, color_by):
         for stat_key in stats_lookup:
             stats[stat_key] = dict()
             for sub_key in stats_lookup[stat_key]:
-                stats[stat_key][sub_key] = stats_lookup[stat_key][sub_key]
+                stats[stat_key][sub_key] = stats_lookup[stat_key][sub_key][idx]
+
+        if color_by in color_lookup[level][label]:
+            color = color_lookup[level][label][color_by]
+        else:
+            color = None
+            calculate_colors = True
+
+        if isinstance(color, numbers.Number):
+            color = None
+            calculate_colors = True
 
         params = {
             'label': label,
@@ -463,10 +469,34 @@ def centroid_lookup_from_hdf5(hdf5_path, level, color_lookup, color_by):
             'pixel_r': data_lookup['pixel_r'][idx],
             'pixel_x': data_lookup['pixel_x'][idx],
             'pixel_y': data_lookup['pixel_y'][idx],
-            'color': color_lookup[level][label][color_by],
+            'color': color,
             'level': level,
             'stats': stats
         }
+        param_list.append(params)
+
+    if calculate_colors:
+        stat_values = [
+            p['stats'][color_by]['mean']
+            for p in param_list
+        ]
+        color_vmin = min(stat_values)
+        color_vmax = max(stat_values)
+        normalizer = matplotlib.colors.Normalize(
+            vmin=color_vmin,
+            vmax=color_vmax)
+        for params in param_list:
+            val = params['stats'][color_by]['mean']
+            color = matplotlib.colors.rgb2hex(
+                color_map(
+                    normalizer(val)
+                )
+            )
+            params['color'] = color
+
+    result = dict()
+    for params in param_list:
+        label = params['label']
         result[label] = Centroid.from_dict(params)
 
     return result
