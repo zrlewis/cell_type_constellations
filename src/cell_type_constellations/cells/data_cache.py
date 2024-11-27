@@ -315,19 +315,74 @@ class ConstellationCache_HDF5(object):
                     'taxonomy']
 
     def mixture_matrix_from_level(self, level):
+        """
+        Return the (n_taxons, n_taxons) mixture matrix for
+        this taxonomy at a specified level
+        """
+        if level not in self.mixture_matrix_lookup:
+            raise ValueError(
+                f'{level} is not a valid level in this taxonomy; '
+                f'valid levels are {list(self.mixture_matrix_lookup.keys())}'
+            )
         return self.mixture_matrix_lookup[level]
 
     def n_cells_from_level(self, level):
+        """
+        Return an (n_taxons,) array of ints indicating how many
+        cells are in each taxon at a level in the taxonomy
+        """
+        if level not in self.n_cells_lookup:
+            raise ValueError(
+                f'{level} is not a valid level in this taxonomy; '
+                f'valid levels are {list(self.n_cells_lookup.keys())}'
+            )
         return self.n_cells_lookup[level]
 
-    def _cell_mask_from_label(self, level, label):
+    def _alias_values_from_label(self, level, label):
+        """
+        Return the list of cluster_alias_values associated
+        with the cell type taxon indicated by a (level, label)
+        pair
+        """
+        if level not in self.parentage_to_alias:
+            raise ValueError(
+                f'{level} is not a valid level in this taxonomy; '
+                f'valid levels are {list(self.parentage_to_alis.keys())}'
+            )
+
+        if label not in self.parentage_to_alias[level]:
+            raise ValueError(
+                f'{label} is not a valid cell type taxon '
+                f'at level {level} of the taxonomy; '
+                'examples of valid labels are: '
+                f'{list(self.parentage_to_alias[level].keys())[:5]}'
+            )
+
         alias_values = self.parentage_to_alias[level][label]
+        return alias_values
+
+    def _cell_mask_from_label(self, level, label):
+        """
+        Return an (n_cells,) array of booleans indicating
+        which cells have been annotated to belong to the
+        cell type taxon indicated by the (level, label) pair.
+        """
+
+        alias_values = self._alias_values_from_label(
+            level=level,
+            label=label)
+
         cell_mask = np.zeros(len(self.cluster_aliases), dtype=bool)
         for alias in alias_values:
             cell_mask[self.cluster_aliases == alias] = True
         return cell_mask
 
     def umap_coords_from_label(self, level, label):
+        """
+        Return the (n_taxons, 2) visualization coordinates
+        for all of the cells annotated to belong to a the
+        cell type taxon indicated by the (level, label) pair
+        """
         cell_mask = self._cell_mask_from_label(
             level=level,
             label=label
@@ -335,7 +390,19 @@ class ConstellationCache_HDF5(object):
         return self.umap_coords[cell_mask, :]
 
     def convex_hull_list_from_label(self, level, label):
-        alias_values = self.parentage_to_alias[level][label]
+        """
+        Return a list of scipy.spatial.ConvexHulls that enclose
+        all of the cells (modulo extreme outliers) annotated to
+        belong to the cell type taxon indicated by the
+        (level, label) pair.
+
+        These hulls will be in the visualization coordinate
+        space.
+        """
+        alias_values = self._alias_values_from_label(
+            level=level,
+            label=label
+        )
         hull_list = []
         with h5py.File(self.cache_path, 'r') as src:
             for alias in alias_values:
