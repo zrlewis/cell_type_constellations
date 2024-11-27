@@ -33,10 +33,6 @@ from cell_type_constellations.utils.multiprocessing_utils import (
     winnow_process_list
 )
 
-from cell_type_constellations.cells.utils import (
-    get_hull_points
-)
-
 from cell_type_constellations.hulls.leaf_splitter import (
     iteratively_subdivide_points
 )
@@ -131,7 +127,8 @@ class ConstellationCache_HDF5(object):
         for stat_key in self.stats_lookup[level]:
             this_stat = dict()
             for sub_key in self.stats_lookup[level][stat_key]:
-                this_stat[sub_key] = self.stats_lookup[level][stat_key][sub_key][idx]
+                this_stat[sub_key] = \
+                    self.stats_lookup[level][stat_key][sub_key][idx]
             result[stat_key] = this_stat
         return result
 
@@ -142,7 +139,11 @@ class ConstellationCache_HDF5(object):
             level=level,
             node=label
         )
-        return self.label_to_color[color_by_level][parentage[color_by_level]]['taxonomy']
+
+        return self.label_to_color[
+            color_by_level][
+                parentage[color_by_level]][
+                    'taxonomy']
 
     def alt_colors(self, level, label):
         result = copy.deepcopy(self.label_to_color[level][label])
@@ -159,7 +160,7 @@ class ConstellationCache_HDF5(object):
         alias_values = self.parentage_to_alias[level][label]
         cell_mask = np.zeros(len(self.cluster_aliases), dtype=bool)
         for alias in alias_values:
-            cell_mask[self.cluster_aliases==alias] = True
+            cell_mask[self.cluster_aliases == alias] = True
         return cell_mask
 
     def umap_coords_from_label(self, level, label):
@@ -186,9 +187,7 @@ class ConstellationCache_HDF5(object):
         return hull_list
 
 
-
-##### utilities
-
+# utility functions ##########
 
 def create_constellation_cache(
         cell_metadata_path,
@@ -212,9 +211,9 @@ def create_constellation_cache(
     }
 
     if prune_taxonomy:
-        filter_cell_metadata_path=cell_metadata_path
+        filter_cell_metadata_path = cell_metadata_path
     else:
-        filter_cell_metadata_path=None
+        filter_cell_metadata_path = None
 
     taxonomy_filter = TaxonomyFilter.from_data_release(
         cluster_annotation_path=cluster_annotation_path,
@@ -357,7 +356,6 @@ def create_constellation_cache_from_h5ad(
 
     print('=======CREATED CELL_SET=======')
 
-
     taxonomy_filter = TaxonomyFilter.from_h5ad(
         h5ad_path=h5ad_path,
         column_hierarchy=hierarchy,
@@ -451,7 +449,9 @@ def _constellation_cache_from_obj_worker(
             tmp_dir=tmp_dir
         )
         dur = (time.time()-t0)/60.0
-        print(f'=======CREATED {level} MIXTURE MATRIX AFTER {dur:.2e} minutes=======')
+        print(
+            f'=======CREATED {level} '
+            f'MIXTURE MATRIX AFTER {dur:.2e} minutes=======')
 
     dur = (time.time()-t0)/60.0
     print(f'=======CREATED ALL MIXTURE MATRICES IN {dur:.2e} minutes=======')
@@ -475,8 +475,9 @@ def _constellation_cache_from_obj_worker(
                 level=level,
                 idx=node_idx)
 
-            centroid_lookup[level][node_idx] = cell_set.centroid_from_alias_array(
-                alias_array=alias_array)
+            centroid_lookup[level][
+                node_idx] = cell_set.centroid_from_alias_array(
+                    alias_array=alias_array)
 
             if cell_set.color_by_columns is not None:
                 this = cell_set.stat_lookup_from_alias_array(
@@ -498,8 +499,9 @@ def _constellation_cache_from_obj_worker(
                 level=level,
                 idx=node_idx)
 
-            n_cells_lookup[level][node_idx] = cell_set.n_cells_from_alias_array(
-                alias_array=alias_array)
+            n_cells_lookup[level][
+                node_idx] = cell_set.n_cells_from_alias_array(
+                    alias_array=alias_array)
 
         dur = time.time()-t0
         print(f'=====processed {level} after {dur:.2e} seconds=======')
@@ -520,7 +522,8 @@ def _constellation_cache_from_obj_worker(
             data=json.dumps(idx_to_label).encode('utf-8'))
         dst.create_dataset(
             'taxonomy_tree',
-            data=taxonomy_filter.taxonomy_tree.to_str(drop_cells=True).encode('utf-8')
+            data=taxonomy_filter.taxonomy_tree.to_str(
+                drop_cells=True).encode('utf-8')
         )
         dst.create_dataset(
             'k_nn',
@@ -532,7 +535,10 @@ def _constellation_cache_from_obj_worker(
         dst.create_dataset(
             'parentage_to_alias',
             data=json.dumps(
-                clean_for_json(taxonomy_filter._parentage_to_alias)).encode('utf-8')
+                clean_for_json(
+                    taxonomy_filter._parentage_to_alias
+                )
+            ).encode('utf-8')
         )
         dst.create_dataset(
             'cluster_aliases',
@@ -575,8 +581,6 @@ def color_lookup_from_cluster_annotation(
         label_to_color[level][label] = {'taxonomy': color}
 
     return label_to_color
-
-
 
 
 def fix_centroids(temp_path, dst_path, tmp_dir='../tmp'):
@@ -768,7 +772,6 @@ def get_hulls_for_leaf(
     Returns None if it is impossible to construct a ConvexHull
     from the available points.
     """
-    #print(f'=======splitting {label}=======')
 
     pts = constellation_cache.umap_coords_from_label(
         level=constellation_cache.taxonomy_tree.leaf_level,
@@ -776,7 +779,7 @@ def get_hulls_for_leaf(
 
     try:
         scipy.spatial.ConvexHull(pts)
-    except:
+    except Exception:
         return None
 
     subdivisions = iteratively_subdivide_points(
@@ -791,24 +794,20 @@ def get_hulls_for_leaf(
             continue
         subset = pts[np.sort(list(subset)), :]
         try:
-            test = scipy.spatial.ConvexHull(subset)
+            _ = scipy.spatial.ConvexHull(subset)
             sub_hulls.append(subset)
-        except:
+        except Exception:
             pass
 
     if len(sub_hulls) == 0:
-        #print('    lumping all points together')
         sub_hulls.append(pts)
     else:
-        #print(f'    kept {len(sub_hulls)} sub hulls')
         pass
 
     return sub_hulls
 
 
 def _pts_to_hull_pts(pts):
-    #hull = scipy.spatial.ConvexHull(pts)
-    #return hull.points[hull.vertices, :]
     return pts
 
 
@@ -827,17 +826,16 @@ def get_hulls_for_leaf_worker(
 
     with h5py.File(dst_path, 'w') as dst:
         for leaf in this_lookup:
-           dst_grp = dst.create_group(leaf)
-           if this_lookup[leaf] is None:
-               continue
-           for idx in range(len(this_lookup[leaf])):
-               dst_grp.create_dataset(
-                   f'{idx}',
-                   data=this_lookup[leaf][idx]
-               )
+            dst_grp = dst.create_group(leaf)
+            if this_lookup[leaf] is None:
+                continue
+            for idx in range(len(this_lookup[leaf])):
+                dst_grp.create_dataset(
+                    f'{idx}',
+                    data=this_lookup[leaf][idx]
+                )
     dur = (time.time()-t0)/60.0
     print(f'=======FINISHED BATCH IN {dur:.2e} minutes=======')
-
 
 
 def clean_for_json(data):
@@ -883,6 +881,7 @@ def iteratively_copy_grp(
                 src_handle=src_handle[sub_key],
                 dst_handle=new_grp
             )
+
 
 def load_stats(src_handle, result_dict):
 

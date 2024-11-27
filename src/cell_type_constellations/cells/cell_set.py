@@ -1,9 +1,7 @@
 import anndata
 import h5py
-import json
 import multiprocessing
 import numpy as np
-import os
 import pandas as pd
 import scipy.spatial
 import time
@@ -86,22 +84,22 @@ class CellSetAccessMixin(object):
         return results[1]
 
     def get_connection_nn_from_mask(self, query_mask, k_nn):
-         """
-         query_mask is a boolean mask indicating which
-         cells within self we are qureying the neighbors of
-         """
-         if k_nn in self._neighbor_cache:
-             query_idx = np.where(query_mask)[0]
-             return self._neighbor_cache[k_nn][query_idx, :]
-         else:
-             return self.get_connection_nn(
-                 query_data=self._connection_coords[query_mask, :],
-                 k_nn=k_nn)
+        """
+        query_mask is a boolean mask indicating which
+        cells within self we are qureying the neighbors of
+        """
+        if k_nn in self._neighbor_cache:
+            query_idx = np.where(query_mask)[0]
+            return self._neighbor_cache[k_nn][query_idx, :]
+        else:
+            return self.get_connection_nn(
+                query_data=self._connection_coords[query_mask, :],
+                k_nn=k_nn)
 
     def mask_from_alias_array(self, alias_array):
         mask = np.zeros(self._cluster_aliases.shape, dtype=bool)
         for alias in alias_array:
-            mask[self._cluster_aliases==alias] = True
+            mask[self._cluster_aliases == alias] = True
         if mask.sum() == 0:
             msg = f"alias array {alias_array} has no cells"
             raise RuntimeError(msg)
@@ -145,7 +143,7 @@ class CellSetAccessMixin(object):
     def n_cells_from_alias_array(self, alias_array):
         mask = np.zeros(self._cluster_aliases.shape, dtype=bool)
         for alias in alias_array:
-            mask[self._cluster_aliases==alias] = True
+            mask[self._cluster_aliases == alias] = True
         return int(mask.sum())
 
 
@@ -206,7 +204,8 @@ def _get_umap_coords(cell_metadata_path):
     umap_coords = np.array(
         [cell_metadata.x.values,
          cell_metadata.y.values]).transpose()
-    cluster_aliases = np.array([int(a) for a in cell_metadata.cluster_alias.values])
+    cluster_aliases = np.array(
+        [int(a) for a in cell_metadata.cluster_alias.values])
     return cluster_aliases, umap_coords
 
 
@@ -270,7 +269,6 @@ def _create_neighbor_cache(
         n_processors,
         tmp_dir):
 
-
     n_col = pts.shape[1]
     n_per_max = (2*1024**3)//n_col
 
@@ -332,4 +330,6 @@ def _create_neighbor_cache_worker(
         dst.create_dataset('neighbors', data=neighbors[1])
     dur = (time.time() - t0)/60.0
     n = pts.shape[0]
-    print(f'=======FINISHED NEIGHBOR BATCH OF SIZE {n} in {dur:.2e} minutes=======')
+    print(
+        '=======FINISHED NEIGHBOR BATCH OF SIZE '
+        f'{n} in {dur:.2e} minutes=======')

@@ -37,8 +37,8 @@ def html_front_matter_n_columns(
     return html
 
 
-def html_end_matter() :
-    html = """<p>Proof of Concept only. 
+def html_end_matter():
+    html = """<p>Proof of Concept only.
             Data presented here is subject to change.
             </p>"""
     html += """</body>"""
@@ -46,19 +46,19 @@ def html_end_matter() :
     return html
 
 
-def html_start_ulist() :
+def html_start_ulist():
     return """<ul>"""
 
 
-def html_end_ulist() :
+def html_end_ulist():
     return """</ul>"""
 
 
-def html_start_litem() :
+def html_start_litem():
     return """<li>"""
 
 
-def html_end_litem() :
+def html_end_litem():
     return """</li>"""
 
 
@@ -71,10 +71,12 @@ def return_to_root():
 
     return html
 
+
 def go_to_constellation_landing_page():
     html = """<a href="/constellation_plot_landing_page">"""
     html += """Go to constellation plot landing page</a></br>"""
     return html
+
 
 def end_of_page():
     html = "<p>"

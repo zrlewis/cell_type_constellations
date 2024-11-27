@@ -45,7 +45,8 @@ def get_constellation_plot_page(
         for ii, level in enumerate(taxonomy_tree.hierarchy)
     }
 
-    if color_by not in level_to_idx or level_to_idx[color_by] <= level_to_idx[centroid_level]:
+    if color_by not in level_to_idx or \
+            level_to_idx[color_by] <= level_to_idx[centroid_level]:
 
         html = render_fov_from_hdf5(
             hdf5_path=hdf5_path,
@@ -115,12 +116,17 @@ def get_constellation_control_code(
         n_columns=4)
 
     html += """<form action="constellation_plot" method="GET">\n"""
-    html += f"""<input type="hidden" value="{taxonomy_name}" name="taxonomy_name">\n"""
-    for i_column, field_id in enumerate(("centroid_level", "color_by", "hull_level")):
+    html += f"""<input type="hidden" value="{taxonomy_name}" name="taxonomy_name">\n"""  # noqa: E501
+    for i_column, field_id in enumerate(
+                                ("centroid_level",
+                                 "color_by",
+                                 "hull_level")):
+
         default_value = default_lookup[field_id]
+
         html += """<div class="column">"""
         html += f"""<fieldset id="{field_id}">\n"""
-        html += f"""<label for="{field_id}">{field_id.replace('_', ' ')}</label><br>"""
+        html += f"""<label for="{field_id}">{field_id.replace('_', ' ')}</label><br>"""  # noqa: E501
 
         button_values = copy.deepcopy(taxonomy_tree.hierarchy)
 
@@ -140,7 +146,7 @@ def get_constellation_control_code(
             else:
                 level_name = level
             html += f"""
-            <input type="radio" name="{field_id}" id="{level}" value="{level}" """
+            <input type="radio" name="{field_id}" id="{level}" value="{level}" """  # noqa: E501
             if level == default_value:
                 html += """checked="checked" """
             html += ">"
@@ -149,26 +155,26 @@ def get_constellation_control_code(
             """
         html += """</fieldset>\n"""
         if i_column == 0:
-            html += """<input type="submit" value="Reconfigure constellation plot">"""
+            html += """<input type="submit" value="Reconfigure constellation plot">"""  # noqa: E501
             html += html_utils.end_of_page()
 
         html += """</div>\n"""
 
     html += """<div class="column">"""
-    html += f"""<fieldset id="fill_hulls">\n"""
-    html += f"""<label for="fill_hulls">fill hulls</label><br>"""
-    html += f"""<input type="radio" name="fill_hulls" id="true" value="true" """
+    html += """<fieldset id="fill_hulls">\n"""
+    html += """<label for="fill_hulls">fill hulls</label><br>"""
+    html += """<input type="radio" name="fill_hulls" id="true" value="true" """  # noqa: E501
     if fill_hulls:
         html += """checked="checked" """
     html += ">"
-    html += f"""
+    html += """
     <label for="true">True</label><br>
     """
-    html += f"""<input type="radio" name="fill_hulls" id="false" value="false" """
+    html += """<input type="radio" name="fill_hulls" id="false" value="false" """  # noqa: E501
     if not fill_hulls:
         html += """checked="checked" """
     html += ">"
-    html += f"""
+    html += """
     <label for="false">False</label><br>
     """
     html += """</fieldset></div>\n"""
@@ -178,7 +184,6 @@ def get_constellation_control_code(
     """
 
     return html
-
 
 
 def get_constellation_plot_config(
