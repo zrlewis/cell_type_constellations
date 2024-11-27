@@ -1,11 +1,12 @@
 import numpy as np
 
-from cell_type_constellations.utils.geometry import(
+from cell_type_constellations.utils.geometry import (
     rot,
     do_intersect
 )
 
 from cell_type_constellations.svg.centroid import Centroid
+
 
 class Connection(object):
 
@@ -88,12 +89,10 @@ class Connection(object):
             dst_r=self.dst.pixel_r,
             max_connection_ratio=max_connection_ratio)
 
-
         points = self.rendering_corners
         if do_intersect([points[0], points[1]],
                         [points[2], points[3]]):
             print(f'huh {self.src.name} {self.dst.name}')
-
 
     def set_bezier_controls(self, thermal_control):
         mid_pt = 0.5*(self.src.pixel_pt+self.dst.pixel_pt)

@@ -1,15 +1,9 @@
 # This is the script for creating the constellation data cache
 
 import argparse
-import h5py
-import json
-import numpy as np
-import pandas as pd
 import pathlib
 
-
 from cell_type_constellations.cells.data_cache import (
-    ConstellationCache_HDF5,
     create_constellation_cache
 )
 
@@ -22,16 +16,17 @@ def main():
         '/Users/scott.daniel/KnowledgeBase/cell_type_constellations/data'
     )
     default_tmp_dir = pathlib.Path(
-        '/Users/scott.daniel/KnowledgeBase/cell_type_constellations/scratch/tmp'
+        '/Users/scott.daniel/KnowledgeBase/'
+        'cell_type_constellations/scratch/tmp'
     )
 
     cell_metadata_path = default_dir / 'cell_metadata.csv'
     cluster_annotation_path = default_dir / 'cluster_annotation_term.csv'
-    cluster_membership_path = default_dir / 'cluster_to_cluster_annotation_membership.csv'
-    hierarchy=['CCN20230722_CLAS',
-               'CCN20230722_SUBC',
-               'CCN20230722_SUPT',
-               'CCN20230722_CLUS']
+    cluster_membership_path = default_dir / 'cluster_to_cluster_annotation_membership.csv'  # noqa: E501
+    hierarchy = ['CCN20230722_CLAS',
+                 'CCN20230722_SUBC',
+                 'CCN20230722_SUPT',
+                 'CCN20230722_CLUS']
 
     parser = argparse.ArgumentParser()
     parser.add_argument(

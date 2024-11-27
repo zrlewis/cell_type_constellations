@@ -1,11 +1,6 @@
 import h5py
-import json
 import multiprocessing
 import numpy as np
-import os
-import pandas as pd
-import scipy.spatial
-import time
 import tempfile
 
 from cell_type_constellations.utils.data import (
@@ -144,10 +139,6 @@ def get_neighbor_linkage(
         src_node,
         k_nn=15):
 
-    src_idx = taxonomy_filter.idx_from_label(
-        level=src_level,
-        node=src_node)
-
     mask = taxonomy_filter.filter_cells(
         alias_array=cell_set.cluster_aliases,
         level=src_level,
@@ -168,6 +159,3 @@ def get_neighbor_linkage(
     unq, ct = np.unique(neighbors, return_counts=True)
     mixture[unq] += ct
     return mixture
-
-
-

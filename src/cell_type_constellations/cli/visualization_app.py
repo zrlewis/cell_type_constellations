@@ -34,13 +34,14 @@ def main():
     )
 
 
-
 class Visualizer(object):
 
     def __init__(self):
 
-        self.data_dir = pathlib.Path(
-            cell_type_constellations.__file__).parent.parent.parent / 'app_data'
+        file_path = pathlib.Path(
+            cell_type_constellations.__file__)
+
+        self.data_dir = file_path.parent.parent.parent / 'app_data'
 
         if not self.data_dir.is_dir():
             raise RuntimeError(
@@ -62,7 +63,7 @@ class Visualizer(object):
         taxonomy_name_list = list(self.constellation_plot_config.keys())
         taxonomy_name_list.sort()
         for taxonomy_name in taxonomy_name_list:
-            html += f"""<a href="/constellation_plot?taxonomy_name={taxonomy_name}&default=true">"""
+            html += f"""<a href="/constellation_plot?taxonomy_name={taxonomy_name}&default=true">"""  # noqa: E501
             html += f"""{taxonomy_name}</a></br>"""
         return html
 
@@ -103,7 +104,6 @@ class Visualizer(object):
                 fill_hulls=fill_hulls)
 
         return html
-
 
 
 if __name__ == "__main__":

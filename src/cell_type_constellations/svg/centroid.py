@@ -24,7 +24,6 @@ class Centroid(object):
         self._pixel_coords = None
         self._stats = dict()
 
-
     @property
     def x(self):
         return self._x

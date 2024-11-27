@@ -30,16 +30,22 @@ class TaxonomyFilter(object):
                 'name': [],
                 'label': []
             }
-            for idx, label in enumerate(self.taxonomy_tree.nodes_at_level(level)):
+
+            for idx, label in enumerate(
+                                self.taxonomy_tree.nodes_at_level(level)):
+
                 name = self.taxonomy_tree.label_to_name(
                     level=level,
                     label=label)
+
                 self._name_to_idx[level]['name'][name] = idx
                 self._name_to_idx[level]['label'][label] = idx
                 self._idx_to_name[level]['name'].append(name)
                 self._idx_to_name[level]['label'].append(label)
+
             self._idx_to_name[level]['name'] = np.array(
                 self._idx_to_name[level]['name'])
+
             self._idx_to_name[level]['label'] = np.array(
                 self._idx_to_name[level]['label']
             )
@@ -70,7 +76,8 @@ class TaxonomyFilter(object):
                     self._parentage_to_alias[level][name] = []
                 self._parentage_to_alias[level][label].append(alias)
                 self._parentage_to_alias[level][name].append(alias)
-                self._alias_to_idx[level][alias] = self._name_to_idx[level]['label'][label]
+                self._alias_to_idx[level][alias] = self._name_to_idx[
+                                                         level]['label'][label]
 
         for level in self.taxonomy_tree.hierarchy:
             node_list = list(self._parentage_to_alias[level])
@@ -133,8 +140,13 @@ class TaxonomyFilter(object):
 
         name_mapper = dict()
         name_mapper[leaf_level] = dict()
+
         for cluster in cluster_to_alias:
-            name_mapper[leaf_level][cluster] = {'alias': cluster_to_alias[cluster]}
+
+            name_mapper[leaf_level][cluster] = {
+                'alias': cluster_to_alias[cluster]
+            }
+
         tree_data = raw_taxonomy_tree._data
         tree_data['name_mapper'] = name_mapper
         taxonomy_tree = TaxonomyTree(data=tree_data)
@@ -156,7 +168,7 @@ class TaxonomyFilter(object):
         mask = np.zeros(len(alias_array), dtype=bool)
 
         for alias in desired_aliases:
-            mask[alias_array==alias] = True
+            mask[alias_array == alias] = True
 
         return mask
 
@@ -180,7 +192,6 @@ class TaxonomyFilter(object):
         naming = self.name_from_idx(level=level, idx=idx)
         alias = self._parentage_to_alias[level][naming['label']]
         return alias
-
 
 
 def _get_alias_to_parentage(taxonomy_tree):

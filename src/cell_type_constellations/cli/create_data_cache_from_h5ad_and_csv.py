@@ -1,12 +1,6 @@
 # This is the script for creating the constellation data cache
 
 import argparse
-import h5py
-import json
-import numpy as np
-import pandas as pd
-import pathlib
-
 
 from cell_type_constellations.cells.data_cache import (
     create_constellation_cache_from_h5ad_and_csv
