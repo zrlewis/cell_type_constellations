@@ -38,7 +38,6 @@ data for the constellation plot visualizations, it can be run like
 ```
 python -m cell_type_constellations.cli.serialize_svg_data_from_h5ad \
 --taxonomy_name HY-EA-stat-test \
---clobber \
 --h5ad_path /path/to/HY_v1.h5ad \
 --hierarchy class_label subclass_label supertype_label cluster_id_label \
 --color_by_columns 'Attack-M vs Control-M' 'Sexual-M vs Control-M' \
@@ -54,12 +53,12 @@ To see the definitions of each of these command line parameters, run
 python -m cell_type_constellations.cli.serialize_svg_data_from_h5ad --help
 ```
 
-## Visualizating the results
+## Visualizing the results
 
 This tool comes with a simple web-like app that will allow you to
 visualize and configure your constellation plots in any web browser.
 The app works by scanning the `app_data/` directory of this repository
-and loading an `.h5` files (created by the `serialize_svg_data_from_h5ad`
+and loading any `.h5` files (created by the `serialize_svg_data_from_h5ad`
 step above) for visualization. Just copy all of the constellation plot data
 files you want to be able to visualize into that `app_data/` directory and run
 ```
