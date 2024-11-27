@@ -1,10 +1,8 @@
 import h5py
 import multiprocessing
 import numpy as np
-import tempfile
 
 from cell_type_constellations.utils.data import (
-    _clean_up,
     mkstemp_clean
 )
 
@@ -21,6 +19,38 @@ def create_mixture_matrix(
         k_nn,
         tmp_dir,
         n_processors=4):
+    """
+    Create an (n_taxon, n_taxon) mixture matrix for a gien level of
+    a cell type taxonomy.
+
+    Parameters
+    ----------
+    cell_set:
+        an instantiation of one of the CellSet classes defined in
+        cell_type_constellations.cells.cell_set.py
+        representing a set of cells
+    taxonomy_filter:
+        an instantiation of the TaxonomyFilter class defined in
+        cell_type_constellations.cells.taxonomy_filter
+        representing a cell type taxonomy
+    level:
+        a str. The level of the cell type taxonomy at which we are
+        caclulating the mixture matrix
+    k_nn:
+        an int. The number of nearest neighbors to find for each cell
+    tmp_dir:
+        path to a directory where scratch files may be written
+    n_processors:
+        the number of independent worker processes to spin up at a time
+
+    Returns
+    -------
+    a (n_taxon, n_taxon) array of ints. n_taxon is the number of cell
+    types at the level of the taxonomy specified by level.
+
+    mixture_matrix[ii, jj] will be the total number of nearest
+    neighbors of cells in taxon[ii] that point to cells in taxon[jj].
+    """
 
     cell_set.create_neighbor_cache(
         k_nn=k_nn+1,
@@ -114,6 +144,37 @@ def get_neighbor_linkage(
         src_level,
         src_node,
         k_nn=15):
+    """
+    For a given node in a cell type taxonomy, find the number of
+    nearest neighbors of cells in that node that point to other
+    nodes in the cell type taxonomy
+
+    Parameters
+    ----------
+    cell_set:
+        an instantiation of one of the CellSet classes defined in
+        cell_type_constellations.cells.cell_set.py
+        representing a set of cells
+    taxonomy_filter:
+        an instantiation of the TaxonomyFilter class defined in
+        cell_type_constellations.cells.taxonomy_filter
+        representing a cell type taxonomy
+    src_level:
+        a str. The level in the cell type taxonomy for whose cells
+        we are finding nearest neighbors.
+    src_node:
+        a str. The specific node at this level  of the taxonomy
+        for whose cells we are finding nearest neighbors
+    k_nn:
+        an int. The number of nearest neighbors to find for each cell.
+
+    Returns
+    -------
+    A (n_taxon,) array of ints. n_taxon is the number of cell type taxons
+    at src_level of the taxonomy. result[ii] is the number of nearest
+    neighbors for cells in src_node that pointed to the node corresponding
+    to index ii.
+    """
 
     mask = taxonomy_filter.filter_cells(
         alias_array=cell_set.cluster_aliases,
