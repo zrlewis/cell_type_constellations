@@ -41,7 +41,6 @@ def do_intersect(segment0, segment1):
 
 
 def _do_intersect_general(segment0, segment1):
-    eps = 1.0e-6
     vec0 = segment0[1]-segment0[0]
     o1 = cross_product_2d(vec0, segment1[0]-segment0[1])
     o2 = cross_product_2d(vec0, segment1[1]-segment0[1])
@@ -88,7 +87,7 @@ def _are_colinear(segment0, segment1):
             n1 = 1.0
         v0 = v0/n0
         v1 = v1/n1
-        if np.abs(np.dot(v0, v1))<(1.0-eps):
+        if np.abs(np.dot(v0, v1)) < (1.0-eps):
             return False
     return True
 
@@ -110,7 +109,7 @@ def _do_overlap(x0, x1, y0, y1):
 
     if y0 >= x0 and y0 <= x1:
         return True
-    if y1 >=x0 and y1 <= x1:
+    if y1 >= x0 and y1 <= x1:
         return True
     if x0 >= y0 and x0 <= y1:
         return True
@@ -130,7 +129,6 @@ def find_intersection_pt(segment0, segment1):
         return None
     if not _do_intersect_general(segment0, segment1):
         return None
-
 
     v0 = segment0[1]-segment0[0]
 

@@ -2,8 +2,6 @@ import copy
 import h5py
 import multiprocessing
 import numpy as np
-import pathlib
-from scipy.spatial import ConvexHull
 import tempfile
 import time
 
@@ -12,9 +10,6 @@ from cell_type_constellations.utils.data import (
     mkstemp_clean
 )
 
-from cell_type_constellations.svg.fov import (
-    ConstellationPlot
-)
 from cell_type_constellations.svg.centroid import (
     Centroid
 )
@@ -24,7 +19,6 @@ from cell_type_constellations.svg.connection import (
 from cell_type_constellations.svg.hull import (
     BareHull,
     CompoundBareHull,
-    merge_bare_hulls,
     create_compound_bare_hull
 )
 from cell_type_constellations.svg.hull_utils import (
@@ -33,170 +27,12 @@ from cell_type_constellations.svg.hull_utils import (
     merge_hulls_from_leaf_list
 )
 from cell_type_constellations.cells.utils import (
-    choose_connections,
-    get_hull_points
-)
-from cell_type_constellations.utils.geometry import (
-    pairwise_distance_sq
-)
-
-from cell_type_constellations.svg.rendering_utils import (
-    render_fov_from_hdf5
+    choose_connections
 )
 
 from cell_type_constellations.utils.multiprocessing_utils import (
     winnow_process_list
 )
-
-
-def render_connection_svg(
-        dst_path,
-        constellation_cache,
-        taxonomy_level,
-        color_by_level,
-        height=800,
-        width=800,
-        max_radius=20,
-        min_radius=5):
-
-
-    max_cluster_cells = constellation_cache.n_cells_lookup[
-        constellation_cache.taxonomy_tree.leaf_level].max()
-
-    plot_obj = ConstellationPlot(
-        height=height,
-        width=width,
-        max_radius=max_radius,
-        min_radius=min_radius,
-        max_n_cells=max_cluster_cells)
-
-    (plot_obj,
-     centroid_list) = _load_centroids(
-         constellation_cache=constellation_cache,
-         plot_obj=plot_obj,
-         taxonomy_level=taxonomy_level,
-         color_by_level=color_by_level)
-
-    plot_obj = _load_connections(
-                constellation_cache=constellation_cache,
-                centroid_list=centroid_list,
-                taxonomy_level=taxonomy_level,
-                plot_obj=plot_obj)
-
-    with open(dst_path, 'w') as dst:
-        dst.write(plot_obj.render())
-
-
-def render_hull_svg(
-        dst_path,
-        constellation_cache,
-        centroid_level,
-        hull_level,
-        height=800,
-        width=800,
-        max_radius=20,
-        min_radius=5,
-        n_limit=None,
-        plot_connections=False,
-        verbose=False):
-
-    max_cluster_cells = constellation_cache.n_cells_lookup[
-        constellation_cache.taxonomy_tree.leaf_level].max()
-
-    plot_obj = ConstellationPlot(
-        height=height,
-        width=width,
-        max_radius=max_radius,
-        min_radius=min_radius,
-        max_n_cells=max_cluster_cells)
-
-    (plot_obj,
-     centroid_list) = _load_centroids(
-         constellation_cache=constellation_cache,
-         plot_obj=plot_obj,
-         taxonomy_level=centroid_level,
-         color_by_level=hull_level)
-
-    plot_obj = _load_hulls(
-        constellation_cache=constellation_cache,
-        plot_obj=plot_obj,
-        taxonomy_level=hull_level,
-        n_limit=n_limit,
-        verbose=verbose
-    )
-
-    if plot_connections:
-        plot_obj = _load_connections(
-                constellation_cache=constellation_cache,
-                centroid_list=centroid_list,
-                taxonomy_level=centroid_level,
-                plot_obj=plot_obj)
-
-    hdf5_path = pathlib.Path('hdf5_dummy.h5')
-    if hdf5_path.exists():
-        hdf5_path.unlink()
-    plot_obj.serialize_fov(hdf5_path=hdf5_path)
-
-    with open(dst_path, 'w') as dst:
-        dst.write(
-            render_fov_from_hdf5(
-                hdf5_path=hdf5_path,
-                centroid_level=centroid_level,
-                hull_level=hull_level,
-                base_url=plot_obj.base_url
-            )
-        )
-
-
-def render_neighborhood_svg(
-        dst_path,
-        constellation_cache,
-        centroid_level,
-        neighborhood_assignments,
-        neighborhood_colors,
-        height=800,
-        width=800,
-        max_radius=20,
-        min_radius=5,
-        n_limit=None,
-        plot_connections=False):
-
-    max_cluster_cells = constellation_cache.n_cells_lookup[
-        constellation_cache.taxonomy_tree.leaf_level].max()
-
-    plot_obj = ConstellationPlot(
-        height=height,
-        width=width,
-        max_radius=max_radius,
-        min_radius=min_radius,
-        max_n_cells=max_cluster_cells)
-
-    (plot_obj,
-     centroid_list) = _load_centroids(
-         constellation_cache=constellation_cache,
-         plot_obj=plot_obj,
-         taxonomy_level=centroid_level,
-         color_by_level='CCN20230722_CLAS')
-
-    plot_obj = _load_neighborhood_hulls(
-        constellation_cache=constellation_cache,
-        plot_obj=plot_obj,
-        neighborhood_assignments=neighborhood_assignments,
-        neighborhood_colors=neighborhood_colors,
-        n_limit=n_limit
-    )
-
-    if plot_connections:
-        plot_obj = _load_connections(
-                constellation_cache=constellation_cache,
-                centroid_list=centroid_list,
-                taxonomy_level=centroid_level,
-                plot_obj=plot_obj)
-
-    with open(dst_path, 'w') as dst:
-        dst.write(plot_obj.render())
-
-
 
 
 def _load_centroids(
@@ -232,6 +68,16 @@ def _load_centroids(
             label=label,
             name=name,
             level=taxonomy_level)
+
+        stat_lookup = constellation_cache.stats_from_label(
+            level=taxonomy_level,
+            label=label
+        )
+        for stat_key in stat_lookup:
+            this.set_stat(
+                stat_key=stat_key,
+                value_lookup=stat_lookup[stat_key]
+            )
 
         centroid_list.append(this)
 
@@ -305,9 +151,12 @@ def _load_hulls(
         taxonomy_level,
         n_limit=None,
         verbose=False,
-        n_processors=4):
+        n_processors=4,
+        tmp_dir=None):
 
-    label_list = constellation_cache.taxonomy_tree.nodes_at_level(taxonomy_level)
+    label_list = constellation_cache.taxonomy_tree.nodes_at_level(
+        taxonomy_level)
+
     if n_processors == 1:
         hull_list = _get_hull_list(
             constellation_cache=constellation_cache,
@@ -315,7 +164,7 @@ def _load_hulls(
             taxonomy_level=taxonomy_level,
             verbose=verbose)
     else:
-        tmp_dir = tempfile.mkdtemp()
+        tmp_dir = tempfile.mkdtemp(dir=tmp_dir)
         try:
             hull_list = _load_hulls_multiprocessing(
                 constellation_cache=constellation_cache,
@@ -377,8 +226,6 @@ def _load_hulls_multiprocessing(
     process_list = []
     tmp_path_list = []
     for sub_list in sub_list_list:
-        #i1 = min(n_labels, i0+n_per)
-        #sub_list = label_list[i0:i1]
 
         tmp_path = mkstemp_clean(
             dir=tmp_dir,
@@ -428,7 +275,6 @@ def _get_hull_list(
 
     hull_list = []
 
-    n_labels = len(label_list)
     for label in label_list:
 
         hull = _load_single_hull(
@@ -493,7 +339,7 @@ def _read_compound_hull(grp_handle, label):
     for bare_key in grp_handle['bare_hulls'].keys():
         bare_grp = grp_handle['bare_hulls'][bare_key]
         color = None
-        if 'color'in bare_grp.keys():
+        if 'color' in bare_grp.keys():
             color = bare_grp['color'][()].decode('utf-8')
         points = bare_grp['points'][()]
         bare_hull_list.append(
@@ -565,7 +411,6 @@ def _load_single_hull(
             fill=False
         )
 
-    as_leaves = constellation_cache.taxonomy_tree.as_leaves
     if verbose:
         print('merging convex hulls')
 
@@ -632,7 +477,6 @@ def _load_neighborhood_hulls_multiprocessing(
     process_list = []
     tmp_path_list = []
 
-    ct = 0
     for neighborhood in neighborhood_assignments:
         if neighborhood == 'WholeBrain':
             continue

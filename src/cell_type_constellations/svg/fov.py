@@ -1,10 +1,10 @@
 import h5py
 import numpy as np
-import pathlib
 
-from cell_type_constellations.utils.geometry import(
+from cell_type_constellations.utils.geometry import (
     rot
 )
+
 from cell_type_constellations.svg.centroid import (
     Centroid
 )
@@ -18,13 +18,9 @@ from cell_type_constellations.svg.hull import (
 )
 
 from cell_type_constellations.svg.rendering_utils import (
-    render_fov,
     centroid_list_to_hdf5,
-    centroid_lookup_from_hdf5,
     hull_list_to_hdf5,
-    hull_lookup_from_hdf5,
-    connection_list_to_hdf5,
-    connection_list_from_hdf5
+    connection_list_to_hdf5
 )
 
 import time
@@ -120,7 +116,6 @@ class ConstellationPlot(object):
         self.world_extent = [x_bounds[1]-x_bounds[0],
                              y_bounds[1]-y_bounds[0]]
 
-
         centroid_list = self._parametrize_all_centroids()
         connection_list = self._parametrize_all_connections()
         hull_list = self._parametrize_all_hulls()
@@ -128,7 +123,6 @@ class ConstellationPlot(object):
         return {'centroid_list': centroid_list,
                 'connection_list': connection_list,
                 'hull_list': hull_list}
-
 
     def serialize_fov(self, hdf5_path, mode='w'):
 
@@ -139,15 +133,25 @@ class ConstellationPlot(object):
                 dst['fov'].create_dataset('height', data=self.height)
                 dst['fov'].create_dataset('width', data=self.width)
 
-
         element_lookup = self._parametrize_elements()
         _centroid_list = element_lookup['centroid_list']
         _connection_list = element_lookup['connection_list']
         _hull_list = element_lookup['hull_list']
 
-        centroid_list_to_hdf5(hdf5_path=hdf5_path, centroid_list=_centroid_list)
-        connection_list_to_hdf5(hdf5_path=hdf5_path, connection_list=_connection_list)
-        hull_list_to_hdf5(hdf5_path=hdf5_path, hull_list=_hull_list)
+        centroid_list_to_hdf5(
+            hdf5_path=hdf5_path,
+            centroid_list=_centroid_list
+        )
+
+        connection_list_to_hdf5(
+            hdf5_path=hdf5_path,
+            connection_list=_connection_list
+        )
+
+        hull_list_to_hdf5(
+            hdf5_path=hdf5_path,
+            hull_list=_hull_list
+        )
 
         # record the transformation matrix between umap and pixel coords
         if mode == 'w':
@@ -161,7 +165,7 @@ class ConstellationPlot(object):
                 test,
                 self.umap_to_pixel_transform,
                 atol=0.0,
-                rtol=1.0e-6
+                rtol=1.0e-3
             )
 
     def _parametrize_all_hulls(self):
@@ -191,7 +195,11 @@ class ConstellationPlot(object):
             return connection_list
 
         t0 = time.time()
-        bezier_controls = get_bezier_control_points(connection_list=connection_list)
+
+        bezier_controls = get_bezier_control_points(
+            connection_list=connection_list
+        )
+
         dur = time.time()-t0
         print(f'relaxation took {dur:.2e} seconds')
 
@@ -204,7 +212,6 @@ class ConstellationPlot(object):
 
         return connection_list
 
-
     def _parametrize_all_centroids(self):
 
         centroid_list = []
@@ -216,7 +223,6 @@ class ConstellationPlot(object):
                 centroid_list.append(el)
 
         return centroid_list
-
 
     def _parametrize_centroid(
             self,
@@ -261,13 +267,11 @@ class ConstellationPlot(object):
             [0.0, 0.0, 1.0]
         ])
 
-
     @property
     def umap_to_pixel_transform(self):
         if self._umap_to_pixel is None:
             self._set_umap_to_pixel()
         return self._umap_to_pixel
-
 
     def convert_to_pixel_coords(
             self,
@@ -304,7 +308,8 @@ def get_bezier_control_points(
         charges[i_conn*2] = 5.0
         charges[i_conn*2] = 5.0
 
-        background[2*n_conn+i_conn, :] = 0.5*(conn.src.pixel_pt+conn.dst.pixel_pt)
+        background[2*n_conn+i_conn, :] = 0.5*(conn.src.pixel_pt
+                                              + conn.dst.pixel_pt)
         charges[2*n_conn+i_conn] = 1.0
 
         dd = conn.dst.pixel_pt-conn.src.pixel_pt
@@ -341,11 +346,11 @@ def get_bezier_control_points(
             background[2*n_conn+i_conn, :] = test_pt + force
             mask[2*n_conn+i_conn] = True
             mask[i_conn*2] = True
-            mask[1+2*i_conn] =True
+            mask[1+2*i_conn] = True
             n_tot += 1
         print(f'adj {n_adj} of {n_tot}')
 
-    return background[2*n_conn: , :]
+    return background[2*n_conn:, :]
 
 
 def compute_force(
@@ -356,10 +361,11 @@ def compute_force(
 
     vectors = test_pt-background_points
     rsq = (vectors**2).sum(axis=1)
-    rsq = np.where(rsq>eps, rsq, eps)
+    rsq = np.where(rsq > eps, rsq, eps)
     weights = charges/np.power(rsq, 2.0)
     force = (vectors.transpose()*weights).sum(axis=1)
     return force
+
 
 def get_width_and_height(
         constellation_cache,

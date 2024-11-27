@@ -102,7 +102,7 @@ def main():
     write_out_svg_cache(
         src_path=src_path,
         dst_path=dst_path,
-        fov_factor=args.fov_factor,
+        fov_height=args.fov_factor,
         clobber=args.clobber,
         taxonomy_name=args.taxonomy_name,
         neighborhood_color_path=args.neighborhood_colors,
@@ -112,11 +112,49 @@ def main():
 def write_out_svg_cache(
         src_path,
         dst_path,
-        fov_factor,
+        fov_height,
         taxonomy_name,
         neighborhood_color_path=None,
         group_membership_path=None,
-        clobber=False):
+        clobber=False,
+        tmp_dir=None):
+    """
+    Create an HDF5 file with all of the data needed our our visualization
+    app to render the various configurations of a constellation plot
+    associated with a cell type taxonomy.
+
+    Parameters
+    ----------
+    src_path:
+        path to the HDF5 file containing the constellation data cache
+        (i.e. the file backing ConstellationCache_HDF5 as defined in
+        cell_type_constellations.cells.data_cache.py)
+    dst_path:
+        path to the HDF5 file to be written
+    fov_height:
+        The height of the field of view in pixels
+    taxonomy_name:
+        A human-readable name attached to this taxonomy.
+    neighborhood_color_path:
+        Optional path to JSON file containing a dict mapping
+        neighborhood labels to colors (this is for the
+        Whole Mouse Brain taxonomy, where neighborhoods exist
+        outside of the cell type taxonomy hierarchy)
+    group_membership_path:
+        Optional path to cluster_group_membership.csv, which
+        associates clusters with neighborhoods (also for
+        Whole Mouse Brain taxonomy)
+    clobber:
+        a boolean. Must be True to overwrite pre-existing file
+        at dst_path
+    tmp_dir:
+        directory where scratch files may be written
+
+    Returns
+    -------
+    None
+        data is written to dst_path
+    """
 
     min_radius = 2
     max_radius = 20
@@ -155,10 +193,8 @@ def write_out_svg_cache(
                     label=node,
                     color_by_level=parent_level
                 )
-            color_lookup[level][node] = this
 
-    #levels_to_serialize = [constellation_cache.taxonomy_tree.hierarchy[0],
-    #                        constellation_cache.taxonomy_tree.hierarchy[-1]]
+            color_lookup[level][node] = this
 
     levels_to_serialize = constellation_cache.taxonomy_tree.hierarchy
 
@@ -168,10 +204,11 @@ def write_out_svg_cache(
             'constellation_cache': constellation_cache,
             'dst_path': dst_path,
             'level': level,
-            'fov_factor': fov_factor,
+            'fov_height': fov_height,
             'max_radius': max_radius,
             'min_radius': min_radius,
-            'lock': DummyLock()
+            'lock': DummyLock(),
+            'tmp_dir': tmp_dir
         }
         _write_svg_cache_worker(**config)
 
@@ -181,7 +218,7 @@ def write_out_svg_cache(
             dst_path=dst_path,
             max_radius=max_radius,
             min_radius=min_radius,
-            fov_factor=fov_factor,
+            fov_height=fov_height,
             neighborhood_color_path=neighborhood_color_path,
             group_membership_path=group_membership_path,
             lock=DummyLock())
@@ -193,14 +230,15 @@ def write_out_svg_cache(
         )
         dst.create_dataset(
             'taxonomy_tree',
-            data=constellation_cache.taxonomy_tree.to_str(drop_cells=True).encode('utf-8')
+            data=constellation_cache.taxonomy_tree.to_str(
+                drop_cells=True).encode('utf-8')
         )
         dst.create_dataset(
             'taxonomy_name',
             data=taxonomy_name.encode('utf-8')
         )
 
-    print(f'======SUCCESS=======')
+    print('======SUCCESS=======')
     print(f'that took {(time.time()-t0)/60.0:.2e} minutes')
 
 
@@ -208,11 +246,11 @@ def _write_svg_cache_worker(
         constellation_cache,
         dst_path,
         level,
-        fov_factor,
+        fov_height,
         max_radius,
         min_radius,
-        lock
-    ):
+        lock,
+        tmp_dir):
     t0 = time.time()
 
     # each level gets its own plot object so that, when finding
@@ -220,7 +258,7 @@ def _write_svg_cache_worker(
     # centroids not at that level
 
     plot_obj = ConstellationPlot(
-            fov_factor=fov_factor,
+            fov_factor=fov_height,
             constellation_cache=constellation_cache,
             max_radius=max_radius,
             min_radius=min_radius)
@@ -230,7 +268,8 @@ def _write_svg_cache_worker(
             plot_obj=plot_obj,
             taxonomy_level=level,
             n_limit=None,
-            verbose=False
+            verbose=False,
+            tmp_dir=tmp_dir
         )
 
     hull_level = constellation_cache.taxonomy_tree.hierarchy[0]
@@ -264,11 +303,10 @@ def _write_neighborhoods_to_svg_cache(
         dst_path,
         max_radius,
         min_radius,
-        fov_factor,
+        fov_height,
         neighborhood_color_path,
         group_membership_path,
-        lock
-    ):
+        lock):
 
     print('=======SERIALIZING NEIGHBORHOODS=======')
     t0 = time.time()
@@ -299,7 +337,7 @@ def _write_neighborhoods_to_svg_cache(
     # centroids not at that level
 
     plot_obj = ConstellationPlot(
-            fov_factor=fov_factor,
+            fov_factor=fov_height,
             constellation_cache=constellation_cache,
             max_radius=max_radius,
             min_radius=min_radius)

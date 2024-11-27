@@ -1,14 +1,9 @@
 import h5py
 import numpy as np
-import os
 from scipy.spatial import ConvexHull
-
-import json
 
 from cell_type_constellations.utils.geometry import (
     rot,
-    cross_product_2d_bulk,
-    do_intersect,
     find_intersection_pt
 )
 
@@ -45,7 +40,6 @@ class BareHull(object):
             for idx in convex_hull.vertices
         ])
         return cls(points=points, color=color)
-
 
     @property
     def x_values(self):
@@ -131,8 +125,7 @@ class CompoundBareHull(object):
         self.name = name
         self.bare_hull_list = bare_hull_list
         self.n_cells = n_cells
-        self.fill=fill
-
+        self.fill = fill
 
     @property
     def x_values(self):
@@ -171,17 +164,20 @@ class CompoundBareHull(object):
             name=params['name'],
             n_cells=params['n_cells'],
             fill=params['fill'],
-            bare_hull_list=[BareHull.from_dict(h) for h in params['bare_hull_list']]
+            bare_hull_list=[
+                BareHull.from_dict(h) for h in params['bare_hull_list']
+            ]
         )
         return result
-
 
     def to_hdf5(self, hdf5_path, level):
         this_key = f'hulls/{level}/{self.label}'
         color_list = np.array([
             h.color.encode('utf-8')
             for h in self.bare_hull_list])
-        n_path_points = np.array([h.path_points.shape[0] for h in self.bare_hull_list])
+        n_path_points = np.array(
+            [h.path_points.shape[0] for h in self.bare_hull_list]
+        )
         path_points = np.vstack([h.path_points for h in self.bare_hull_list])
         with h5py.File(hdf5_path, 'a') as dst:
             if this_key in dst.keys():
@@ -271,7 +267,6 @@ def _path_points_from_hull(hull):
     vertices = hull.vertices
     pts = hull.points
 
-    path_code = f'<path d="M {pts[vertices[0], 0]} {pts[vertices[0], 1]} '
     for i_src in range(len(vertices)):
         i_dst = i_src + 1
         if i_dst >= len(vertices):
@@ -325,7 +320,6 @@ def _get_ctrl_point(pre, center, post):
         orth *= -1.0
 
     return center + factor*post_norm*orth
-
 
 
 def merge_bare_hulls(
@@ -417,10 +411,10 @@ def merge_bare_hulls(
                 intersection_idx_list = intersection_idx_list[sorted_dex]
                 for dst_idx in intersection_idx_list:
                     dst_idx = int(dst_idx)
-                    #print(json.dumps(new_hull, indent=2))
-                    #print(src_idx, dst_idx, hull_offset, i_hull)
+
                     assert src_idx not in new_hull
                     assert dst_idx not in dst_set
+
                     new_hull[src_idx] = dst_idx
                     dst_set.add(dst_idx)
                     src_idx = dst_idx
@@ -457,8 +451,8 @@ def merge_bare_hulls(
             break
         final_points.append(next_pt)
         final_set.add(next_pt)
-        if next_pt in new_bare_hulls[(current_hull+1)%2]:
-            current_hull = ((current_hull+1)%2)
+        if next_pt in new_bare_hulls[(current_hull+1) % 2]:
+            current_hull = ((current_hull+1) % 2)
 
     return [
         BareHull(
@@ -552,7 +546,6 @@ def _are_bare_hulls_identical(b0, b1):
             return False
         points1.pop(i_found)
     return True
-
 
 
 def _are_segments_identical(seg0, seg1):

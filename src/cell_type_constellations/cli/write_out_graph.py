@@ -1,6 +1,5 @@
 import argparse
 
-import numpy as np
 import pandas as pd
 import pathlib
 
@@ -125,7 +124,7 @@ def write_out_nodes(
             data.append(datum)
     pd.DataFrame(data).to_csv(dst_path, index=False)
     print(f'====wrote {dst_path}====')
-    
+
 
 def write_out_edges(
         dst_path,

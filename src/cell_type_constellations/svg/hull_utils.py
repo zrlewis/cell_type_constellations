@@ -1,4 +1,3 @@
-import copy
 import numpy as np
 import scipy.spatial
 import time
@@ -14,7 +13,6 @@ from cell_type_constellations.utils.geometry import (
 )
 
 from cell_type_constellations.cells.utils import (
-    choose_connections,
     get_hull_points
 )
 
@@ -25,8 +23,7 @@ def find_smooth_hull_for_clusters(
         taxonomy_level='CCN20230722_CLUS',
         valid_fraction=0.51,
         max_iterations=100,
-        verbose=False
-    ):
+        verbose=False):
     """
     For finding minimal hull(s) containing mostly cells in a given cluster.
 
@@ -66,8 +63,7 @@ def _find_smooth_hull_for_clusters(
         taxonomy_level='CCN20230722_CLUS',
         valid_fraction=0.51,
         max_iterations=100,
-        verbose=False
-    ):
+        verbose=False):
 
     if verbose:
         print(f'    loading {taxonomy_level}::{label}')
@@ -96,31 +92,6 @@ def _find_smooth_hull_for_clusters(
     test_pts = data['test_pts']
     test_pt_validity = data['test_pt_validity']
 
-    #print(f'all pixellized valid_pts {valid_pts.shape}')
-
-    mask = np.logical_and(
-        valid_pts[:, 1] < 35.0,
-        np.logical_and(
-            valid_pts[:, 1] > 30.0,
-            np.logical_and(
-                valid_pts[:, 0] < 76.0,
-                valid_pts[:, 0] > 70.0
-            )
-        )
-    )
-    #print(f'in window {mask.sum()}')
-    mask = np.logical_and(
-        test_pts[:, 1] < 35.0,
-        np.logical_and(
-            test_pts[:, 1] > 30.0,
-            np.logical_and(
-                test_pts[:, 0] < 76.0,
-                test_pts[:, 0] > 70.0
-            )
-        )
-    )
-    #print(f'test_pts in window {mask.sum()}')
-
     kd_tree = cKDTree(test_pts)
     valid_pt_neighbor_array = kd_tree.query(
             x=valid_pts,
@@ -128,11 +99,8 @@ def _find_smooth_hull_for_clusters(
     del kd_tree
 
     final_hull = None
-    eps = 0.001
     n_iter = 0
 
-    true_pos_0 = 0
-    false_pos_0 = 0
     f1_score_0 = 0
     test_hull = None
     hull_best = None
@@ -144,7 +112,7 @@ def _find_smooth_hull_for_clusters(
 
         try:
             test_hull = ConvexHull(valid_pts)
-        except:
+        except Exception:
             return hull_best
 
         if in_hull is None:
@@ -182,15 +150,13 @@ def _find_smooth_hull_for_clusters(
         n_iter += 1
 
         if verbose:
-            print(f'n_iter {n_iter} n_decrease {n_decrease} pts {test_hull.points.shape} -- '
+            print(f'n_iter {n_iter} n_decrease {n_decrease} '
+                  f'pts {test_hull.points.shape} -- '
                   f'{f1_score_0} -> {f1_score}')
 
         if n_decrease >= 5:
             return hull_best
 
-
-        true_pos_0 = true_pos
-        false_pos_0 = false_pos
         f1_score_0 = f1_score
 
         valid_flat = valid_pt_neighbor_array.flatten()
@@ -204,7 +170,7 @@ def _find_smooth_hull_for_clusters(
         score = score.sum(axis=1)
         worst_value = np.min(score)
         to_keep = np.ones(valid_pts.shape[0], dtype=bool)
-        to_keep[score==worst_value] = False
+        to_keep[score == worst_value] = False
         valid_pts = valid_pts[to_keep, :]
         valid_pt_neighbor_array = valid_pt_neighbor_array[to_keep, :]
 
@@ -238,19 +204,6 @@ def get_pixellized_test_pts_from_alias_list(
         alias_list=alias_list)
 
     valid_pts = data['valid_pts']
-    #print(f'all valid_pts {valid_pts.shape}')
-
-    mask = np.logical_and(
-        valid_pts[:, 1] < 35.0,
-        np.logical_and(
-            valid_pts[:, 1] > 30.0,
-            np.logical_and(
-                valid_pts[:, 0] < 76.0,
-                valid_pts[:, 0] > 70.0
-            )
-        )
-    )
-    #print(f'in window {mask.sum()}')
 
     raw_test_pts = data['test_pts']
     raw_test_pt_validity = data['test_pt_validity']
@@ -263,17 +216,18 @@ def get_pixellized_test_pts_from_alias_list(
     dd_res = 100000.0
     resx = dd_res
     resy = dd_res
-    if valid_pts.shape[0] < 1000:
-        dd = np.sqrt(pairwise_distance_sq(valid_pts))
-        dd_max = dd.max()
-        idx_arr = np.arange(valid_pts.shape[0], dtype=int)
-        dd[idx_arr, idx_arr] = dd_max
-        dd_min = dd.min(axis=1)
-        assert dd_min.shape == (valid_pts.shape[0], )
-        del dd
-        dd_res = max(min_res, np.median(dd_min))
-    else:
-        dd_res = 1000.0
+    with np.errstate(invalid='ignore'):
+        if valid_pts.shape[0] < 1000:
+            dd = np.sqrt(pairwise_distance_sq(valid_pts))
+            dd_max = dd.max()
+            idx_arr = np.arange(valid_pts.shape[0], dtype=int)
+            dd[idx_arr, idx_arr] = dd_max
+            dd_min = dd.min(axis=1)
+            assert dd_min.shape == (valid_pts.shape[0], )
+            del dd
+            dd_res = max(min_res, np.median(dd_min))
+        else:
+            dd_res = 1000.0
 
     resx = max(min_res, (xmax-xmin)/100.0)
     resy = max(min_res, (ymax-ymin)/100.0)
@@ -373,7 +327,6 @@ def merge_hulls_from_leaf_list(
     if len(raw_hull_list) == 0:
         return []
 
-
     alias_list = [
         int(constellation_cache.taxonomy_tree.label_to_name(
                 level=constellation_cache.taxonomy_tree.leaf_level,
@@ -460,8 +413,8 @@ def merge_hulls_from_leaf_list(
                 return [h['hull'] for h in raw_hull_list]
             else:
                 final_pass = True
-                min_overlap=1.1
-                min_f1=0.99
+                min_overlap = 1.1
+                min_f1 = 0.99
 
         new_hull_list = []
         for ii in range(len(idx_list)):
@@ -571,7 +524,6 @@ def evaluate_merger(
         test_pt_validity
     ).sum()
 
-
     if tp_new == 0:
         return None
 
@@ -600,8 +552,6 @@ def evaluate_merger(
     ).sum()
     f1_old = tp_old/(tp_old+0.5*(fn_old+fp_old))
 
-    delta_f1 = f1_new-f1_old
-
     if f1_new > f1_old and f1_new > min_f1:
         return {'hull': new_hull, 'in': in_new}
 
@@ -624,11 +574,10 @@ def get_test_pts_from_alias_list(
         constellation_cache,
         alias_list):
 
-    alias_set = set(alias_list)
     valid_pt_mask = np.zeros(constellation_cache.cluster_aliases.shape,
                              dtype=bool)
     for alias in alias_list:
-        valid_pt_mask[constellation_cache.cluster_aliases==alias] = True
+        valid_pt_mask[constellation_cache.cluster_aliases == alias] = True
 
     valid_pt_idx = np.where(valid_pt_mask)[0]
     valid_pts = constellation_cache.umap_coords[valid_pt_mask]
@@ -676,7 +625,6 @@ def pts_in_hull(pts, hull):
     "in" the hull
     """
     n_vert = len(hull.vertices)
-    n_pts = pts.shape[0]
 
     sgn_arr = None
     result = np.ones(pts.shape[0], dtype=bool)

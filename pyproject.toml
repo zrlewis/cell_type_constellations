@@ -1,18 +1,21 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "cell_type_constellations"
 version = "0.0.1"
 description = "prototype tools for generating constellation plots"
 dependencies = [
+    "anndata",
+    "cherrypy",
     "h5py",
     "matplotlib",
     "numpy",
     "scipy",
     "pandas",
-    "pytest"
+    "pytest",
+    "cell_type_mapper @ git+https://github.com/AllenInstitute/cell_type_mapper@rc/v1.4.0"
 ]
 requires-python = ">=3.8"
 authors = [

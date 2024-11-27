@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def choose_connections(
         mixture_matrix,
         n_cells,
@@ -21,8 +22,12 @@ def choose_connections(
     Returns
     -------
     valid:
-        A 2-D array of indexes indicatin which connections to keep
+        A 2-D array of indexes indicating which connections to keep
         (the result of np.where(boolean_mask))
+
+        valid[0] will be the array of row indexes of the valid connections
+
+        valid[1] will be the array of column indexes of valid connections
     """
     if mixture_matrix.shape != (n_cells.shape[0], n_cells.shape[0]):
         raise RuntimeError(
@@ -45,10 +50,10 @@ def choose_connections(
                 )
 
     freq_mask = np.logical_or(
-                    normalized>0.02,
+                    normalized > 0.02,
                     np.logical_and(
-                        normalized>0.002,
-                        mixture_matrix>300
+                        normalized > 0.002,
+                        mixture_matrix > 300
                     )
                 )
 
@@ -67,14 +72,16 @@ def get_hull_points(
         parentage_to_alias,
         cluster_aliases,
         cell_to_nn_aliases,
-        umap_coords
-    ):
+        umap_coords):
+
     alias_list = parentage_to_alias[taxonomy_level][label]
+
     return get_hull_points_from_alias_list(
         alias_list=alias_list,
         cluster_aliases=cluster_aliases,
         cell_to_nn_aliases=cell_to_nn_aliases,
         umap_coords=umap_coords)
+
 
 def get_hull_points_from_alias_list(
         alias_list,
@@ -85,7 +92,7 @@ def get_hull_points_from_alias_list(
 
     # which cells are in the desired taxon
     for alias in alias_list:
-        cell_mask[cluster_aliases==alias] = True
+        cell_mask[cluster_aliases == alias] = True
     cell_idx = np.where(cell_mask)[0]
 
     # how many of each cell's nearest neighbors are also in
@@ -95,7 +102,7 @@ def get_hull_points_from_alias_list(
     nn_matrix = nn_matrix.flatten()
     nn_mask = np.zeros(nn_matrix.shape, dtype=bool)
     for alias in alias_list:
-        nn_mask[nn_matrix==alias] = True
+        nn_mask[nn_matrix == alias] = True
     nn_mask = nn_mask.reshape(nn_shape)
     nn_mask = nn_mask.sum(axis=1)
     valid = (nn_mask >= 10)

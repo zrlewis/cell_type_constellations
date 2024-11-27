@@ -22,6 +22,7 @@ class Centroid(object):
         self._level = level
 
         self._pixel_coords = None
+        self._stats = dict()
 
     @property
     def x(self):
@@ -101,6 +102,16 @@ class Centroid(object):
     def relative_url(self):
         return f"display_entity?entity_id={self.label}"
 
+    def set_stat(self, stat_key, value_lookup):
+        self._stats[stat_key] = value_lookup
+
+    @property
+    def stat_keys(self):
+        return list(self._stats.keys())
+
+    def get_stat(self, stat_key):
+        return self._stats[stat_key]
+
     def to_dict(self):
         return {
             "pixel_r": self.pixel_r,
@@ -109,7 +120,8 @@ class Centroid(object):
             "label": self.label,
             "name": self.name,
             "n_cells": self.n_cells,
-            "color": self.color
+            "color": self.color,
+            "stats": self._stats
         }
 
     @classmethod
@@ -127,4 +139,12 @@ class Centroid(object):
             x=params['pixel_x'],
             y=params['pixel_y'],
             radius=params['pixel_r'])
+
+        if 'stats' in params:
+            for stat_key in params['stats']:
+                result.set_stat(
+                    stat_key=stat_key,
+                    value_lookup=params['stats'][stat_key]
+                )
+
         return result
