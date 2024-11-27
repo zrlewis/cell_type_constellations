@@ -24,6 +24,10 @@ def choose_connections(
     valid:
         A 2-D array of indexes indicating which connections to keep
         (the result of np.where(boolean_mask))
+
+        valid[0] will be the array of row indexes of the valid connections
+
+        valid[1] will be the array of column indexes of valid connections
     """
     if mixture_matrix.shape != (n_cells.shape[0], n_cells.shape[0]):
         raise RuntimeError(
