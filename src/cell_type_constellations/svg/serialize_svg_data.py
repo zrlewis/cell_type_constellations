@@ -163,9 +163,6 @@ def write_out_svg_cache(
                 this[k] = alt_colors[k]
             color_lookup[level][node] = this
 
-    #levels_to_serialize = [constellation_cache.taxonomy_tree.hierarchy[0],
-    #                        constellation_cache.taxonomy_tree.hierarchy[-1]]
-
     levels_to_serialize = constellation_cache.taxonomy_tree.hierarchy
 
     for level in levels_to_serialize:
@@ -200,14 +197,15 @@ def write_out_svg_cache(
         )
         dst.create_dataset(
             'taxonomy_tree',
-            data=constellation_cache.taxonomy_tree.to_str(drop_cells=True).encode('utf-8')
+            data=constellation_cache.taxonomy_tree.to_str(
+                drop_cells=True).encode('utf-8')
         )
         dst.create_dataset(
             'taxonomy_name',
             data=taxonomy_name.encode('utf-8')
         )
 
-    print(f'======SUCCESS=======')
+    print('======SUCCESS=======')
     print(f'that took {(time.time()-t0)/60.0:.2e} minutes')
 
 
@@ -219,8 +217,7 @@ def _write_svg_cache_worker(
         max_radius,
         min_radius,
         lock,
-        tmp_dir
-    ):
+        tmp_dir):
     t0 = time.time()
 
     # each level gets its own plot object so that, when finding
@@ -276,8 +273,7 @@ def _write_neighborhoods_to_svg_cache(
         fov_factor,
         neighborhood_color_path,
         group_membership_path,
-        lock
-    ):
+        lock):
 
     print('=======SERIALIZING NEIGHBORHOODS=======')
     t0 = time.time()
