@@ -90,10 +90,7 @@ class Visualizer(object):
             color_by = config['color_by']
             hull_level = config['hull_level']
 
-        if taxonomy_name == 'HMBA_BG':
-            base_url = None
-        else:
-            base_url = ''
+        base_url = None
 
         html = get_constellation_plot_page(
                 hdf5_path=hdf5_path,
