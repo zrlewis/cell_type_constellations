@@ -30,8 +30,7 @@ def render_fov_from_hdf5(
         color_lookup = json.loads(
             src['color_lookup'][()].decode('utf-8'))
         taxonomy_tree = TaxonomyTree(
-                data=json.loads(src['taxonomy_tree'][()].decode('utf-8')
-            )
+                data=json.loads(src['taxonomy_tree'][()].decode('utf-8'))
         )
 
     centroid_lookup = centroid_lookup_from_hdf5(
@@ -57,7 +56,6 @@ def render_fov_from_hdf5(
 
     centroid_list = list(centroid_lookup.values())
     hull_list = list(hull_lookup.values())
-
 
     result = render_fov(
         centroid_list=centroid_list,
@@ -178,12 +176,12 @@ def render_compound_hull(
         url = None
 
     level_name = taxonomy_tree.level_to_name(compound_hull.level)
-    hover_msg = f"{level_name}: {compound_hull.name} -- {compound_hull.n_cells:.2e} cells"
+    hover_msg = f"{level_name}: {compound_hull.name} -- {compound_hull.n_cells:.2e} cells"  # noqa: E501
 
     if url is not None:
         result = f"""    <a href="{url}">\n"""
     else:
-        result = f"""    <a>\n"""
+        result = """    <a>\n"""
 
     for hull in compound_hull.bare_hull_list:
         result += render_path_points(
@@ -211,7 +209,6 @@ def render_path_points(path_points, color='green', fill=False):
         dst = path_points[i0+2, :]
         dst_ctrl = path_points[i0+3, :]
 
-
         if i0 == 0:
             path_code += f'<path d="M {src[0]} {src[1]} '
 
@@ -228,7 +225,7 @@ def render_path_points(path_points, color='green', fill=False):
 
         path_code += update
 
-    path_code += f'" stroke="{color}" fill="{fill_color}" fill-opacity="0.1"/>\n'
+    path_code += f'" stroke="{color}" fill="{fill_color}" fill-opacity="0.1"/>\n'  # noqa: E501
 
     return path_code
 
@@ -257,18 +254,18 @@ def render_connection(this_connection):
 
     result = """    <a>\n"""
     result += "        <path "
-    result +=f"""d="M {pts[0][0]} {pts[0][1]} """
+    result += f"""d="M {pts[0][0]} {pts[0][1]} """
     result += get_bezier_curve(
                 src=pts[0],
                 dst=pts[1],
-                 ctrl=ctrl[0])
+                ctrl=ctrl[0])
     result += f"L {pts[2][0]} {pts[2][1]} "
     result += get_bezier_curve(
                 src=pts[2],
                 dst=pts[3],
                 ctrl=ctrl[1])
     result += f"""L {pts[0][0]} {pts[0][1]}" """
-    result += f"""stroke="transparent" fill="#bbbbbb"/>\n"""
+    result += """stroke="transparent" fill="#bbbbbb"/>\n"""
     result += "        <title>\n"
     result += f"        {title}\n"
     result += "        </title>\n"
@@ -282,7 +279,6 @@ def get_bezier_curve(src, dst, ctrl):
     result = f"Q {ctrl[0]} {ctrl[1]} "
     result += f"{dst[0]} {dst[1]} "
     return result
-
 
 
 def render_centroid_list(
@@ -309,7 +305,9 @@ def render_centroid(
         color_by):
 
     level_name = taxonomy_tree.level_to_name(centroid.level)
-    hover_msg = f"{level_name}: {centroid.name} -- {centroid.n_cells:.2e} cells"
+    hover_msg = (
+        f"{level_name}: {centroid.name} -- {centroid.n_cells:.2e} cells"
+    )
     if color_by in taxonomy_tree.hierarchy:
         if color_by != centroid.level:
             parents = taxonomy_tree.parents(
@@ -331,10 +329,10 @@ def render_centroid(
     if base_url is not None:
         result = f"""    <a href="{base_url}/{centroid.relative_url}">\n"""
     else:
-        result = f"""    <a>\n"""
+        result = """    <a>\n"""
 
     result += (
-        f"""        <circle r="{centroid.pixel_r}px" cx="{centroid.pixel_x}px" cy="{centroid.pixel_y}px" """
+        f"""        <circle r="{centroid.pixel_r}px" cx="{centroid.pixel_x}px" cy="{centroid.pixel_y}px" """  # noqa: E501
         f"""fill="{centroid.color}" stroke="transparent"/>\n"""
     )
     result += """        <title>\n"""
@@ -376,7 +374,7 @@ def centroid_list_to_hdf5_single_level(
     pixel_y = np.array([
         c.pixel_y for c in centroid_list
     ])
-    label_arr =np.array([
+    label_arr = np.array([
         c.label.encode('utf-8') for c in centroid_list
     ])
     name_arr = np.array([
@@ -389,8 +387,8 @@ def centroid_list_to_hdf5_single_level(
         c.color.encode('utf-8') for c in centroid_list
     ])
 
-
     stats_lookup = dict()
+
     for stat_key in centroid_list[0].stat_keys:
         stats_lookup[stat_key] = dict()
         this = centroid_list[0].get_stat(stat_key)
@@ -439,14 +437,23 @@ def centroid_lookup_from_hdf5(
     data_lookup = dict()
     stats_lookup = dict()
     with h5py.File(hdf5_path, 'r', swmr=True) as src:
-        for k in ('pixel_r', 'pixel_x', 'pixel_y', 'label', 'name', 'n_cells', 'color'):
+        for k in ('pixel_r',
+                  'pixel_x',
+                  'pixel_y',
+                  'label',
+                  'name',
+                  'n_cells',
+                  'color'):
+
             data_lookup[k] = src[this_key][k][()]
+
         if 'stats' in src[this_key].keys():
             stats_grp = src[this_key]['stats']
             for stat_key in stats_grp.keys():
                 stats_lookup[stat_key] = dict()
                 for sub_key in stats_grp[stat_key]:
-                    stats_lookup[stat_key][sub_key] = stats_grp[stat_key][sub_key][()]
+                    stats_lookup[stat_key][sub_key] = stats_grp[
+                                                        stat_key][sub_key][()]
 
     calculate_colors = False
     param_list = []
@@ -598,6 +605,7 @@ def connection_list_to_hdf5_single_level(
             compression='lzf'
         )
 
+
 def connection_list_from_hdf5(
         hdf5_path,
         level,
@@ -638,10 +646,12 @@ def connection_list_from_hdf5(
         n_corners = data_lookup['n_rendering_corners'][idx]
         n_bez = data_lookup['n_bezier_points'][idx]
 
-        rendering_corners = data_lookup['rendering_corners'][corner0:corner0+n_corners, :]
+        rendering_corners = data_lookup[
+            'rendering_corners'][corner0:corner0+n_corners, :]
         corner0 += n_corners
 
-        bezier_points = data_lookup['bezier_control_points'][bez0:bez0+n_bez, :]
+        bezier_points = data_lookup[
+            'bezier_control_points'][bez0:bez0+n_bez, :]
         bez0 += n_bez
 
         params = {
@@ -722,11 +732,12 @@ def get_colorbar_svg(
     </text>
     """
 
-    for i_rect, (v, c) in enumerate(zip(value_list[-1::-1], color_list[-1::-1])):
+    for i_rect, (v, c) in enumerate(zip(value_list[-1::-1],
+                                        color_list[-1::-1])):
         color_hex = matplotlib.colors.rgb2hex(c)
-        this = f"""
-        <a>
-        <rect x="{x0}px" y="{y0+i_rect*height}px" height="{height}px" width="{width}px" fill="{color_hex}"/>
+        this = "<a>"
+        this += f"""<rect x="{x0}px" y="{y0+i_rect*height}px" height="{height}px" width="{width}px" fill="{color_hex}"/>"""  # noqa: E501
+        this += f"""
         <title>
         {v:.2f}
         </title>
@@ -737,9 +748,7 @@ def get_colorbar_svg(
     idx_to_tag = (0, n_steps//4, n_steps//2, 3*n_steps//4, n_steps-1)
 
     for i_tag, val_tag in zip(idx_to_tag[-1::-1], idx_to_tag):
-        this = f"""
-        <text x="{x0+11*width//10}px" y="{y0+i_tag*height+height//2}px" font-size="{fontsize}">{value_list[val_tag]:.2e}</text>
-         """
+        this = f"""<text x="{x0+11*width//10}px" y="{y0+i_tag*height+height//2}px" font-size="{fontsize}">{value_list[val_tag]:.2e}</text>"""  # noqa: E501
         html += this
 
     return html
