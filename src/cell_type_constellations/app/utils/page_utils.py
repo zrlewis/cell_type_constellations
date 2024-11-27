@@ -217,10 +217,9 @@ def get_constellation_plot_config(
                 'path': file_path,
                 'centroid_level': tree.hierarchy[-2],
                 'color_by': tree.hierarchy[0],
-                'hull_level': tree.hierarchy[0]
+                'hull_level': None
             }
-            if 'HY-EA' in taxonomy_name:
-                this['hull_level'] = None
+
             result[taxonomy_name] = this
     return result
 
