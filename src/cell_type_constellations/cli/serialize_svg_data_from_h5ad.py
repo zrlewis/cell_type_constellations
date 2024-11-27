@@ -187,7 +187,7 @@ def svg_worker(
     write_out_svg_cache(
         src_path=data_cache_path,
         dst_path=dst_path,
-        fov_factor=fov_height,
+        fov_height=fov_height,
         clobber=clobber,
         taxonomy_name=taxonomy_name,
         tmp_dir=tmp_dir,
