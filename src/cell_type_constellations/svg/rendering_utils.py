@@ -325,9 +325,6 @@ def render_centroid(
         mu = stats['mean']
         std = np.sqrt(stats['variance'])
         hover_msg += f"\n        {color_by}: {mu:.2e} +/- {std:.2e}"
-        mx = stats['max']
-        mn = stats['min']
-        hover_msg += f" [{mn:.2e}, {mx:.2e}]"
 
     if base_url is not None:
         result = f"""    <a href="{base_url}/{centroid.relative_url}">\n"""
