@@ -21,6 +21,38 @@ def render_fov_from_hdf5(
         base_url,
         color_by,
         fill_hulls=False):
+    """
+    Create and return the SVG code for a single configuration of
+    a constellation plot.
+
+    Parametrs
+    ---------
+    hd5_path:
+        The path to the SVG cache HDF5 file created by
+        cell_type_constellations.svg.serialize_svg_data.write_out_svg_cache
+    centroid_level:
+        a str. The level of the cell type taxonomy at which to visualize
+        the nodes and connections in the constellation plot
+    hull_level:
+        a str. The level of the cell type taxonomy at which to visualize
+        contours in the constellation plot (if None, do not visualize
+        contours)
+    base_url:
+        a str. The base URL of the knowledge graph to which nodes in the
+        constellation plot will link (if None, clicking on a node will
+        link to nowhere)
+    color_by:
+        a str. The level or aggregate stat by which to color the nodes
+        in the constellation plot
+    fill_hulls:
+        if True (and there are contours being visualized in the constellation
+        plot), fill in the contours
+
+    Returns
+    -------
+    A string containing the SVG code for the constellation plot
+    visualization. Suitable for viewing in a web browser.
+    """
 
     mpl_color_map = matplotlib.colormaps['cool']
 
