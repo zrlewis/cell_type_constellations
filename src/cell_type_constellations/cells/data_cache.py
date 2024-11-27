@@ -420,7 +420,7 @@ class ConstellationCache_HDF5(object):
 
 # utility functions ##########
 
-def create_constellation_cache(
+def create_constellation_cache_from_csv(
         cell_metadata_path,
         cluster_annotation_path,
         cluster_membership_path,
@@ -429,6 +429,43 @@ def create_constellation_cache(
         dst_path,
         tmp_dir=None,
         prune_taxonomy=False):
+    """
+    Create a constellation cache HDF5 file from CSVs specifying
+    the cell type taxonomy and cell-to-taxon relationships.
+
+    The parameter definitions below will refer to a set of .csv
+    files. These are the files specified by the ABC Atlas data release
+    data model (i.e. the files accesed vi abc_atlas_access)
+
+    Parameters
+    ----------
+    cell_metadata_path:
+        path to the cell_metadata.csv file
+    cluster_annotation_path:
+        path to the cluster_annotation_term.csv file
+    cluster_membership_path:
+        path to the cluster_to_cluster_annotation_membership.csv file
+    hierarchy:
+        list of strings. The levels of the taxonomy from
+        most gross to most fine
+    k_nn:
+        an int. The number of nearest neighbors to use when calculating
+        connection strength in the contellation plot
+    dst_path:
+        path to the HDF5 file that will be written
+    tmp_dir:
+        path to a directory where scratch files may be written
+    prune_taxonomy:
+        a boolean. If True, automatically remove any nodes from
+        the cell type taxonomy that do not have any cells assigned
+        them. If False, an error will be raised if there are nodes
+        with no corresponding cells.
+
+    Returns
+    -------
+    None
+        data is written to dst_path
+    """
 
     t0 = time.time()
 
@@ -484,6 +521,60 @@ def create_constellation_cache_from_h5ad_and_csv(
         dst_path,
         color_by_columns=None,
         tmp_dir=None):
+
+    """
+    Create a constellation cache HDF5 file from a mixture of
+     - CSVs defining the hierarchical structure of the taxonomy
+     - an h5ad file assigning cells to clusters in the taxonomy
+
+    The parameter definitions below will refer to a set of .csv
+    files. These are the files specified by the ABC Atlas data release
+    data model (i.e. the files accesed vi abc_atlas_access)
+
+    Parameters
+    ----------
+    h5ad_path:
+        path to the h5ad file from which cell-to-cluster assignments
+        will be read
+    cluster_annotation_path:
+        path to the cluster_annotation_term.csv file
+    cluster_membership_path:
+        path to the cluster_to_cluster_annotation_membership.csv file
+    visualization_coords:
+        The key in obsm of the H5AD file that points to the
+        (n_cells, 2) array of coordinates in which the constellation
+        plot will be visualized
+    connection_coords:
+        The key in the obsm of the H5AD file that points to the
+        (n_cells, n_coords) array of latent space dimensions in
+        which connection strength on the constellation plot will
+        be computed
+    cluster_alias_key:
+        The column in obs of the H5AD file that associates a cell
+        with a cluster in the cell type taxonomy (must correspond to
+        the cluster_alias column in
+        cluster_to_cluster_annotation_term_membership.csv)
+    hierarchy:
+        list of strings. The levels of the taxonomy from
+        most gross to most fine (these are levels in the taxonomy
+        defined in the CSV files above)
+    k_nn:
+        an int. The number of nearest neighbors to use when calculating
+        connection strength in the contellation plot
+    dst_path:
+        path to the HDF5 file that will be written
+    color_by_columns:
+        An optional list of the names of columns in obs of the H5AD
+        file that we want to collect as aggregated statistics by which
+        to optionally color the constellation plot.
+    tmp_dir:
+        path to a directory where scratch files may be written
+
+    Returns
+    -------
+    None
+        data is written to dst_path
+    """
 
     t0 = time.time()
 
@@ -564,6 +655,49 @@ def create_constellation_cache_from_h5ad(
         dst_path,
         color_by_columns=None,
         tmp_dir=None):
+    """
+    Create a constellation cache HDF5 file from an H5AD file that
+    specifies both the cell type taxonomy and the association of
+    cells to cell clusters in that taxonomy.
+
+    Parameters
+    ----------
+    h5ad_path:
+        path to the h5ad file from which data will be read
+    visualization_coords:
+        The key in obsm of the H5AD file that points to the
+        (n_cells, 2) array of coordinates in which the constellation
+        plot will be visualized
+    connection_coords:
+        The key in the obsm of the H5AD file that points to the
+        (n_cells, n_coords) array of latent space dimensions in
+        which connection strength on the constellation plot will
+        be computed
+    cluster_alias_key:
+        The column in obs of the H5AD file that associates a cell
+        with a cluster in the cell type taxonomy (cluster_aliases
+        are assumed to be integers)
+    hierarchy:
+        list of strings. The levels of the taxonomy from
+        most gross to most fine (these are columns in obs of the
+        H5AD file)
+    k_nn:
+        an int. The number of nearest neighbors to use when calculating
+        connection strength in the contellation plot
+    dst_path:
+        path to the HDF5 file that will be written
+    color_by_columns:
+        An optional list of the names of columns in obs of the H5AD
+        file that we want to collect as aggregated statistics by which
+        to optionally color the constellation plot.
+    tmp_dir:
+        path to a directory where scratch files may be written
+
+    Returns
+    -------
+    None
+        data is written to dst_path
+    """
 
     t0 = time.time()
 
@@ -631,8 +765,41 @@ def constellation_cache_from_obj(
         dst_path,
         tmp_dir,
         label_to_color,
-        config,
-        color_by_columns=None):
+        config):
+    """
+    Create a constellation cache HDF5 file
+
+    Parameters
+    ----------
+    taxonomy_filter:
+        an instantiation of
+        cell_type_constellations.cells.taxonomy_filter.TaxonomyFilter
+        that defines a cell type taxonomy
+    cell_set:
+        an instantiation of a class that inherits from
+        cell_type_constellations.cells.cell_set.CellSetAccessMixin
+        which defines a set of cells
+    k_nn:
+        an int. The number of nearest neighbors to use when
+        calculating connection strength in the constellation plot
+    dst_path:
+        path to the HDF5 file to be written
+    tmp_dir:
+        the path to a directory where scratch files may be written
+    label_to_color:
+        A dict mapping cell type taxons to the colors associated
+        with those taxons. It is structures like
+        label_to_color[level][taxon_label] = '#ffffff'
+        (the values are hexadecimal representations fo colors)
+    config:
+        A dict of metadata to be written to the HDF5 file
+
+    Returns
+    -------
+    None
+        data is written to dst_path
+    """
+
     tmp_dir = tempfile.mkdtemp(dir=tmp_dir)
     try:
 
@@ -794,13 +961,22 @@ def _constellation_cache_from_obj_worker(
                         data=np.array(stats_lookup[level][stat_key][sub_key])
                     )
 
-    fix_centroids(temp_path=temp_path, dst_path=dst_path, tmp_dir=tmp_dir)
+    fix_centroids(
+        temp_path=temp_path,
+        dst_path=dst_path,
+        tmp_dir=tmp_dir
+    )
+
     os.unlink(temp_path)
 
 
 def color_lookup_from_cluster_annotation(
         cluster_annotation_path):
-    # get color_lookup
+    """
+    Construct a dict mapping cell type taxons to their
+    colors from the path to a cluster_annotation_term.csv
+    file
+    """
     annotation = pd.read_csv(cluster_annotation_path)
     label_to_color = dict()
     for level, label, color in zip(
@@ -814,7 +990,32 @@ def color_lookup_from_cluster_annotation(
     return label_to_color
 
 
-def fix_centroids(temp_path, dst_path, tmp_dir='../tmp'):
+def fix_centroids(
+        temp_path,
+        dst_path,
+        tmp_dir):
+    """
+    Make a final pass over the constellation cache HDF5 file,
+    fixing centroid and hull data. Data is read in from
+    a temporary HDF5 file, amended, and transcribed to a new,
+    final HDF5 file.
+
+    Parametrs
+    ---------
+    temp_path:
+        Path to a temporary HDF5 file where the first pass
+        cache was stored
+    dst_path:
+        Final HDF5 file to be written
+    tmp_dir:
+        Path to a directory where scratch files may be written
+
+    Returns
+    -------
+    None
+        data is written to dst_path
+    """
+
     print("=======final centroid patch=======")
 
     leaf_tmp_dir = tempfile.mkdtemp(dir=tmp_dir)
@@ -918,11 +1119,27 @@ def fix_centroids(temp_path, dst_path, tmp_dir='../tmp'):
 
 def get_leaf_hull_lookup(
         src_path,
-        n_processors=4,
-        tmp_dir='../tmp'):
+        tmp_dir,
+        n_processors=4):
     """
-    Get a dict mapping leaf label to a list of points
-    defining the convex hulls containing that leaf
+    Get a dict mapping leaf label to a list of arrays
+    points defining the convex hulls containing that leaf
+    (i.e. each leaf may be represented by a set of disjoint
+    ConvexHulls defined by the sets of points returned)
+
+    Parameters
+    ----------
+    src_path:
+        Path to a preliminary ConstellationCache HDF5 file
+    n_processors:
+        The number of parallel worker processes to spin-up
+    tmp_dir:
+        A path where scratch files may be written
+
+    Returns
+    -------
+    A dict mapping the labels of leaf nodes in the cell type
+    taxonomy to lists of arrays.
     """
     t0 = time.time()
     old_cache = ConstellationCache_HDF5(src_path)
@@ -992,6 +1209,55 @@ def get_leaf_hull_lookup(
     return leaf_hull_lookup
 
 
+def get_hulls_for_leaf_worker(
+        leaf_list,
+        constellation_cache,
+        dst_path):
+    """
+    Find the hull points for a specific set of leaves in a
+    cell type taxonomy tree. Write the data to a temporary file.
+
+    Parameters
+    ----------
+    leaf_list:
+        List of the labels associated with the leaves
+        this worker will be processing
+    constellation_cache:
+        Instantiation of ConstellationCache_HDF5 from which
+        preliminary data is read
+    dst_path:
+        Path to the temporary file where this worker will
+        write its results
+
+    Returns
+    -------
+    None
+        data is written to dst_path
+    """
+
+    t0 = time.time()
+    this_lookup = {
+        leaf: get_hulls_for_leaf(
+            constellation_cache=constellation_cache,
+            label=leaf
+        )
+        for leaf in leaf_list
+    }
+
+    with h5py.File(dst_path, 'w') as dst:
+        for leaf in this_lookup:
+            dst_grp = dst.create_group(leaf)
+            if this_lookup[leaf] is None:
+                continue
+            for idx in range(len(this_lookup[leaf])):
+                dst_grp.create_dataset(
+                    f'{idx}',
+                    data=this_lookup[leaf][idx]
+                )
+    dur = (time.time()-t0)/60.0
+    print(f'=======FINISHED BATCH IN {dur:.2e} minutes=======')
+
+
 def get_hulls_for_leaf(
         constellation_cache,
         label,
@@ -1002,6 +1268,26 @@ def get_hulls_for_leaf(
 
     Returns None if it is impossible to construct a ConvexHull
     from the available points.
+
+    Parameters
+    ----------
+    constellation_cache:
+        Instantiation of ConstellationCache_HDF5 from which
+        preliminary data is read
+    label:
+        the label corresponding to the leaf node being processed
+    min_pts:
+        minimum number of points an array must contain to be a valid
+        sub-hull of the cell type leaf node
+
+    Returns
+    -------
+    A list of arrays of points representing the discrete
+    ConvexHulls containing the specified cell type.
+
+    Returns None if it is impossible to construct such a
+    hull (e.g. if there are fewer than 3 cells in the
+    leaf node)
     """
 
     pts = constellation_cache.umap_coords_from_label(
@@ -1042,33 +1328,6 @@ def _pts_to_hull_pts(pts):
     return pts
 
 
-def get_hulls_for_leaf_worker(
-        leaf_list,
-        constellation_cache,
-        dst_path):
-    t0 = time.time()
-    this_lookup = {
-        leaf: get_hulls_for_leaf(
-            constellation_cache=constellation_cache,
-            label=leaf
-        )
-        for leaf in leaf_list
-    }
-
-    with h5py.File(dst_path, 'w') as dst:
-        for leaf in this_lookup:
-            dst_grp = dst.create_group(leaf)
-            if this_lookup[leaf] is None:
-                continue
-            for idx in range(len(this_lookup[leaf])):
-                dst_grp.create_dataset(
-                    f'{idx}',
-                    data=this_lookup[leaf][idx]
-                )
-    dur = (time.time()-t0)/60.0
-    print(f'=======FINISHED BATCH IN {dur:.2e} minutes=======')
-
-
 def clean_for_json(data):
     """
     Iteratively walk through data, converting np.int64 to int as needed
@@ -1099,7 +1358,11 @@ def clean_for_json(data):
 def iteratively_copy_grp(
         src_handle,
         dst_handle):
-
+    """
+    Iteratively copy data from src_handle (points to a
+    group in an HDF5 file) to dst_handle (also a group
+    in an HDF5 file)
+    """
     for sub_key in src_handle.keys():
         if isinstance(src_handle[sub_key], h5py.Dataset):
             dst_handle.create_dataset(
@@ -1115,7 +1378,22 @@ def iteratively_copy_grp(
 
 
 def load_stats(src_handle, result_dict):
+    """
+    Load the aggregate stats from an HDF5 serialization.
 
+    Parameters
+    ----------
+    src_handle:
+        points to the group in the HDF5 file from which the
+        data is to be loaded
+    result_dict:
+        The dict into which the aggregate stats are being loaded
+
+    Returns
+    -------
+    None
+        result_dict is updated in-place
+    """
     for sub_key in src_handle:
         if isinstance(src_handle[sub_key], h5py.Dataset):
             result_dict[sub_key] = src_handle[sub_key][()]

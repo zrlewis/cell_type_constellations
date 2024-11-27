@@ -4,7 +4,7 @@ import argparse
 import pathlib
 
 from cell_type_constellations.cells.data_cache import (
-    create_constellation_cache
+    create_constellation_cache_from_csv
 )
 
 import time
@@ -79,7 +79,7 @@ def main():
     t0 = time.time()
     args = parser.parse_args()
     assert args.dst_path is not None
-    create_constellation_cache(
+    create_constellation_cache_from_csv(
             cell_metadata_path=args.cell_metadata_path,
             cluster_annotation_path=args.cluster_annotation_path,
             cluster_membership_path=args.cluster_membership_path,
