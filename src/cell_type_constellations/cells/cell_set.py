@@ -245,7 +245,9 @@ class CellSetAccessMixin(object):
             values = self.color_by_columns[col_key][mask]
             this = {
                 'mean': np.mean(values),
-                'variance': np.var(values, ddof=1)
+                'variance': np.var(values, ddof=1),
+                'min': np.min(values),
+                'max': np.max(values)
             }
             result[col_key] = this
 
