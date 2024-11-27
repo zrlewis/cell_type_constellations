@@ -1,4 +1,3 @@
-import copy
 import h5py
 import json
 import matplotlib
@@ -314,11 +313,6 @@ class ConstellationCache_HDF5(object):
             color_by_level][
                 parentage[color_by_level]][
                     'taxonomy']
-
-    def alt_colors(self, level, label):
-        result = copy.deepcopy(self.label_to_color[level][label])
-        result.pop('taxonomy')
-        return result
 
     def mixture_matrix_from_level(self, level):
         return self.mixture_matrix_lookup[level]
