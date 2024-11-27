@@ -43,6 +43,26 @@ from cell_type_constellations.cells.mixture_matrix import (
 
 
 class ConstellationCache_HDF5(object):
+    """
+    A class meant to serve up all of the raw data necessary
+    to create a constellation plot for a give taxonomy.
+
+    Parameters
+    ----------
+    cache_path:
+        The path to an HDF5 file (probably created with a
+        create_constellation_cache_* function) containing
+        the raw data to be served from this cache.
+
+    Notes
+    -----
+    This odd use pattern (writing the data to disk as an HDF5
+    file and then reading it back through this class, rather
+    than creating a ConstellationCache object directly from the
+    data) is a historical artifact of how this codebase was
+    developed and what, at various phases of development, we
+    thought its deliverables might be.
+    """
 
     def __init__(self, cache_path):
         self.cache_path = cache_path
@@ -111,18 +131,127 @@ class ConstellationCache_HDF5(object):
         }
 
     def labels(self, level):
+        """
+        Return a list of labels (the unique identifiers of a
+        cell type taxon) for each taxon at a level of the
+        taxonomy.
+
+        Parameters
+        ----------
+        level:
+            a str. The level of the cell type taxonomy
+            for which you want the labels
+        """
+
+        if level not in self.idx_to_label:
+            raise ValueError(
+                f'{level} is not a valid level of this cell '
+                'type taxonomy. Valid levels are '
+                f'{list(self.idx_to_label.keys())}'
+            )
+
         return [el['label'] for el in self.idx_to_label[level]]
 
-    def centroid_from_label(self, level, label):
+    def _idx_from_label(self, level, label):
+        """
+        Return an integer representing the index in various
+        arrays corresponding to a cell type taxon
+        """
+        if level not in self.label_to_idx:
+            raise ValueError(
+                f'{level} is not a valid level of this cell '
+                'type taxonomy. Valid levels are '
+                f'{list(self.label_to_idx.keys())}'
+            )
+        if label not in self.label_to_idx[level]:
+            raise ValueError(
+                f'{label} is not a valid cell type taxon '
+                f'at level {level} of the taxonomy; '
+                'examples of valid labels are: '
+                f'{list(self.label_to_idx[level].keys())[:5]}'
+            )
+
         idx = self.label_to_idx[level][label]
+        return idx
+
+    def centroid_from_label(self, level, label):
+        """
+        Return the coordinates (in the embedded space) of the
+        centroid of a given cell type taxon.
+
+        Parameters
+        ----------
+        level:
+            a str. The level in the taxonomy corresponding to
+            the cell type taxon
+        label:
+            a str. The label of the specific cell_type_taxon
+            whose centroid you want
+
+        Returns
+        -------
+        An array (centroid_x, centroid_y) that are the
+        x, y coordinates of the requested centroid in the
+        embedding (e.g. UMAP) space.
+        """
+
+        idx = self._idx_from_label(level=level, label=label)
         return self.centroid_lookup[level][idx]
 
     def n_cells_from_label(self, level, label):
-        idx = self.label_to_idx[level][label]
+        """
+        Return the number of cells assigned to a specific
+        cell type taxon
+
+        Parameters
+        ----------
+        level:
+            a str. The level in the taxonomy corresponding to
+            the cell type taxon
+        label:
+            a str. The label of the specific cell_type_taxon
+            whose centroid you want
+
+        Returns
+        -------
+        An int
+        """
+        idx = self._idx_from_label(level=level, label=label)
         return self.n_cells_lookup[level][idx]
 
     def stats_from_label(self, level, label):
-        idx = self.label_to_idx[level][label]
+        """
+        Return the aggregated stats (e.g. 'Attack-M vs. Control-M')
+        for a given cell type taxon.
+
+        Parameters
+        ----------
+        level:
+            a str. The level in the taxonomy corresponding to
+            the cell type taxon
+        label:
+            a str. The label of the specific cell_type_taxon
+            whose centroid you want
+
+        Returns
+        -------
+        A dict keyed on the different aggregated stats that
+        were collected for this taxonomy. These keys point to
+        dicts which map to the statistical properties computed
+        for that aggregated stat, e.g.
+        {
+            'Attack-M vs. Control-M': {
+                'mean': 0.1,
+                'variance': 0.01
+            },
+            'Sexual-M vs. Control-M': {
+                'mean': 1.2,
+                'variance': 0.05
+            }
+        }
+        etc.
+        """
+        idx = self._idx_from_label(level=level, label=label)
         result = dict()
         for stat_key in self.stats_lookup[level]:
             this_stat = dict()
@@ -133,8 +262,49 @@ class ConstellationCache_HDF5(object):
         return result
 
     def color(self, level, label, color_by_level):
+        """
+        Return the taxonomic color for a cell type taxon.
+
+        Parameters
+        ----------
+        level:
+            a str. The level in the taxonomy corresponding to
+            the cell type taxon
+        label:
+            a str. The label of the specific cell_type_taxon
+            whose centroid you want
+        color_by_level:
+            a str. The level by which you want to color the
+            taxon (e.g. if you wanted to color a cluster according
+            to its class, level='cluster' and color_by_level='class')
+
+        Returns
+        -------
+        a str. The hexadecimal representation of the color
+        """
+        if level not in self.label_to_color:
+            raise ValueError(
+                f'{level} is not a valid level in this taxonomy; '
+                f'valid levels are {list(self.label_to_color.keys())}'
+            )
+
+        if color_by_level not in self.label_to_color:
+            raise ValueError(
+                f'{color_by_level} is not a valid level in this taxonomy; '
+                f'valid levels are {list(self.label_to_color.keys())}'
+            )
+
+        if label not in self.label_to_color[level]:
+            raise ValueError(
+                f'{label} is not a valid cell type taxon '
+                f'at level {level} of the taxonomy; '
+                'examples of valid labels are: '
+                f'{list(self.label_to_color[level].keys())[:5]}'
+            )
+
         if color_by_level == level:
             return self.label_to_color[level][label]['taxonomy']
+
         parentage = self.taxonomy_tree.parents(
             level=level,
             node=label
