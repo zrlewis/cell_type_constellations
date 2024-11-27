@@ -108,30 +108,6 @@ def _create_sub_mixture_matrix(
         dst.create_dataset('mixture_matrix', data=matrix)
 
 
-def create_mixture_matrix_to_file(
-        cell_set,
-        taxonomy_filter,
-        level,
-        k_nn,
-        dst_path,
-        tmp_dir):
-
-    mm_tmp_dir = tempfile.mkdtemp(dir=tmp_dir)
-    try:
-        mm = create_mixture_matrix(
-            cell_set=cell_set,
-            taxonomy_filter=taxonomy_filter,
-            level=level,
-            k_nn=k_nn,
-            tmp_dir=mm_tmp_dir)
-    finally:
-        _clean_up(mm_tmp_dir)
-
-    with h5py.File(dst_path, 'w') as dst:
-        dst.create_dataset('mixture_matrix', data=mm)
-        dst.create_dataset('level', data=level.encode('utf-8'))
-
-
 def get_neighbor_linkage(
         cell_set,
         taxonomy_filter,
