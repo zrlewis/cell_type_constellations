@@ -9,7 +9,7 @@ from cell_type_constellations.utils.data import (
 )
 
 from cell_type_constellations.cells.data_cache import (
-    create_constellation_cache_from_h5ad
+    create_constellation_cache_from_csv
 )
 
 from cell_type_constellations.svg.serialize_svg_data import (
@@ -25,16 +25,29 @@ def main():
             "encoding the data necessary to visualize "
             "different configurations of a constellation "
             "plot associated with a given taxonomy. This "
-            "tool reads its data from an H5AD file structured "
-            "according to the AIT cell type taxonomy data model."
+            "tool reads its data from series of CSV files "
+            "structured according to the ABC atlas data "
+            "release model."
         )
     )
 
     parser.add_argument(
-        '--h5ad_path',
+        '--cell_metadata_path',
         type=str,
         default=None,
-        help='Path to the h5ad file from which data will be read'
+        help='Path to the cell_metadata.csv file'
+    )
+    parser.add_argument(
+        '--cluster_annotation_path',
+        type=str,
+        default=None,
+        help='Path to the cluster_annotation_term.csv file'
+    )
+    parser.add_argument(
+        '--cluster_membership_path',
+        type=str,
+        default=None,
+        help='Path to the cluster_to_cluster_annotation_membership.csv file'
     )
     parser.add_argument(
         '--hierarchy',
@@ -50,46 +63,10 @@ def main():
         )
     )
     parser.add_argument(
-        '--color_by_columns',
-        type=str,
-        nargs='+',
-        default=None,
-        help=(
-            'List the columns in obs by which you want '
-            'to be able to color nodes in the constellation '
-            'plot (default=None)'
-        )
-    )
-    parser.add_argument(
         '--dst_path',
         type=str,
         default=None,
         help='Path to file to be written'
-    )
-    parser.add_argument(
-        '--visualization_coords',
-        type=str,
-        default=None,
-        help=(
-            "Key in obsm from which the visualization "
-            "coordinates will be read [must point to an "
-            "array of shape (n_cells, 2)]"
-        )
-    )
-    parser.add_argument(
-        '--connection_coords',
-        type=str,
-        default=None,
-        help=(
-             "Key in obsm form which the connection "
-             "coordinates will be read (these are the "
-             "coordinates of the latent space in which "
-             "the connection strength between nodes in "
-             "the constellation plot will be calculated; "
-             "the higher the dimensionality of the latent "
-             "space, the longer it will take to create "
-             "the svg cache file)"
-        )
     )
     parser.add_argument(
         '--fov_height',
@@ -128,15 +105,13 @@ def main():
     tmp_dir = tempfile.mkdtemp(dir=args.tmp_dir)
     try:
         svg_worker(
-            h5ad_path=args.h5ad_path,
-            visualization_coords=args.visualization_coords,
-            connection_coords=args.connection_coords,
-            cluster_alias_key='cl',
+            cell_metadata_path=args.cell_metadata_path,
+            cluster_annotation_path=args.cluster_annotation_path,
+            cluster_membership_path=args.cluster_membership_path,
             hierarchy=args.hierarchy,
             k_nn=15,
             dst_path=args.dst_path,
             tmp_dir=tmp_dir,
-            color_by_columns=args.color_by_columns,
             clobber=args.clobber,
             fov_height=args.fov_height,
             taxonomy_name=args.taxonomy_name
@@ -146,15 +121,13 @@ def main():
 
 
 def svg_worker(
-        h5ad_path,
-        visualization_coords,
-        connection_coords,
-        cluster_alias_key,
+        cell_metadata_path,
+        cluster_annotation_path,
+        cluster_membership_path,
         hierarchy,
         k_nn,
         dst_path,
         tmp_dir,
-        color_by_columns,
         clobber,
         fov_height,
         taxonomy_name):
@@ -172,16 +145,14 @@ def svg_worker(
         suffix='.h5'
     )
 
-    create_constellation_cache_from_h5ad(
-        h5ad_path=h5ad_path,
-        visualization_coords=visualization_coords,
-        connection_coords=connection_coords,
-        cluster_alias_key=cluster_alias_key,
+    create_constellation_cache_from_csv(
+        cell_metadata_path=cell_metadata_path,
+        cluster_annotation_path=cluster_annotation_path,
+        cluster_membership_path=cluster_membership_path,
         hierarchy=hierarchy,
         k_nn=k_nn,
         dst_path=data_cache_path,
-        tmp_dir=tmp_dir,
-        color_by_columns=color_by_columns)
+        tmp_dir=tmp_dir)
 
     dur = (time.time()-t0)/60.0
     print(f'=======CREATED INTERMEDIATE CACHE AFTER {dur:.2e} minutes=======')
