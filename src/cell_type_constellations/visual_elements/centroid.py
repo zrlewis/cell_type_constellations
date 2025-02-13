@@ -202,6 +202,7 @@ class PixelSpaceCentroid(object):
             pixel_x,
             pixel_y,
             pixel_radius,
+            n_cells,
             label,
             color):
         """
@@ -216,6 +217,8 @@ class PixelSpaceCentroid(object):
             y coordinate of the Centroid in pixel space
         pixel_radius:
             radius of the Centroid in pixel space
+        n_cells:
+            the number of cells associated with this centroid
         label:
             text defining what grouping of cells this Centroid
             represents
@@ -225,6 +228,7 @@ class PixelSpaceCentroid(object):
         """
         self._x = pixel_x
         self._y = pixel_y
+        self._n_cells = n_cells
         self._radius = pixel_radius
         self._label = label
         self._color = color
@@ -259,6 +263,7 @@ class PixelSpaceCentroid(object):
             pixel_x=center_pt[0, 0],
             pixel_y=center_pt[0, 1],
             pixel_radius=radius[0],
+            n_cells=embedding_centroid.n_cells,
             label=embedding_centroid.label,
             color=embedding_centroid.color
         )
@@ -280,6 +285,10 @@ class PixelSpaceCentroid(object):
     @property
     def radius(self):
         return self._radius
+
+    @property
+    def n_cells(self):
+        return self._n_cells
 
     @property
     def label(self):
