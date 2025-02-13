@@ -40,14 +40,17 @@ class CellSet(object):
         self._type_masks = dict()
         self._statistics = dict()
         self._idx_to_types = dict()
+        self._n_cells_lookup = dict()
         for col in discrete_fields:
             self._type_masks[col] = dict()
             self._statistics[col] = dict()
             self._idx_to_types[col] = cell_metadata[col].values
+            self._n_cells_lookup[col] = dict()
 
             unq_value_list = np.unique(cell_metadata[col].values)
             for unq in unq_value_list:
                 idx = np.where(cell_metadata[col].values == unq)[0]
+                self._n_cells_lookup[col][unq] = len(idx)
                 self._type_masks[col][unq] = idx
                 self._statistics[col][unq] = dict()
                 for stat_col in continuous_fields:
@@ -56,8 +59,7 @@ class CellSet(object):
                             cell_metadata[stat_col].values[idx]),
                         'var': np.var(
                             cell_metadata[stat_col].values[idx],
-                            ddof=1),
-                        'n_cells': len(idx)
+                            ddof=1)
                     }
                     self._statistics[col][unq][stat_col] = stats
 
@@ -93,7 +95,26 @@ class CellSet(object):
 
     @property
     def n_cells(self):
+        """
+        Total number of cells in this CellSet
+        """
         return self._n_cells
+
+    def n_cells_in_type(self, type_field, type_value):
+        """
+        Number of cells assigned to the (type_field, type_value)
+        pair
+        """
+        if type_field not in self._type_masks:
+            raise RuntimeError(
+                f"No cell types associated with field {type_field}"
+            )
+        lookup = self._n_cells_lookup[type_field]
+        if type_value not in lookup:
+            raise RuntimeError(
+                f"{type_value} not a valid value for field {type_field}"
+            )
+        return lookup[type_value]
 
     def type_field_list(self):
         """
