@@ -74,6 +74,7 @@ def centroid_lookup_from_h5ad(
                     color=type_color_map[type_value]
                 )
             )
+    return centroid_lookup
 
 
 def centroid_for_type(
@@ -117,7 +118,7 @@ def centroid_for_type(
         min_idx = np.argmin(dsq)
         chosen = coords[min_idx, :]
 
-    result = Centroid(
+    result = EmbeddingCentroid(
         embedding_x=chosen[0],
         embedding_y=chosen[1],
         n_cells=n_cells,
@@ -128,7 +129,7 @@ def centroid_for_type(
     return result
 
 
-class Centroid(object):
+class EmbeddingCentroid(object):
 
     def __init__(
             self,
