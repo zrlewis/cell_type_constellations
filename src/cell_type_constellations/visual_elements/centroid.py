@@ -184,3 +184,114 @@ class Centroid(object):
     @property
     def color(self):
         return self._color
+
+    @property
+    def center_pt(self):
+        """
+        numpy array reflecting center point in
+        embedding coordinates
+        """
+        return np.array([self.x, self.y])
+
+
+class PixelSpaceCentroid(object):
+
+    def __init__(
+            self,
+            pixel_x,
+            pixel_y,
+            pixel_radius,
+            label,
+            color):
+        """
+        A class for holding the pixel-space representation
+        of a centroid
+
+        Parameters
+        ----------
+        pixel_x:
+            x coordinate of the Centroid in pixel space
+        pixel_y:
+            y coordinate of the Centroid in pixel space
+        pixel_radius:
+            radius of the Centroid in pixel space
+        label:
+            text defining what grouping of cells this Centroid
+            represents
+        color:
+            hexadecimal representation of the color for this
+            centroid
+        """
+        self._x = pixel_x
+        self._y = pixel_y
+        self._radius = pixel_radius
+        self._label = label
+        self._color = color
+
+    @classmethod
+    def from_embedding_centroid(
+            cls,
+            embedding_centroid,
+            fov,
+            n_cells_max):
+        """
+        Parameters
+        ----------
+        embedding_centroid:
+            the Centroid representing thiss Centroid's
+            embedding space representation
+        fov:
+            the FieldOfView controlling transformations between
+            embedding and pixel space
+        n_cells_max:
+            the theoretical maximum number of n_cells
+            (used for scaling radii)
+        """
+        center_pt = fov.transform_to_pixel_coordinates(
+            np.array([embedding_centroid.center_pt])
+        )
+        radius = fov.get_pixel_radii(
+            n_cells_array= np.array([embedding_centroid.n_cells]),
+            n_cells_max=n_cells_max
+        )
+        return cls(
+            pixel_x=center_pt[0, 0],
+            pixel_y=center_pt[0, 1],
+            pixel_radius=radius[0],
+            label=embedding_centroid.label,
+            color=embedding_centroid.color
+        )
+
+    @property
+    def pixel_x(self):
+        """
+        x coordinate in pixel space
+        """
+        return self._x
+
+    @property
+    def pixel_y(self):
+        """
+        y coordinate in pixel space
+        """
+        return self._y
+
+    @property
+    def radius(self):
+        return self._radius
+
+    @property
+    def label(self):
+        return self._label
+
+    @property
+    def color(self):
+        return self._color
+
+    @property
+    def center_pt(self):
+        """
+        numpy array reflecting center point in
+        pixel coordinates
+        """
+        return np.array([self.pixel_x, self.pixel_y])
