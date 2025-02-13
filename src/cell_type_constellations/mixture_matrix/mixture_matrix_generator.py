@@ -220,18 +220,37 @@ def _create_mixture_matrices(
         process_list = winnow_process_list(process_list)
 
     # join tmp files
+    row_key_reference = dict()
     with h5py.File(dst_path, 'w') as dst:
         for type_field in cell_set.type_field_list():
             n_types = len(cell_set.type_value_list(type_field))
-            dst.create_dataset(
-                type_field,
+            grp = dst.create_group(type_field)
+            grp.create_dataset(
+                'mixture_matrix',
                 shape=(n_types, n_types),
                 dtype=int
             )
+            row_key = np.array(
+                [val.encode('utf-8') for val in cell_set.type_value_list(type_field)]
+            )
+            grp.create_dataset(
+                'row_key',
+                data=row_key
+            )
+            row_key_reference[type_field] = row_key
         for tmp_path in tmp_path_list:
             with h5py.File(tmp_path, 'r') as src:
                 for type_field in cell_set.type_field_list():
-                    dst[type_field][:, :] += src[type_field][()]
+
+                    # make sure that all the sub matrices
+                    # have the same name-to-index column
+                    # and row mappings
+                    np.testing.assert_array_equal(
+                        src[type_field]['row_key'][()],
+                        row_key_reference[type_field]
+                    )
+
+                    dst[type_field]['mixture_matrix'][:, :] += src[type_field]['mixture_matrix'][()]
 
 
 def _create_sub_mixture_matrix(
@@ -255,12 +274,17 @@ def _create_sub_mixture_matrix(
         k=k_nn+1
     )[1][:, 1:]
 
+    rowcol_lookup = dict()
+
     for type_field in cell_set.type_field_list():
 
         type_value_list = cell_set.type_value_list(type_field)
         type_value_to_idx = {
             v:ii for ii, v in enumerate(type_value_list)
         }
+        rowcol_lookup[type_field] = np.array(
+            [val.encode('utf-8') for val in type_value_list]
+        )
 
         row_values = cell_set.type_value_from_idx(
             type_field=type_field,
@@ -286,10 +310,16 @@ def _create_sub_mixture_matrix(
 
     with h5py.File(dst_path, 'w') as dst:
         for type_field in cell_set.type_field_list():
-            dst.create_dataset(
-                type_field,
+            grp = dst.create_group(type_field)
+            grp.create_dataset(
+                'mixture_matrix',
                 data=matrix_lookup[type_field]
             )
+            grp.create_dataset(
+                'row_key',
+                data=rowcol_lookup[type_field]
+            )
+
     dur = (time.time()-t0)/60.0
     print(f'=======finished one chunk of {len(subset_idx)} cells in '
           f'{dur:.2e} minutes=======')
