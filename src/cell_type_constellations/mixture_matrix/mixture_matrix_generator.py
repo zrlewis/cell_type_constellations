@@ -248,10 +248,12 @@ def _create_sub_mixture_matrix(
         n_value = len(type_value_list)
         matrix_lookup[type_field] = np.zeros((n_value, n_value), dtype=int)
 
+    # the k=k_nn+1 is because each cell's nearest neighbor will
+    # always be itself.
     neighbors = kd_tree.query(
         x=kd_tree.data[subset_idx, :],
-        k=k_nn
-    )[1]
+        k=k_nn+1
+    )[1][:, 1:]
 
     for type_field in cell_set.type_field_list():
 
