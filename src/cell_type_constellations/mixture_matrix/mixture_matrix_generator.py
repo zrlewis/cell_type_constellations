@@ -1,8 +1,6 @@
-import anndata
 import h5py
 import multiprocessing
 import numpy as np
-import pandas as pd
 import pathlib
 import scipy
 import tempfile
@@ -17,6 +15,7 @@ from cell_type_mapper.utils.utils import (
     _clean_up
 )
 
+import cell_type_constellations.utils.coord_utils as coord_utils
 
 
 def create_mixture_matrices_from_h5ad(
@@ -81,7 +80,7 @@ def _get_kd_tree_from_h5ad(
         h5ad_path,
         coord_key):
     """
-    Extract the a set of coordinates from obsm in and h5ad file.
+    Extract a set of coordinates from obsm in and h5ad file.
     Convert them into a KD Tree and return
 
     Parameters
@@ -97,17 +96,10 @@ def _get_kd_tree_from_h5ad(
         a scipy.spatial.cKDTree built off of the corresponding
         coordinates
     """
-    src = anndata.read_h5ad(h5ad_path, backed='r')
-    obsm = src.obsm
-    if coord_key not in obsm.keys():
-        raise KeyError(f'key {coord_key} not in obsm')
-    coords = obsm[coord_key]
-    src.file.close()
-    del src
-
-    if isinstance(coords, pd.DataFrame):
-        coords = coords.to_numpy()
-
+    coords = coord_utils.get_coords_from_h5ad(
+        h5ad_path,
+        coord_key=coord_key
+    )
     return scipy.spatial.cKDTree(coords)
 
 
