@@ -149,7 +149,7 @@ class CellSet(object):
             raise RuntimeError(
                 f"{type_value} not a valid value for field {type_field}"
             )
-        return lookup[type_field]
+        return lookup[type_value]
 
     def type_value_from_idx(self, type_field, idx_array):
         """
