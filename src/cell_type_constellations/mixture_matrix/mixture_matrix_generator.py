@@ -6,6 +6,7 @@ import pandas as pd
 import pathlib
 import scipy
 import tempfile
+import time
 
 from cell_type_mapper.utils.multiprocessing_utils import (
     winnow_process_list
@@ -26,7 +27,8 @@ def create_mixture_matrices_from_h5ad(
         dst_path,
         tmp_dir,
         n_processors,
-        clobber=False):
+        clobber=False,
+        chunk_size=100000):
     """
     Parameters
     ----------
@@ -50,6 +52,9 @@ def create_mixture_matrices_from_h5ad(
     clobber:
         a boolean. If False and dst_path already exists,
         raise an exception. If True, overwrite.
+    chunk_size:
+        the number of cells to process in a single worker
+        process
 
     Returns
     -------
@@ -68,7 +73,8 @@ def create_mixture_matrices_from_h5ad(
         dst_path=dst_path,
         clobber=clobber,
         tmp_dir=tmp_dir,
-        n_processors=n_processors)
+        n_processors=n_processors,
+        chunk_size=chunk_size)
 
 
 def _get_kd_tree_from_h5ad(
@@ -112,7 +118,8 @@ def create_mixture_matrices(
         dst_path,
         tmp_dir,
         n_processors,
-        clobber=False):
+        clobber=False,
+        chunk_size=100000):
     """
     Parameters
     ----------
@@ -135,6 +142,9 @@ def create_mixture_matrices(
     clobber:
         a boolean. If False and dst_path already exists,
         raise an exception. If True, overwrite.
+    chunk_size:
+        the number of cells to process in a single worker
+        process
 
     Returns
     -------
@@ -142,6 +152,11 @@ def create_mixture_matrices(
         Mixture matrices for all type_fields in the cell_set
         are saved in the h5ad file at dst_path
     """
+
+    chunk_size = min(
+        chunk_size,
+        np.ceil(cell_set.n_cells//n_processors).astype(int)
+    )
 
     dst_path = pathlib.Path(dst_path)
     if dst_path.exists():
@@ -167,7 +182,8 @@ def create_mixture_matrices(
             k_nn=k_nn,
             dst_path=dst_path,
             tmp_dir=tmp_dir,
-            n_processors=n_processors)
+            n_processors=n_processors,
+            chunk_size=chunk_size)
     finally:
         _clean_up(tmp_dir)
 
@@ -178,10 +194,10 @@ def _create_mixture_matrices(
         k_nn,
         dst_path,
         tmp_dir,
-        n_processors):
+        n_processors,
+        chunk_size):
 
     n_cells = kd_tree.data.shape[0]
-    chunk_size = min(100000, n_cells//(2*n_processors))
     tmp_path_list = []
     process_list = []
     for i0 in range(0, n_cells, chunk_size):
@@ -205,7 +221,7 @@ def _create_mixture_matrices(
         )
         p.start()
         process_list.append(p)
-        if len(process_list) >= n_processors:
+        while len(process_list) >= n_processors:
             process_list = winnow_process_list(process_list)
 
     while len(process_list) > 0:
@@ -233,6 +249,7 @@ def _create_sub_mixture_matrix(
         k_nn,
         dst_path):
 
+    t0 = time.time()
     matrix_lookup = dict()   
     for type_field in cell_set.type_field_list():
         type_value_list = cell_set.type_value_list(type_field)
@@ -279,5 +296,6 @@ def _create_sub_mixture_matrix(
                 type_field,
                 data=matrix_lookup[type_field]
             )
-   
-        
+    dur = (time.time()-t0)/60.0
+    print(f'=======finished one chunk of {len(subset_idx)} cells in '
+          f'{dur:.2e} minutes=======')

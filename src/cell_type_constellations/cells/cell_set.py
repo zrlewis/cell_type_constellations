@@ -33,6 +33,7 @@ class CellSet(object):
         """
 
         self._type_field_list = copy.deepcopy(discrete_fields)
+        self._n_cells = len(cell_metadata)
 
         # map values in discrete_fields to the indexes of cells
         # that belong to those values
@@ -89,6 +90,10 @@ class CellSet(object):
             cell_metadata=cell_metadata,
             discrete_fields=discrete_fields,
             continuous_fields=continuous_fields)
+
+    @property
+    def n_cells(self):
+        return self._n_cells
 
     def type_field_list(self):
         """
