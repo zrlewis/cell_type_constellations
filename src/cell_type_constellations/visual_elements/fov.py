@@ -31,7 +31,7 @@ class FieldOfView(object):
             The maximum radius (in pixel coordinates)
             of a node in the constellation plot
         min_radius:
-            The maximum radisu (in pixel coordinates)
+            The maximum radius (in pixel coordinates)
             of a node in the constellation plot
         """
         self._fov_height = fov_height
@@ -81,7 +81,7 @@ class FieldOfView(object):
             The maximum radius (in embedding coordinates)
             of a node in the constellation plot
         min_radius:
-            The maximum radisu (in embedding coordinates)
+            The maximum radius (in embedding coordinates)
             of a node in the constellation plot
         """
         coords = coord_utils.get_coords_from_h5ad(
@@ -115,7 +115,7 @@ class FieldOfView(object):
             The maximum radius (in embedding coordinates)
             of a node in the constellation plot
         min_radius:
-            The maximum radisu (in embedding coordinates)
+            The maximum radius (in embedding coordinates)
             of a node in the constellation plot
         """
         if coords.shape[1] != 2:
@@ -128,7 +128,6 @@ class FieldOfView(object):
             [coords[:,0].min(), coords[:, 1].max()],
             [coords[:, 1].min(), coords[:, 1].max()]
         ])
-
         return cls(
             embedding_bounds=bounds,
             fov_height=fov_height,
@@ -164,7 +163,7 @@ class FieldOfView(object):
         min radius in pixel coordinates of a node in the
         constellation plot
         """
-        self._min_radius
+        return self._min_radius
 
     @property
     def embedding_to_pixel(self):
@@ -216,3 +215,29 @@ class FieldOfView(object):
             np.ones(embedding_coords.shape[0])])
         raw = np.dot(self.embedding_to_pixel, input3d).transpose()
         return raw[:, :-1]
+
+
+    def get_pixel_radii(self, n_cells_array, n_cells_max):
+        """
+        Take an array of n_cells values and return an array
+        of correspondingly scaled node radii (in pixel coords)
+
+        Parameters
+        ----------
+        n_cells_array:
+            The array of n_cells values for which to calculate
+            pixel radii
+        n_cell_max:
+            The maximum theoretical value of n_cells in this
+            constellation plot (for consistent scaling)
+
+        Returns
+        -------
+        pixel_radii:
+            an array of pixel space radii corresponding to the
+            values in n_cells_array
+        """
+        dr = self.max_radius-self.min_radius
+        logarithmic_r = np.log2(1.0+n_cells_array/n_cells_max)
+        pixel_radii = self.min_radius+dr*logarithmic_r
+        return pixel_radii
