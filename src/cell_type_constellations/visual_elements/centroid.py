@@ -11,13 +11,13 @@ import cell_type_constellations.utils.coord_utils as coord_utils
 import cell_type_constellations.utils.geometry_utils as geometry_utils
 
 
-def centroid_lookup_from_h5ad(
+def embedding_centroid_lookup_from_h5ad(
         cell_set,
         h5ad_path,
         coord_key,
         color_map=None):
     """
-    Instantiate a lookup table of centroids from a cell set
+    Instantiate a lookup table of EmbeddingCentroids from a cell set
     and an embedding array stored in an h5ad file
     
     Parameters
@@ -66,7 +66,7 @@ def centroid_lookup_from_h5ad(
 
         for type_value in cell_set.type_value_list(type_field):
             centroid_lookup[type_field][type_value] = (
-                centroid_for_type(
+                embedding_centroid_for_type(
                     cell_set=cell_set,
                     embedding_coords=coords,
                     type_field=type_field,
@@ -77,7 +77,7 @@ def centroid_lookup_from_h5ad(
     return centroid_lookup
 
 
-def centroid_for_type(
+def embedding_centroid_for_type(
         cell_set,
         embedding_coords,
         type_field,
@@ -239,7 +239,7 @@ class PixelSpaceCentroid(object):
         Parameters
         ----------
         embedding_centroid:
-            the Centroid representing thiss Centroid's
+            the EmbeddingCentroid representing this Centroid's
             embedding space representation
         fov:
             the FieldOfView controlling transformations between
