@@ -120,6 +120,109 @@ def get_connection_list(
     return connection_list
 
 
+def write_pixel_connections_to_hdf5(
+        hdf5_path,
+        group_path,
+        connection_list):
+
+    for conn in connection_list:
+        assert isinstance(conn, PixelSpaceConnection)
+
+    with h5py.File(hdf5_path, 'a') as dst:
+        if group_path in dst:
+            raise RuntimeError(
+                f"{group_path} arleady in {hdf5_path}; "
+                "unclear how to proceed."
+            )
+        dst_grp = dst.create_group(group_path)
+
+        dst_grp.create_dataset(
+            "bezier_control_points",
+            data=np.vstack(
+                [conn.bezier_control_points
+                 for conn in connection_list]
+            )
+        )
+
+        dst_grp.create_dataset(
+            "rendering_corners",
+            data=np.vstack(
+                [conn.rendering_corners
+                 for conn in connection_list]
+            )
+        )
+
+        dst_grp.create_dataset(
+            "src_neighbor_fraction",
+            data=np.array(
+                [conn.src_neighbor_fraction
+                 for conn in connection_list]
+            )
+        )
+
+        dst_grp.create_dataset(
+            "dst_neighbor_fraction",
+            data=np.array(
+                [conn.dst_neighbor_fraction
+                 for conn in connection_list]
+            )
+        )
+
+        dst_grp.create_dataset(
+            "src_label",
+            data=np.array(
+                [conn.src_label.encode('utf-8')
+                 for conn in connection_list]
+            )
+        )
+
+        dst_grp.create_dataset(
+            "dst_label",
+            data=np.array(
+                [conn.dst_label.encode('utf-8')
+                 for conn in connection_list]
+            )
+        )
+
+
+def read_pixel_connections_from_hdf5(
+        hdf5_path,
+        group_path):
+
+    with h5py.File(hdf5_path, 'r') as src:
+        src_grp = src[group_path]
+        src_label_list = [
+            label.decode('utf-8')
+            for label in src_grp['src_label'][()]
+        ]
+        dst_label_list = [
+            label.decode('utf-8')
+            for label in src_grp['dst_label'][()]
+        ]
+        src_frac_list = src_grp['src_neighbor_fraction'][()]
+        dst_frac_list = src_grp['dst_neighbor_fraction'][()]
+        n_connections = len(src_label_list)
+        rendering_corners = src_grp['rendering_corners'][()].reshape(
+            (n_connections, 4, 2)
+        )
+        bezier_control_points = src_grp['bezier_control_points'][()].reshape(
+            (n_connections, 2, 2)
+        )
+
+    result = [
+        PixelSpaceConnection(
+            src_label=src_label_list[ii],
+            dst_label=dst_label_list[ii],
+            src_neighbor_fraction=src_frac_list[ii],
+            dst_neighbor_fraction=dst_frac_list[ii],
+            rendering_corners=rendering_corners[ii, :, :],
+            bezier_control_points=bezier_control_points[ii, :, :]
+        )
+        for ii in range(n_connections)
+    ]
+    return result
+
+
 class Connection(object):
 
     def __init__(
