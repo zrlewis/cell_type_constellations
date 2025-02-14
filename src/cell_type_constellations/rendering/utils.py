@@ -5,12 +5,17 @@ from cell_type_constellations.visual_elements.centroid import (
 
 def render_svg(
         fov,
+        color_map,
+        color_by,
         centroid_list,
         connection_list=None):
     code = get_svg_header(fov)
     if connection_list is not None:
         code += render_connection_list(connection_list)
-    code += render_centroid_list(centroid_list)
+    code += render_centroid_list(
+        centroid_list,
+        color_map,
+        color_by)
     code += "</svg>\n"
     return code
 
@@ -26,17 +31,24 @@ def get_svg_header(fov):
 
 
 def render_centroid_list(
-        centroid_list):
+        centroid_list,
+        color_map,
+        color_by):
 
     centroid_code = ""
     for el in centroid_list:
         centroid_code += render_centroid(
-            centroid=el)
+            centroid=el,
+            color_map=color_map,
+            color_by=color_by)
 
     return centroid_code
 
 
-def render_centroid(centroid):
+def render_centroid(centroid, color_map, color_by):
+
+    color_value = centroid.annotation[color_by]
+    color = color_map[color_by][color_value]
 
     if not isinstance(centroid, PixelSpaceCentroid):
         raise RuntimeError(
@@ -52,7 +64,7 @@ def render_centroid(centroid):
 
     result += (
         f"""        <circle r="{centroid.radius}px" cx="{centroid.pixel_x}px" cy="{centroid.pixel_y}px" """  # noqa: E501
-        f"""fill="{centroid.color}" stroke="transparent"/>\n"""
+        f"""fill="{color}" stroke="transparent"/>\n"""
     )
     result += """        <title>\n"""
     result += f"""        {hover_msg}\n"""

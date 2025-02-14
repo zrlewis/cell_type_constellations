@@ -15,8 +15,7 @@ def pixel_centroid_lookup_from_h5ad(
         cell_set,
         fov,
         h5ad_path,
-        coord_key,
-        color_map=None):
+        coord_key):
     """
     Return a dict mapping type_field, type_value pairs to the corresponding
     PixelSpaceCentroid
@@ -34,9 +33,6 @@ def pixel_centroid_lookup_from_h5ad(
     coord_key:
         key in obsm of the embedding coordinates in which the visualization
         is being rendered
-    color_map:
-        optional dict mapping type_field, type_value pairs to hexadecimal
-        color representations
 
     Returns
     -------
@@ -59,8 +55,7 @@ def pixel_centroid_lookup_from_h5ad(
     embedding_lookup = embedding_centroid_lookup_from_h5ad(
         cell_set=cell_set,
         h5ad_path=h5ad_path,
-        coord_key=coord_key,
-        color_map=color_map
+        coord_key=coord_key
     )
 
     n_cells_max = None
@@ -87,8 +82,7 @@ def pixel_centroid_lookup_from_h5ad(
 def embedding_centroid_lookup_from_h5ad(
         cell_set,
         h5ad_path,
-        coord_key,
-        color_map=None):
+        coord_key):
     """
     Instantiate a lookup table of EmbeddingSpaceCentroids from a
     cell set and an embedding array stored in an h5ad file
@@ -126,25 +120,13 @@ def embedding_centroid_lookup_from_h5ad(
     for type_field in cell_set.type_field_list():
         centroid_lookup[type_field] = dict()
 
-        # placeholder color map
-        if color_map is None or type_field not in color_map:
-            n_values = len(cell_set.type_value_list(type_field))
-            mpl_map = matplotlib.colormaps['viridis']
-            type_color_map = {
-                v: matplotlib.colors.rgb2hex(mpl_map(ii/n_values))
-                for ii, v in enumerate(cell_set.type_value_list(type_field))
-            }
-        else:
-            type_color_map = color_map[type_field]
-
         for type_value in cell_set.type_value_list(type_field):
             centroid_lookup[type_field][type_value] = (
                 embedding_centroid_for_type(
                     cell_set=cell_set,
                     embedding_coords=coords,
                     type_field=type_field,
-                    type_value=type_value,
-                    color=type_color_map[type_value]
+                    type_value=type_value
                 )
             )
     return centroid_lookup
@@ -154,8 +136,7 @@ def embedding_centroid_for_type(
         cell_set,
         embedding_coords,
         type_field,
-        type_value,
-        color):
+        type_value):
     """
     Return an embedding space spockcentroid for a specific
     (type_field, type_value) combination in a CellSet
@@ -173,8 +154,6 @@ def embedding_centroid_for_type(
         the type_value of the centroid being instantiated
         (these are used to look up the indices of the relevant
         cells using cell_set.type_mask(type_field, type_value)
-    color:
-        hexadecimal color for the centroid
 
     Returns
     -------
@@ -216,7 +195,10 @@ def embedding_centroid_for_type(
         embedding_y=chosen[1],
         n_cells=n_cells,
         label=f'{type_field}: {type_value}',
-        color=color
+        annotation=cell_set.parent_annotations(
+            type_field=type_field,
+            type_value=type_value
+        )
     )
 
     return result
@@ -230,7 +212,7 @@ class EmbeddingSpaceCentroid(object):
             embedding_y,
             n_cells,
             label,
-            color):
+            annotation):
         """
         Parameters
         ----------
@@ -243,15 +225,15 @@ class EmbeddingSpaceCentroid(object):
         label:
             text defining what grouping of cells this Centroid
             represents
-        color:
-            hexadecimal representation of the color for this
-            centroid
+        annotation:
+            A dict denoting how this centroid can be labeled
+            according to different categories in the taxonomy
         """
         self._x = embedding_x
         self._y = embedding_y
         self._n_cells = n_cells
         self._label = label
-        self._color = color
+        self._annotation = annotation
 
     @property
     def x(self):
@@ -276,8 +258,8 @@ class EmbeddingSpaceCentroid(object):
         return self._label
 
     @property
-    def color(self):
-        return self._color
+    def annotation(self):
+        return self._annotation
 
     @property
     def center_pt(self):
@@ -297,7 +279,7 @@ class PixelSpaceCentroid(object):
             pixel_radius,
             n_cells,
             label,
-            color):
+            annotation):
         """
         A class for holding the pixel-space representation
         of a centroid
@@ -315,16 +297,16 @@ class PixelSpaceCentroid(object):
         label:
             text defining what grouping of cells this Centroid
             represents
-        color:
-            hexadecimal representation of the color for this
-            centroid
+        annotation:
+            A dict denoting how this centroid can be labeled
+            according to different categories in the taxonomy
         """
         self._x = pixel_x
         self._y = pixel_y
         self._n_cells = n_cells
         self._radius = pixel_radius
         self._label = label
-        self._color = color
+        self._annotation = annotation
 
     @classmethod
     def from_embedding_centroid(
@@ -362,7 +344,7 @@ class PixelSpaceCentroid(object):
             pixel_radius=radius[0],
             n_cells=embedding_centroid.n_cells,
             label=embedding_centroid.label,
-            color=embedding_centroid.color
+            annotation=embedding_centroid.annotation
         )
 
     @property
@@ -395,8 +377,8 @@ class PixelSpaceCentroid(object):
         return self._label
 
     @property
-    def color(self):
-        return self._color
+    def annotation(self):
+        return self._annotation
 
     @property
     def center_pt(self):

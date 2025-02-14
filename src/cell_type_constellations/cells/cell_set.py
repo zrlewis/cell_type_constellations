@@ -36,7 +36,7 @@ class CellSet(object):
         # infer child-to-parent relationships, i.e. relationships
         # between discrete_fields where the value in one (the child)
         # necessarily implies the value in another (the parent)
-        self._annotation_tree = tree_utils.infer_tree(
+        self._child_to_parent = tree_utils.infer_tree(
             cell_metadata=cell_metadata,
             discrete_fields=discrete_fields
         )
@@ -193,3 +193,22 @@ class CellSet(object):
                 f"{stat_field} not a valid statistics field"
             )
         return lookup[type_value][stat_field]
+
+    def parent_annotations(self, type_field, type_value):
+        """
+        Return a dict mapping type_field: type_value for any
+        "parents" of the specified (type_field, type_value) pair
+        (where by "parents" we mean "other types that are precisely
+        implied by the specified type).
+
+        This dict will includ the type_field:type_value mapping
+        for self (the specified taxon) so that we can consistently
+        encode labels for the centroids.
+        """
+        result = {type_field: type_value}
+        if type_field not in self._child_to_parent:
+            return result
+        for parent_field in self._child_to_parent[type_field]:
+            parent_value = self._child_to_parent[type_field][parent_field][type_value]
+            result[parent_field] = parent_value
+        return result
