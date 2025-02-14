@@ -8,6 +8,7 @@ import copy
 import numpy as np
 
 import cell_type_mapper.utils.anndata_utils as anndata_utils
+import cell_type_constellations.cells.tree_utils as tree_utils
 
 
 class CellSet(object):
@@ -31,6 +32,14 @@ class CellSet(object):
             as numerical value whose statistics are to be grouped
             along the discrete fields
         """
+
+        # infer child-to-parent relationships, i.e. relationships
+        # between discrete_fields where the value in one (the child)
+        # necessarily implies the value in another (the parent)
+        self._annotation_tree = tree_utils.infer_tree(
+            cell_metadata=cell_metadata,
+            discrete_fields=discrete_fields
+        )
 
         self._type_field_list = copy.deepcopy(discrete_fields)
         self._n_cells = len(cell_metadata)

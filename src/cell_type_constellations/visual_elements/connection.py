@@ -21,6 +21,26 @@ def get_connection_list(
         pixel_centroid_lookup,
         mixture_matrix_file_path,
         type_field):
+    """
+    Get a list of rendering-ready connections for a
+    visualization
+
+    Parameters
+    ----------
+    pixel_centroid_lookup:
+        a dict mapping type_field, type_value pairs to
+        PixelSpaceCentroids
+    mixture_matrix_file_path:
+        path to the HDF5 file containing the mixture matrices
+        associating centroids in this visualization
+    type_field:
+        the type_field (e.g class, subclass, supertype) for which
+        to get the connections
+
+    Returns
+    -------
+    A list of Connections that are ready to be rendered
+    """
 
     with h5py.File(mixture_matrix_file_path, 'r') as src:
         mixture_matrix = src[type_field]['mixture_matrix'][()]
@@ -150,6 +170,9 @@ class Connection(object):
 
     @property
     def ready_to_render(self):
+        """
+        boolean indicating if this centroid is ready to be rendered
+        """
         return (
             (self._rendering_corners is not None)
             and (self._bezier_control_points is not None)
@@ -157,51 +180,76 @@ class Connection(object):
 
     @property
     def src(self):
+        """
+        rhe PixelSpaceCentroid of the Connection's
+        source node
+        """
         return self._src
 
     @property
     def dst(self):
+        """
+        the PixelSpaceCentroid of the Connection's
+        destination node
+        """
         return self._dst
 
     @property
     def k_nn(self):
+        """
+        the number of nearest neighbors per cell used to
+        generate the mixture matrix used in inferring these
+        connecitons
+        """
         return self._k_nn
 
     @property
     def n_src_neighbors(self):
+        """
+        the number of src's nearest neighbors that mapped
+        to dst
+        """
         return self._n_src_neighbors
 
     @property
     def n_dst_neighbors(self):
+        """
+        the number of dst's nearest neighbors that mapped to
+        src
+        """
         return self._n_dst_neighbors
 
     @property
     def src_neighbor_fraction(self):
+        """
+        the fraction of total possible nearest neighbors for src
+        that mapped to dst
+        """
         return self.n_src_neighbors/(self.src.n_cells*self.k_nn)
 
     @property
     def dst_neighbor_fraction(self):
+        """
+        the fraction of total possible nearest neighbors for dst
+        that mapped to src
+        """
         return self.n_dst_neighbors/(self.dst.n_cells*self.k_nn)
 
     @property
     def rendering_corners(self):
+        """
+        List of pixel space coordinates of the corners of
+        the connection (if the Connection were a rectangle)
+        """
         return self._rendering_corners
 
     @property
     def bezier_control_points(self):
+        """
+        The control points for the Bezier curves
+        of the two curved edges of the Connection
+        """
         return self._bezier_control_points
-
-    def _find_mid_pt(self):
-
-        src_pt = self.src.center_pt
-        dst_pt = self.dst.center_pt
-
-        connection = dst_pt-src_pt
-
-        norm = np.sqrt((connection**2).sum())
-
-        self._src_mid = self.src.radius*connection/norm
-        self._dst_mid = -self.dst.radius*connection/norm
 
     @property
     def src_mid(self):
@@ -222,6 +270,18 @@ class Connection(object):
         if not hasattr(self, '_dst_mid'):
             self._find_mid_pt()
         return self._dst_mid
+
+    def _find_mid_pt(self):
+
+        src_pt = self.src.center_pt
+        dst_pt = self.dst.center_pt
+
+        connection = dst_pt-src_pt
+
+        norm = np.sqrt((connection**2).sum())
+
+        self._src_mid = self.src.radius*connection/norm
+        self._dst_mid = -self.dst.radius*connection/norm
 
     def set_rendering_corners(self, max_connection_ratio):
         """
@@ -309,6 +369,16 @@ def _intersection_points(
 
 def get_bezier_control_points(
         connection_list):
+    """
+    Take a list of Connections. Find the control points for the Bezier
+    curved edges of the connections by modeling those control points as
+    charged particles and having them repel each other so that the curved
+    connections don't "get in each other's way"
+
+    Returns a list of control points, one for each connection (the Connection
+    needs to transform these into the two control points, one for the "upper"
+    edge, one for the "lower" edge).
+    """
 
     n_conn = len(connection_list)
     background = np.zeros((3*n_conn, 2), dtype=float)
