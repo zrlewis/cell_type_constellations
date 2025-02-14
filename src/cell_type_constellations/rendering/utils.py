@@ -2,6 +2,10 @@ from cell_type_constellations.visual_elements.centroid import (
    PixelSpaceCentroid
 )
 
+from cell_type_constellations.visual_elements.connection import(
+    PixelSpaceConnection
+)
+
 
 def render_svg(
         fov,
@@ -86,11 +90,17 @@ def render_connection_list(connection_list):
 
 def render_connection(this_connection):
 
+    if not isinstance(this_connection, PixelSpaceConnection):
+        raise RuntimeError(
+            "Can only render instances of PixelSpaceConnection; "
+            f"your connection is of type {type(this_connection)}"
+        )
+
     title = (
-        f"{this_connection.src.label} "
+        f"{this_connection.src_label} "
         f"({this_connection.src_neighbor_fraction:.2e} of neighbors) "
         "-> "
-        f"{this_connection.dst.label} "
+        f"{this_connection.dst_label} "
         f"({this_connection.dst_neighbor_fraction:.2e} of neighbors)"
     )
 

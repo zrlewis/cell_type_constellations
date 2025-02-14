@@ -168,6 +168,22 @@ class Connection(object):
         self._bezier_control_points = None
         self._k_nn = k_nn
 
+    def to_pixel_space_connection(self):
+        if not self.ready_to_render:
+            raise RuntimeError(
+                "Your connection is not ready to render\n"
+                f"rendering_corners: {self.rendering_corners}\n"
+                f"control points: {self.bezier_control_points}\n"
+            )
+        return PixelSpaceConnection(
+            src_label=self.src.label,
+            dst_label=self.dst.label,
+            src_neighbor_fraction=self.src_neighbor_fraction,
+            dst_neighbor_fraction=self.dst_neighbor_fraction,
+            rendering_corners=self.rendering_corners,
+            bezier_control_points=self.bezier_control_points
+        )
+
     @property
     def ready_to_render(self):
         """
@@ -449,3 +465,69 @@ def compute_force(
     weights = charges/np.power(rsq, 2.0)
     force = (vectors.transpose()*weights).sum(axis=1)
     return force
+
+
+class PixelSpaceConnection(object):
+
+    def __init__(
+            self,
+            src_label,
+            dst_label,
+            src_neighbor_fraction,
+            dst_neighbor_fraction,
+            rendering_corners,
+            bezier_control_points):
+        """
+        This is the form of the connection that actually
+        gets rendered
+
+        Parameters
+        ----------
+        src_label:
+            label of the centroid that is the source for the
+            connection
+        dst_label:
+            label of the centroid that is the destionation of
+            the connection
+        src_neighbor_fraction:
+            fraction of src's neighbors that map to dst
+        dst_neighbor_fraction:
+            fraction of dst's neighbors that map to src
+        rendering_corners:
+            list of four 2-D points in pixel space that are the
+            corners of the connection
+        bezier_control_points:
+            list of two 2-D points that are the control points for
+            the Bezier curves of the connection
+        """
+
+        self._src_label = src_label
+        self._dst_label = dst_label
+        self._rendering_corners = rendering_corners
+        self._bezier_control_points = bezier_control_points
+        self._src_neighbor_fraction = src_neighbor_fraction
+        self._dst_neighbor_fraction = dst_neighbor_fraction
+
+    @property
+    def src_label(self):
+        return self._src_label
+
+    @property
+    def dst_label(self):
+        return self._dst_label
+
+    @property
+    def src_neighbor_fraction(self):
+        return self._src_neighbor_fraction
+
+    @property
+    def dst_neighbor_fraction(self):
+        return self._dst_neighbor_fraction
+
+    @property
+    def rendering_corners(self):
+        return self._rendering_corners
+
+    @property
+    def bezier_control_points(self):
+        return self._bezier_control_points
