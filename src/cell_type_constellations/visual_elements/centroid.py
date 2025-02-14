@@ -285,6 +285,10 @@ class PixelSpaceCentroid(object):
         center_pt = fov.transform_to_pixel_coordinates(
             np.array([embedding_centroid.center_pt])
         )
+        if center_pt[0, 0] > fov.width or center_pt[0, 1] > fov.height:
+            raise RuntimeError(
+                f"{embedding_centroid.center_pt} -> {center_pt}"
+            )
         radius = fov.get_pixel_radii(
             n_cells_array= np.array([embedding_centroid.n_cells]),
             n_cells_max=n_cells_max

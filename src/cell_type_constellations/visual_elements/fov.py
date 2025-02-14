@@ -37,6 +37,7 @@ class FieldOfView(object):
         self._fov_height = fov_height
         xmax = embedding_bounds[0, 1]
         xmin = embedding_bounds[0, 0]
+
         ymax = embedding_bounds[1, 1]
         ymin = embedding_bounds[1, 0]
         dx = 6*max_radius + xmax - xmin
@@ -58,7 +59,6 @@ class FieldOfView(object):
         self.embedding_extent = [xmax-xmin, ymax-ymin]
 
         self._set_embedding_to_pixel()
-
 
     @classmethod
     def from_h5ad(
@@ -121,11 +121,11 @@ class FieldOfView(object):
         if coords.shape[1] != 2:
             raise RuntimeError(
                 "Embedding coordinates for FieldOfView must "
-                "be 2-dimensional; you gave {coords.shape}"
+                f"be 2-dimensional; you gave {coords.shape}"
             )
 
         bounds = np.array([
-            [coords[:,0].min(), coords[:, 1].max()],
+            [coords[:, 0].min(), coords[:, 0].max()],
             [coords[:, 1].min(), coords[:, 1].max()]
         ])
         return cls(
@@ -208,7 +208,7 @@ class FieldOfView(object):
         if len(embedding_coords.shape) != 2 or embedding_coords.shape[1] != 2:
             raise RuntimeError(
                "embedding_coords must be an (N, 2) array; "
-               "yours has shape {embedding_coords.shape}"
+               f"yours has shape {embedding_coords.shape}"
             )
         input3d = np.vstack([
             embedding_coords.transpose(),
