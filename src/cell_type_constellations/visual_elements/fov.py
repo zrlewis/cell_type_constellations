@@ -27,6 +27,9 @@ class FieldOfView(object):
                 [[xmin, xmax], [ymin, ymax]]
         fov_height:
             The height (in pixels) of the field of view
+            (width will be calculated to preserve the aspect
+            ratio of the embedding coordinate array as encoded
+            in embedding_bounds)
         max_radius:
             The maximum radius (in pixel coordinates)
             of a node in the constellation plot
@@ -167,9 +170,18 @@ class FieldOfView(object):
 
     @property
     def embedding_to_pixel(self):
+        """
+        The 3x3 transformation matrix that can transform
+        an [x, y, 1] vector in embedding coordinates to
+        an [px, py, 1] vector in pixel coordinates
+        """
         return self._embedding_to_pixel
 
     def _set_embedding_to_pixel(self):
+        """
+        Set the transformation matrix for converting from
+        embedding coordinates to pixel coordinates.
+        """
 
         e0 = self.pixel_extent[0]
         e1 = self.pixel_extent[1]
