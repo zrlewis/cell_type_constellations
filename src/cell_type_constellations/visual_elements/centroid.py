@@ -11,6 +11,36 @@ import cell_type_constellations.utils.coord_utils as coord_utils
 import cell_type_constellations.utils.geometry_utils as geometry_utils
 
 
+def pixel_centroid_lookup_from_h5ad(
+        cell_set,
+        fov,
+        h5ad_path,
+        coord_key,
+        color_map=None):
+
+    embedding_lookup = embedding_centroid_lookup_from_h5ad(
+        cell_set=cell_set,
+        h5ad_path=h5ad_path,
+        coord_key=coord_key,
+        color_map=color_map
+    )
+
+    pixel_lookup = dict()
+    for type_field in embedding_lookup:
+        pixel_lookup[type_field] = dict()
+        n_cells_max = max(
+            [centroid.n_cells for centroid in embedding_lookup[type_field].values()]
+        )
+        for type_value in embedding_lookup[type_field]:
+            embedding_centroid = embedding_lookup[type_field][type_value]
+            pixel_lookup[type_field][type_value] = PixelSpaceCentroid.from_embedding_centroid(
+                embedding_centroid=embedding_centroid,
+                fov=fov,
+                n_cells_max=n_cells_max
+            )
+    return pixel_lookup
+
+
 def embedding_centroid_lookup_from_h5ad(
         cell_set,
         h5ad_path,

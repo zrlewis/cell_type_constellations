@@ -222,6 +222,7 @@ def _create_mixture_matrices(
     # join tmp files
     row_key_reference = dict()
     with h5py.File(dst_path, 'w') as dst:
+        dst.create_dataset('k_nn', data=k_nn)
         for type_field in cell_set.type_field_list():
             n_types = len(cell_set.type_value_list(type_field))
             grp = dst.create_group(type_field)

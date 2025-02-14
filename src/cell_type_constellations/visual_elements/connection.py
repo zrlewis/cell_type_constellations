@@ -7,9 +7,97 @@ of how they are rendered, you need to know how the centroids will appear
 in actual pixel space, not in embedding space
 """
 
+import h5py
+import numpy as np
+
+import cell_type_constellations.utils.geometry_utils as geometry_utils
+import cell_type_constellations.utils.connection_utils as connection_utils
+
 from cell_type_constellations.visual_elements.centroid import (
     PixelSpaceCentroid
 )
+
+def get_connection_list(
+        pixel_centroid_lookup,
+        mixture_matrix_file_path,
+        type_field):
+
+    with h5py.File(mixture_matrix_file_path, 'r') as src:
+        mixture_matrix = src[type_field]['mixture_matrix'][()]
+        type_value_list = [
+            val.decode('utf-8')
+            for val in src[type_field]['row_key'][()]
+        ]
+        k_nn = src['k_nn'][()]
+
+    centroid_list = [
+        pixel_centroid_lookup[type_field][val]
+        for val in type_value_list
+    ]
+
+    n_cells_array = np.array(
+        [centroid.n_cells for centroid in centroid_list]
+    )
+
+    valid_connections = connection_utils.choose_connections(
+        mixture_matrix=mixture_matrix,
+        n_cells=n_cells_array,
+        k_nn=k_nn
+    )
+
+    # make sure each pair is unique, regardless of order
+    loaded_connections = set()
+    connection_list = []
+    max_ratio = None
+    for i0, i1 in zip(*valid_connections):
+
+        pair = tuple(sorted((i0, i1)))
+
+        if pair in loaded_connections:
+            continue
+        loaded_connections.add(pair)
+
+        n0 = mixture_matrix[i0, i1]/centroid_list[i0].n_cells
+        n1 = mixture_matrix[i1, i0]/centroid_list[i1].n_cells
+
+        this_max = max(n0, n1)
+        if max_ratio is None or this_max > max_ratio:
+            max_ratio = this_max
+
+        if n0 > n1:
+            i_src = i0
+            i_dst = i1
+            n_src = mixture_matrix[i0, i1]
+            n_dst = mixture_matrix[i1, i0]
+        else:
+            i_src = i1
+            i_dst = i0
+            n_src = mixture_matrix[i1, i0]
+            n_dst = mixture_matrix[i0, i1]
+
+        src = centroid_list[i_src]
+        dst = centroid_list[i_dst]
+        conn = Connection(
+            src_centroid=src,
+            dst_centroid=dst,
+            n_src_neighbors=n_src,
+            n_dst_neighbors=n_dst,
+            k_nn=k_nn
+        )
+        connection_list.append(conn)
+
+    for conn in connection_list:
+        conn.set_rendering_corners(
+            max_connection_ratio=max_ratio
+        )
+
+    bezier_control_points = get_bezier_control_points(
+        connection_list=connection_list)
+
+    for ii, bez in enumerate(bezier_control_points):
+        connection_list[ii].set_bezier_control_points(bez)
+
+    return connection_list
 
 
 class Connection(object):
@@ -55,7 +143,7 @@ class Connection(object):
         self._src = src_centroid
         self._dst = dst_centroid
         self._n_src_neighbors = n_src_neighbors
-        self._n_dst_neighors = n_dst_neighbors
+        self._n_dst_neighbors = n_dst_neighbors
         self._rendering_corners = None
         self._bezier_control_points = None
         self._k_nn = k_nn
@@ -80,12 +168,28 @@ class Connection(object):
         return self._k_nn
 
     @property
+    def n_src_neighbors(self):
+        return self._n_src_neighbors
+
+    @property
+    def n_dst_neighbors(self):
+        return self._n_dst_neighbors
+
+    @property
     def src_neighbor_fraction(self):
         return self.n_src_neighbors/(self.src.n_cells*self.k_nn)
 
     @property
     def dst_neighbor_fraction(self):
         return self.n_dst_neighbors/(self.dst.n_cells*self.k_nn)
+
+    @property
+    def rendering_corners(self):
+        return self._rendering_corners
+
+    @property
+    def bezier_control_points(self):
+        return self._bezier_control_points
 
     def _find_mid_pt(self):
 
@@ -96,8 +200,8 @@ class Connection(object):
 
         norm = np.sqrt((connection**2).sum())
 
-        self._src_mid = self.src.pixel_r*connection/norm
-        self._dst_mid = -self.dst.pixel_r*connection/norm
+        self._src_mid = self.src.radius*connection/norm
+        self._dst_mid = -self.dst.radius*connection/norm
 
     @property
     def src_mid(self):
@@ -126,7 +230,7 @@ class Connection(object):
         this visualization.
         """
 
-        self.rendering_corners = _intersection_points(
+        self._rendering_corners = _intersection_points(
             src_pt=self.src.center_pt,
             src_mid=self.src_mid,
             src_n_cells=self.src.n_cells,
@@ -139,21 +243,22 @@ class Connection(object):
             dst_r=self.dst.radius,
             max_connection_ratio=max_connection_ratio)
 
-        points = self.rendering_corners
-        if do_intersect([points[0], points[1]],
+        points = self._rendering_corners
+        if geometry_utils.do_intersect([points[0], points[1]],
                         [points[2], points[3]]):
             print(f'huh {self.src.name} {self.dst.name}')
 
-    def set_bezier_controls(self, thermal_control):
+    def set_bezier_control_points(self, thermal_control):
         """
         Thermal control is the result of the get_bezier_control_points
         function run on all the connections in the field of view
         """
+        assert self.rendering_corners is not None
         mid_pt = 0.5*(self.src.center_pt+self.dst.center_pt)
         dd = thermal_control-mid_pt
         ctrl0 = dd+0.5*(self.rendering_corners[0]+self.rendering_corners[1])
         ctrl1 = dd+0.5*(self.rendering_corners[2]+self.rendering_corners[3])
-        self.bezier_control_points = np.array([ctrl0, ctrl1])
+        self._bezier_control_points = np.array([ctrl0, ctrl1])
 
 
 def _intersection_points(
@@ -188,13 +293,13 @@ def _intersection_points(
             new_theta = np.sign(dst_theta)*new_theta
             dst_theta = new_theta
 
-    src0 = src_pt + rot(src_mid, src_theta)
-    src1 = src_pt + rot(src_mid, -src_theta)
+    src0 = src_pt + geometry_utils.rot(src_mid, src_theta)
+    src1 = src_pt + geometry_utils.rot(src_mid, -src_theta)
 
-    dst0 = dst_pt + rot(dst_mid, -dst_theta)
-    dst1 = dst_pt + rot(dst_mid, dst_theta)
+    dst0 = dst_pt + geometry_utils.rot(dst_mid, -dst_theta)
+    dst1 = dst_pt + geometry_utils.rot(dst_mid, dst_theta)
 
-    if do_intersect([src0, dst0], [dst1, src1]):
+    if geometry_utils.do_intersect([src0, dst0], [dst1, src1]):
         points = [src0, dst1, dst0, src1]
     else:
         points = [src0, dst0, dst1, src1]
@@ -225,7 +330,7 @@ def get_bezier_control_points(
             (dd**2).sum()
         )
         dd = dd/distances[i_conn]
-        orthogonals[i_conn, :] = rot(dd, 0.5*np.pi)
+        orthogonals[i_conn, :] = geometry_utils.rot(dd, 0.5*np.pi)
 
     max_displacement = 0.05
     n_iter = 3
@@ -255,7 +360,8 @@ def get_bezier_control_points(
             mask[2*n_conn+i_conn] = True
             mask[i_conn*2] = True
             mask[1+2*i_conn] = True
-            n_tot += 1
+            if displacement > 1.0e-3:
+                n_tot += 1
         print(f'adj {n_adj} of {n_tot}')
 
     return background[2*n_conn:, :]
