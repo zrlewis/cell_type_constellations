@@ -25,12 +25,17 @@ def pixel_centroid_lookup_from_h5ad(
         color_map=color_map
     )
 
+    n_cells_max = None
+    for type_field in embedding_lookup:
+        n = max(
+            [centroid.n_cells for centroid in embedding_lookup[type_field].values()]
+        )
+        if n_cells_max is None or n > n_cells_max:
+            n_cells_max = n
+
     pixel_lookup = dict()
     for type_field in embedding_lookup:
         pixel_lookup[type_field] = dict()
-        n_cells_max = max(
-            [centroid.n_cells for centroid in embedding_lookup[type_field].values()]
-        )
         for type_value in embedding_lookup[type_field]:
             embedding_centroid = embedding_lookup[type_field][type_value]
             pixel_lookup[type_field][type_value] = PixelSpaceCentroid.from_embedding_centroid(
