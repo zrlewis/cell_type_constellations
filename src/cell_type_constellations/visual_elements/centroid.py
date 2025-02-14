@@ -17,6 +17,44 @@ def pixel_centroid_lookup_from_h5ad(
         h5ad_path,
         coord_key,
         color_map=None):
+    """
+    Return a dict mapping type_field, type_value pairs to the corresponding
+    PixelSpaceCentroid
+
+    Parameters
+    ----------
+    cell_set:
+        the CellSet defining the cells being visualized
+    fov:
+        the FieldOfView characterizing the visualization
+        (needed for transformation from embedding space coordinates
+        to pixel space coordinates)
+    h5ad_path:
+        path to the h5ad file containing the visualization embedding
+    coord_key:
+        key in obsm of the embedding coordinates in which the visualization
+        is being rendered
+    color_map:
+        optional dict mapping type_field, type_value pairs to hexadecimal
+        color representations
+
+    Returns
+    -------
+    A dict structured like
+        {
+         type_field_1: {
+                        type_value_1: PixelCentroid,
+                        type_value_2: PixelCentroid,
+                        ...
+                       },
+         type_field_2: {
+                        type_value_3: PixelCentroid,
+                        type_value_4: PixelCentroid,
+                        ...
+                       },
+         ...
+        }
+    """
 
     embedding_lookup = embedding_centroid_lookup_from_h5ad(
         cell_set=cell_set,
@@ -52,8 +90,8 @@ def embedding_centroid_lookup_from_h5ad(
         coord_key,
         color_map=None):
     """
-    Instantiate a lookup table of EmbeddingCentroids from a cell set
-    and an embedding array stored in an h5ad file
+    Instantiate a lookup table of EmbeddingSpaceCentroids from a
+    cell set and an embedding array stored in an h5ad file
     
     Parameters
     ----------
@@ -119,8 +157,28 @@ def embedding_centroid_for_type(
         type_value,
         color):
     """
-    Return a centroid for a specific (type_field, type_value) combination
-    in a CellSet
+    Return an embedding space spockcentroid for a specific
+    (type_field, type_value) combination in a CellSet
+
+    Parameters
+    ----------
+    cell_set:
+        the CellSet defining the cells in this visualizatoin
+    embedding_coords:
+        the (n_cells, 2) array of embedding coordinates
+        defining this visualization
+    type_field:
+        the type_field of the centroid being instantiated
+    type_value:
+        the type_value of the centroid being instantiated
+        (these are used to look up the indices of the relevant
+        cells using cell_set.type_mask(type_field, type_value)
+    color:
+        hexadecimal color for the centroid
+
+    Returns
+    -------
+    an EmbeddingSpaceCentroid
     """
     n_cells = cell_set.n_cells_in_type(
         type_field=type_field,
@@ -153,7 +211,7 @@ def embedding_centroid_for_type(
         min_idx = np.argmin(dsq)
         chosen = coords[min_idx, :]
 
-    result = EmbeddingCentroid(
+    result = EmbeddingSpaceCentroid(
         embedding_x=chosen[0],
         embedding_y=chosen[1],
         n_cells=n_cells,
@@ -164,7 +222,7 @@ def embedding_centroid_for_type(
     return result
 
 
-class EmbeddingCentroid(object):
+class EmbeddingSpaceCentroid(object):
 
     def __init__(
             self,
@@ -278,7 +336,7 @@ class PixelSpaceCentroid(object):
         Parameters
         ----------
         embedding_centroid:
-            the EmbeddingCentroid representing this Centroid's
+            the EmbeddingSpaceCentroid representing this Centroid's
             embedding space representation
         fov:
             the FieldOfView controlling transformations between
@@ -323,6 +381,9 @@ class PixelSpaceCentroid(object):
 
     @property
     def radius(self):
+        """
+        radius in pixel space of hte centroid
+        """
         return self._radius
 
     @property
