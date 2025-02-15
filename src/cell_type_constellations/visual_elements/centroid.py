@@ -4,6 +4,8 @@ around the embedding space coordinates and annotations for
 a node in the constellation plot
 """
 
+import h5py
+import json
 import matplotlib
 import numpy as np
 
@@ -202,6 +204,103 @@ def embedding_centroid_for_type(
     )
 
     return result
+
+def write_pixel_centroids_to_hdf5(
+        hdf5_path,
+        group_path,
+        centroid_list):
+    """
+    Write a list of PixelSpaceCentroids to a specific group in an
+    HDF5 file.
+    """
+
+    for centroid in centroid_list:
+        assert isinstance(centroid, PixelSpaceCentroid)
+
+    with h5py.File(hdf5_path, 'a') as dst:
+        if group_path in dst:
+            raise RuntimeError(
+                f"{group_path} already exists in {hdf5_path}; "
+                "unclear how to proceed"
+            )
+        dst_grp = dst.create_group(group_path)
+        dst_grp.create_dataset(
+            'x',
+            data=np.array(
+                [centroid.pixel_x for centroid in centroid_list]
+            )
+        )
+        dst_grp.create_dataset(
+            'y',
+            data=np.array(
+                [centroid.pixel_y for centroid in centroid_list]
+            )
+        )
+        dst_grp.create_dataset(
+            'r',
+            data=np.array(
+                [centroid.radius for centroid in centroid_list]
+            )
+        )
+        dst_grp.create_dataset(
+            'n_cells',
+            data=np.array(
+                [centroid.n_cells for centroid in centroid_list]
+            )
+        )
+        dst_grp.create_dataset(
+            'label',
+            data=np.array(
+                [centroid.label.encode('utf-8') for centroid in centroid_list]
+            )
+        )
+        dst_grp.create_dataset(
+            'annotation',
+            data=np.array(
+                [json.dumps(centroid.annotation).encode('utf-8')
+                 for centroid in centroid_list]
+            )
+        )
+
+
+def read_pixel_centroids_from_hdf5(
+        hdf5_path,
+        group_path):
+    """
+    Read a list of PixelSpaceCentroids from a specific
+    group in an HDF5 file. Return the list of centroids.
+    """
+
+    with h5py.File(hdf5_path, 'r') as src:
+        src_grp = src[group_path]
+        pixel_x_arr = src_grp['x'][()]
+        pixel_y_arr = src_grp['y'][()]
+        radius_arr = src_grp['r'][()]
+        n_cells_arr = src_grp['n_cells'][()]
+        label_arr = [
+            label.decode('utf-8')
+            for label in src_grp['label'][()]
+        ]
+        annotation_arr = [
+            json.loads(ann.decode('utf-8'))
+            for ann in src_grp['annotation'][()]
+        ]
+
+    n_centroids = len(pixel_x_arr)
+
+    centroid_list = [
+        PixelSpaceCentroid(
+            pixel_x=pixel_x_arr[ii],
+            pixel_y=pixel_y_arr[ii],
+            pixel_radius=radius_arr[ii],
+            n_cells=n_cells_arr[ii],
+            label=label_arr[ii],
+            annotation=annotation_arr[ii]
+        )
+        for ii in range(n_centroids)
+    ]
+
+    return centroid_list
 
 
 class EmbeddingSpaceCentroid(object):

@@ -124,6 +124,10 @@ def write_pixel_connections_to_hdf5(
         hdf5_path,
         group_path,
         connection_list):
+    """
+    Write a list of PixelSpaceConnections to a specific
+    group in and HDF5 file
+    """
 
     for conn in connection_list:
         assert isinstance(conn, PixelSpaceConnection)
@@ -188,6 +192,11 @@ def write_pixel_connections_to_hdf5(
 def read_pixel_connections_from_hdf5(
         hdf5_path,
         group_path):
+    """
+    Read a list of PixelSpaceConnections from a specific
+    group in an HDF5 file. Return the list of
+    PixelSpaceConnections
+    """
 
     with h5py.File(hdf5_path, 'r') as src:
         src_grp = src[group_path]
