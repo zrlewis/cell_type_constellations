@@ -4,6 +4,7 @@ be to transform between 2D embedding coordinates and pixel
 coordinates
 """
 
+import h5py
 import numpy as np
 
 import cell_type_constellations.utils.coord_utils as coord_utils
@@ -45,6 +46,59 @@ class FieldOfView(object):
         self._min_radius = min_radius
 
         self._embedding_to_pixel = embedding_to_pixel
+
+    def to_hdf5(self, hdf5_path, group_path):
+        """
+        Write the parameters necessary to instantiate
+        this FieldOfView to a specified group in an HDF5
+        file
+        """
+        with h5py.File(hdf5_path, 'a') as dst:
+            if group_path in dst:
+                raise RuntimeError(
+                    f"{group_path} already exists in {hdf5_path}; "
+                    "unclear how to proceed"
+                )
+            dst_grp = dst.create_group(group_path)
+            dst_grp.create_dataset(
+                "embedding_to_pixel",
+                data=self.embedding_to_pixel
+            )
+            dst_grp.create_dataset(
+                "radius_bounds",
+                data=np.array([self.min_radius, self.max_radius])
+            )
+            dst_grp.create_dataset(
+                "dimensions",
+                data=np.array([self.width, self.height])
+            )
+
+    @classmethod
+    def from_hdf5(
+            cls,
+            hdf5_path,
+            group_path):
+        """
+        Parameters
+        ----------
+        hdf5_path:
+            path to the HDF5 path from which to read this FieldOfView
+        group_path:
+            specifiation of group in HDF5 file from which to read this
+            FieldOfView
+        """
+        with h5py.File(hdf5_path, 'r') as src:
+            src_grp = src[group_path]
+            embedding_to_pixel = src_grp['embedding_to_pixel'][()]
+            radius_bounds = src_grp['radius_bounds'][()]
+            dimensions = src_grp['dimensions'][()]
+        return cls(
+            embedding_to_pixel=embedding_to_pixel,
+            min_radius=radius_bounds[0],
+            max_radius=radius_bounds[1],
+            fov_width=dimensions[0],
+            fov_height=dimensions[1]
+        )
 
     @classmethod
     def from_h5ad(
