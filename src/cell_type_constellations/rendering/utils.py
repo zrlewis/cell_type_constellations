@@ -51,7 +51,7 @@ def render_centroid_list(
 
 def render_centroid(centroid, color_map, color_by):
 
-    color_value = centroid.annotation[color_by]
+    color_value = centroid.annotation['annotations'][color_by]
     color = color_map[color_by][color_value]
 
     if not isinstance(centroid, PixelSpaceCentroid):

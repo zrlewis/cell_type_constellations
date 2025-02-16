@@ -192,15 +192,28 @@ def embedding_centroid_for_type(
         min_idx = np.argmin(dsq)
         chosen = coords[min_idx, :]
 
+    annotation = {
+        'annotations': cell_set.parent_annotations(
+            type_field=type_field,
+            type_value=type_value)
+    }
+    statistics = dict()
+    for stat_field in cell_set.stat_field_list(
+                            type_field=type_field,
+                            type_value=type_value):
+        statistics[stat_field] = cell_set.stats(
+            type_field=type_field,
+            type_value=type_value,
+            stat_field=stat_field
+        )
+    annotation['statistics'] = statistics
+
     result = EmbeddingSpaceCentroid(
         embedding_x=chosen[0],
         embedding_y=chosen[1],
         n_cells=n_cells,
         label=f'{type_field}: {type_value}',
-        annotation=cell_set.parent_annotations(
-            type_field=type_field,
-            type_value=type_value
-        )
+        annotation=annotation
     )
 
     return result

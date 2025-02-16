@@ -172,6 +172,22 @@ class CellSet(object):
             )
         return self._idx_to_types[type_field][idx_array]
 
+    def stat_field_list(self, type_field, type_value):
+        """
+        Return the list of valid stat fields for a given
+        type_filed, type_value pair
+        """
+        if type_field not in self._statistics:
+            raise RuntimeError(
+                f"No cell types associated with field {type_field}"
+            )
+        lookup = self._statistics[type_field]
+        if type_value not in lookup:
+            raise RuntimeError(
+                f"{type_value} not a valid value for field {type_field}"
+            )
+        return sorted(lookup[type_value].keys())
+
     def stats(self, type_field, type_value, stat_field):
         """
         Return the stats dict for a specific set of
