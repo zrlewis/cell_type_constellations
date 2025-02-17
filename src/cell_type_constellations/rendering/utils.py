@@ -6,6 +6,10 @@ from cell_type_constellations.visual_elements.connection import(
     PixelSpaceConnection
 )
 
+from cell_type_constellations.rendering.continuous_color_map import (
+    ContinuousColorMap
+)
+
 
 def render_svg(
         fov,
@@ -13,13 +17,21 @@ def render_svg(
         color_by,
         centroid_list,
         connection_list=None):
-    code = get_svg_header(fov)
+
     if connection_list is not None:
-        code += render_connection_list(connection_list)
-    code += render_centroid_list(
-        centroid_list,
-        color_map,
-        color_by)
+        connection_code = render_connection_list(connection_list)
+    else:
+        connection_code = ''
+
+    centroid_code = render_centroid_list(
+        centroid_list=centroid_list,
+        color_map=color_map,
+        color_by=color_by,
+        fov=fov)
+
+    code = get_svg_header(fov)
+    code += connection_code
+    code += centroid_code
     code += "</svg>\n"
     return code
 
@@ -33,13 +45,22 @@ def get_svg_header(fov):
     return result
 
 
-
 def render_centroid_list(
         centroid_list,
         color_map,
-        color_by):
+        color_by,
+        fov):
 
     centroid_code = ""
+
+    if color_by in centroid_list[0].annotation['statistics']:
+        color_map = ContinuousColorMap(
+            fov=fov,
+            centroid_list=centroid_list,
+            color_by=color_by
+        )
+        centroid_code = color_map.get_colorbar_code()
+
     for el in centroid_list:
         centroid_code += render_centroid(
             centroid=el,
@@ -51,8 +72,12 @@ def render_centroid_list(
 
 def render_centroid(centroid, color_map, color_by):
 
-    color_value = centroid.annotation['annotations'][color_by]
-    color = color_map[color_by][color_value]
+    if isinstance(color_map, ContinuousColorMap):
+        color_value = centroid.annotation['statistics'][color_by]['mean']
+        color = color_map.value_to_rgb(color_value)
+    else:
+        color_value = centroid.annotation['annotations'][color_by]
+        color = color_map[color_by][color_value]
 
     if not isinstance(centroid, PixelSpaceCentroid):
         raise RuntimeError(
