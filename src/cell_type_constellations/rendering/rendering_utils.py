@@ -1,3 +1,5 @@
+import numpy as np
+
 from cell_type_constellations.visual_elements.centroid import (
    PixelSpaceCentroid
 )
@@ -82,9 +84,11 @@ def render_centroid_list(
 
 def render_centroid(centroid, color_map, color_by):
 
+    is_stats = False
     if isinstance(color_map, ContinuousColorMap):
         color_value = centroid.annotation['statistics'][color_by]['mean']
         color = color_map.value_to_rgb(color_value)
+        is_stats = True
     else:
         if color_by not in centroid.annotation['annotations']:
             raise CannotColorByError(
@@ -103,6 +107,14 @@ def render_centroid(centroid, color_map, color_by):
     hover_msg = (
         f"{centroid.label} -- {centroid.n_cells:.2e} cells"
     )
+    if is_stats:
+        mu = centroid.annotation['statistics'][color_by]['mean']
+        std = np.sqrt(centroid.annotation['statistics'][color_by]['var'])
+        hover_msg += f"\n{color_by}: {mu:.2e} +/- {std:.2e}"
+    else:
+        color_label = centroid.annotation['annotations'][color_by]
+        if color_label != centroid.label:
+            hover_msg += f"\n{color_by}: {color_label}"
 
     result = """    <a>\n"""
 
@@ -111,7 +123,7 @@ def render_centroid(centroid, color_map, color_by):
         f"""fill="{color}" stroke="transparent"/>\n"""
     )
     result += """        <title>\n"""
-    result += f"""        {hover_msg}\n"""
+    result += f"""{hover_msg}\n"""
     result += """        </title>\n"""
 
     result += "    </a>\n"
