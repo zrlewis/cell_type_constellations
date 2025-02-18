@@ -452,7 +452,7 @@ class Connection(object):
         points = self._rendering_corners
         if geometry_utils.do_intersect([points[0], points[1]],
                         [points[2], points[3]]):
-            print(f'huh {self.src.name} {self.dst.name}')
+            print(f'huh {self.src.label} {self.dst.label}')
 
     def set_bezier_control_points(self, thermal_control):
         """
