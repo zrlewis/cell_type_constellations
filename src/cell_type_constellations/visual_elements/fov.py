@@ -242,22 +242,12 @@ class FieldOfView(object):
         """
         return self._fov_width
 
-    @width.setter
-    def width(self, value):
-        assert value > self._fov_width
-        self._fov_width = value
-
     @property
     def height(self):
         """
         height of field of view in pixel coordinates
         """
         return self._fov_height
-
-    @height.setter
-    def height(self, value):
-        assert value > self._fov_height
-        self._fov_height = value
 
     @property
     def max_radius(self):

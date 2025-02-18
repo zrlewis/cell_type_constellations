@@ -7,7 +7,8 @@ from cell_type_constellations.visual_elements.connection import(
 )
 
 from cell_type_constellations.rendering.continuous_color_map import (
-    ContinuousColorMap
+    ContinuousColorMap,
+    get_colorbar_code
 )
 
 
@@ -23,7 +24,8 @@ def render_svg(
     else:
         connection_code = ''
 
-    centroid_code = render_centroid_list(
+    (centroid_code,
+     fov) = render_centroid_list(
         centroid_list=centroid_list,
         color_map=color_map,
         color_by=color_by,
@@ -50,16 +52,20 @@ def render_centroid_list(
         color_map,
         color_by,
         fov):
-
+    """
+    Returns the SVG code for the centroids and fov
+    (in case fov needs to be updated to accommodate
+    a colorbar or some other legend)
+    """
     centroid_code = ""
 
     if color_by in centroid_list[0].annotation['statistics']:
         color_map = ContinuousColorMap(
-            fov=fov,
             centroid_list=centroid_list,
             color_by=color_by
         )
-        centroid_code = color_map.get_colorbar_code()
+        (centroid_code,
+         fov) = get_colorbar_code(color_map=color_map, fov=fov)
 
     for el in centroid_list:
         centroid_code += render_centroid(
@@ -67,7 +73,7 @@ def render_centroid_list(
             color_map=color_map,
             color_by=color_by)
 
-    return centroid_code
+    return centroid_code, fov
 
 
 def render_centroid(centroid, color_map, color_by):

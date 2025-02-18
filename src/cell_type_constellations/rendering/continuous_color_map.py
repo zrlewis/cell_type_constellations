@@ -6,17 +6,19 @@ values into a color scheme
 import matplotlib
 import numpy as np
 
+from cell_type_constellations.visual_elements.fov import (
+    FieldOfView
+)
+
 
 class ContinuousColorMap(object):
 
     def __init__(
             self,
-            fov,
             centroid_list,
             color_by):
 
         self._color_map = matplotlib.colormaps['cool']
-        self._fov = fov
         self._color_by = color_by
 
         color_values = [
@@ -43,10 +45,6 @@ class ContinuousColorMap(object):
         return self._color_map
 
     @property
-    def fov(self):
-        return self._fov
-
-    @property
     def normalizer(self):
         return self._normalizer
 
@@ -63,27 +61,37 @@ class ContinuousColorMap(object):
             self.color_map(self.normalizer(value))
         )
 
-    def get_colorbar_code(self):
 
-        dx = np.round(self.fov.width*0.1)
-        dy = np.round(self.fov.height*0.2)
-        self.fov.width = self.fov.width + 2*dx
+def get_colorbar_code(color_map, fov):
 
-        color_values = np.linspace(self.vmin, self.vmax, 100)
-        color_hexes = [self.value_to_rgb(v) for v in color_values]
+    dx = np.round(fov.width*0.1)
+    dy = np.round(fov.height*0.2)
 
-        x0 = self.fov.width-3*dx//2
-        y0 = dy
-        color_bar_code = get_colorbar_svg(
-            x0=x0,
-            y0=y0,
-            x1=x0+dx//2,
-            y1=self.fov.height-dy,
-            color_list=color_hexes,
-            value_list=color_values,
-            color_by_parameter=self.color_by
-        )
-        return color_bar_code
+    new_width = fov.width + 2*dx
+
+    new_fov = FieldOfView(
+        embedding_to_pixel=fov.embedding_to_pixel,
+        fov_height=fov.height,
+        fov_width=new_width,
+        max_radius=fov.max_radius,
+        min_radius=fov.min_radius
+    )
+
+    color_values = np.linspace(color_map.vmin, color_map.vmax, 100)
+    color_hexes = [color_map.value_to_rgb(v) for v in color_values]
+
+    x0 = new_fov.width-3*dx//2
+    y0 = dy
+    color_bar_code = get_colorbar_svg(
+        x0=x0,
+        y0=y0,
+        x1=x0+dx//2,
+        y1=new_fov.height-dy,
+        color_list=color_hexes,
+        value_list=color_values,
+        color_by_parameter=color_map.color_by
+    )
+    return color_bar_code, new_fov
 
 
 def get_colorbar_svg(
