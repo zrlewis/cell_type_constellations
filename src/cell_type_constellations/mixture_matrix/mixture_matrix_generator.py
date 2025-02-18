@@ -147,7 +147,7 @@ def create_mixture_matrices(
 
     chunk_size = min(
         chunk_size,
-        np.ceil(cell_set.n_cells//n_processors).astype(int)
+        np.ceil(cell_set.n_cells/n_processors).astype(int)
     )
 
     dst_path = pathlib.Path(dst_path)
