@@ -130,7 +130,15 @@ def write_pixel_connections_to_hdf5(
     """
 
     for conn in connection_list:
-        assert isinstance(conn, PixelSpaceConnection)
+        if not isinstance(conn, PixelSpaceConnection):
+            raise RuntimeError(
+                "serialization requires connections to be of type "
+                "PixelSpaceConnection; at least one of your "
+                f"connections is of type {type(conn)}; "
+                "Connections have a method self.to_pixel_space_connection "
+                "to create an equivalent PixelSpaceConnection, if that "
+                "helps."
+            )
 
     with h5py.File(hdf5_path, 'a') as dst:
         if group_path in dst:
