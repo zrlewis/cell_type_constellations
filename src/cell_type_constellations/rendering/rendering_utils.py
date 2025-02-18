@@ -12,6 +12,10 @@ from cell_type_constellations.rendering.continuous_color_map import (
 )
 
 
+class CannotColorByError(Exception):
+    pass
+
+
 def render_svg(
         fov,
         color_map,
@@ -82,6 +86,11 @@ def render_centroid(centroid, color_map, color_by):
         color_value = centroid.annotation['statistics'][color_by]['mean']
         color = color_map.value_to_rgb(color_value)
     else:
+        if color_by not in centroid.annotation['annotations']:
+            raise CannotColorByError(
+                f"Cannot color centroid {centroid.label} by "
+                f"column {color_by}; not present in annotation"
+            )
         color_value = centroid.annotation['annotations'][color_by]
         color = color_map[color_by][color_value]
 

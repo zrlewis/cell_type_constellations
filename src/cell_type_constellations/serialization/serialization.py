@@ -4,6 +4,7 @@ interactive constellation plot to an HDF5 file
 """
 
 import h5py
+import json
 import matplotlib
 import pathlib
 import tempfile
@@ -156,6 +157,20 @@ def _serialize_from_h5ad(
     fov.to_hdf5(
         hdf5_path=dst_path,
         group_path='fov')
+
+    with h5py.File(dst_path, 'a' ) as dst:
+        dst.create_dataset(
+            'discrete_fields',
+            data=json.dumps(discrete_fields).encode('utf-8')
+        )
+        dst.create_dataset(
+            'continuous_fields',
+            data=json.dumps(continuous_fields).encode('utf-8')
+        )
+        dst.create_dataset(
+            'discrete_color_map',
+            data=json.dumps(discrete_color_map).encode('utf-8')
+        )
 
     for type_field in centroid_lookup:
         print(f'===serializing {type_field}===')

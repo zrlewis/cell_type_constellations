@@ -285,19 +285,29 @@ def read_pixel_centroids_from_hdf5(
     """
 
     with h5py.File(hdf5_path, 'r') as src:
-        src_grp = src[group_path]
-        pixel_x_arr = src_grp['x'][()]
-        pixel_y_arr = src_grp['y'][()]
-        radius_arr = src_grp['r'][()]
-        n_cells_arr = src_grp['n_cells'][()]
-        label_arr = [
-            label.decode('utf-8')
-            for label in src_grp['label'][()]
-        ]
-        annotation_arr = [
-            json.loads(ann.decode('utf-8'))
-            for ann in src_grp['annotation'][()]
-        ]
+        result = read_pixel_centroids_from_hdf5_handle(
+            hdf5_handle=src,
+            group_path=group_path)
+    return result
+
+
+def read_pixel_centroids_from_hdf5_handle(
+        hdf5_handle,
+        group_path):
+
+    src_grp = hdf5_handle[group_path]
+    pixel_x_arr = src_grp['x'][()]
+    pixel_y_arr = src_grp['y'][()]
+    radius_arr = src_grp['r'][()]
+    n_cells_arr = src_grp['n_cells'][()]
+    label_arr = [
+        label.decode('utf-8')
+        for label in src_grp['label'][()]
+    ]
+    annotation_arr = [
+        json.loads(ann.decode('utf-8'))
+        for ann in src_grp['annotation'][()]
+    ]
 
     n_centroids = len(pixel_x_arr)
 

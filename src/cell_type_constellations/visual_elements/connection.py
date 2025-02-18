@@ -207,24 +207,34 @@ def read_pixel_connections_from_hdf5(
     """
 
     with h5py.File(hdf5_path, 'r') as src:
-        src_grp = src[group_path]
-        src_label_list = [
-            label.decode('utf-8')
-            for label in src_grp['src_label'][()]
-        ]
-        dst_label_list = [
-            label.decode('utf-8')
-            for label in src_grp['dst_label'][()]
-        ]
-        src_frac_list = src_grp['src_neighbor_fraction'][()]
-        dst_frac_list = src_grp['dst_neighbor_fraction'][()]
-        n_connections = len(src_label_list)
-        rendering_corners = src_grp['rendering_corners'][()].reshape(
-            (n_connections, 4, 2)
-        )
-        bezier_control_points = src_grp['bezier_control_points'][()].reshape(
-            (n_connections, 2, 2)
-        )
+        result = read_pixel_connections_from_hdf5_handle(
+            hdf5_handle=src,
+            group_path=group_path)
+    return result
+
+
+def read_pixel_connections_from_hdf5_handle(
+        hdf5_handle,
+        group_path):
+
+    src_grp = hdf5_handle[group_path]
+    src_label_list = [
+        label.decode('utf-8')
+        for label in src_grp['src_label'][()]
+    ]
+    dst_label_list = [
+        label.decode('utf-8')
+        for label in src_grp['dst_label'][()]
+    ]
+    src_frac_list = src_grp['src_neighbor_fraction'][()]
+    dst_frac_list = src_grp['dst_neighbor_fraction'][()]
+    n_connections = len(src_label_list)
+    rendering_corners = src_grp['rendering_corners'][()].reshape(
+        (n_connections, 4, 2)
+    )
+    bezier_control_points = src_grp['bezier_control_points'][()].reshape(
+        (n_connections, 2, 2)
+    )
 
     result = [
         PixelSpaceConnection(

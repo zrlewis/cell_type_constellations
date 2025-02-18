@@ -88,10 +88,22 @@ class FieldOfView(object):
             FieldOfView
         """
         with h5py.File(hdf5_path, 'r') as src:
-            src_grp = src[group_path]
-            embedding_to_pixel = src_grp['embedding_to_pixel'][()]
-            radius_bounds = src_grp['radius_bounds'][()]
-            dimensions = src_grp['dimensions'][()]
+            result = cls.from_hdf5_handle(
+                hdf5_handle=src,
+                group_path=group_path)
+        return result
+
+    @classmethod
+    def from_hdf5_handle(
+            cls,
+            hdf5_handle,
+            group_path):
+
+        src_grp = hdf5_handle[group_path]
+        embedding_to_pixel = src_grp['embedding_to_pixel'][()]
+        radius_bounds = src_grp['radius_bounds'][()]
+        dimensions = src_grp['dimensions'][()]
+
         return cls(
             embedding_to_pixel=embedding_to_pixel,
             min_radius=radius_bounds[0],
