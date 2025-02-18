@@ -17,7 +17,8 @@ class CellSet(object):
             self,
             cell_metadata,
             discrete_fields,
-            continuous_fields):
+            continuous_fields,
+            leaf_field=None):
         """
         Parameters
         ----------
@@ -31,6 +32,9 @@ class CellSet(object):
             a list of columns in cell_metadata that are to be treated
             as numerical value whose statistics are to be grouped
             along the discrete fields
+        leaf_field:
+            the (optional) discrete_field to be interpreted as the
+            "leaf level" of the taxonomy
         """
 
         # infer child-to-parent relationships, i.e. relationships
@@ -42,6 +46,15 @@ class CellSet(object):
         )
 
         self._type_field_list = copy.deepcopy(discrete_fields)
+
+        if leaf_field is not None:
+            if leaf_field not in self._type_field_list:
+                raise RuntimeError(
+                    f"Leaf field {leaf_field} is not in your "
+                    "list of discrete_fields"
+                )
+        self._leaf_type = leaf_field
+
         self._n_cells = len(cell_metadata)
 
         # map values in discrete_fields to the indexes of cells
@@ -77,7 +90,8 @@ class CellSet(object):
             cls,
             h5ad_path,
             discrete_fields,
-            continuous_fields):
+            continuous_fields,
+            leaf_field=None):
         """
         Instantiate a CellSet from an h5ad file
 
@@ -92,6 +106,9 @@ class CellSet(object):
             a list of columns in cell_metadata that are to be treated
             as numerical value whose statistics are to be grouped
             along the discrete fields
+        leaf_field:
+            the (optional) discrete_field to be interpreted as the
+            "leaf level" of the taxonomy
         """
         cell_metadata = anndata_utils.read_df_from_h5ad(
             h5ad_path,
@@ -100,7 +117,8 @@ class CellSet(object):
         return cls(
             cell_metadata=cell_metadata,
             discrete_fields=discrete_fields,
-            continuous_fields=continuous_fields)
+            continuous_fields=continuous_fields,
+            leaf_field=leaf_field)
 
     @property
     def n_cells(self):
@@ -108,6 +126,14 @@ class CellSet(object):
         Total number of cells in this CellSet
         """
         return self._n_cells
+
+    @property
+    def leaf_type(self):
+        """
+        The type_field that is to be interpreted as the
+        leaf of the taxonomy
+        """
+        return self._leaf_type
 
     def n_cells_in_type(self, type_field, type_value):
         """
