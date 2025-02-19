@@ -17,7 +17,8 @@ class CellSet(object):
             self,
             cell_metadata,
             discrete_fields,
-            continuous_fields):
+            continuous_fields,
+            leaf_field=None):
         """
         Parameters
         ----------
@@ -31,6 +32,9 @@ class CellSet(object):
             a list of columns in cell_metadata that are to be treated
             as numerical value whose statistics are to be grouped
             along the discrete fields
+        leaf_field:
+            the (optional) discrete_field to be interpreted as the
+            "leaf level" of the taxonomy
         """
 
         # infer child-to-parent relationships, i.e. relationships
@@ -42,6 +46,15 @@ class CellSet(object):
         )
 
         self._type_field_list = copy.deepcopy(discrete_fields)
+
+        if leaf_field is not None:
+            if leaf_field not in self._type_field_list:
+                raise RuntimeError(
+                    f"Leaf field {leaf_field} is not in your "
+                    "list of discrete_fields"
+                )
+        self._leaf_type = leaf_field
+
         self._n_cells = len(cell_metadata)
 
         # map values in discrete_fields to the indexes of cells
@@ -72,12 +85,17 @@ class CellSet(object):
                     }
                     self._statistics[col][unq][stat_col] = stats
 
+        if self.leaf_type is not None:
+            self._create_parent_to_leaves()
+
+
     @classmethod
     def from_h5ad(
             cls,
             h5ad_path,
             discrete_fields,
-            continuous_fields):
+            continuous_fields,
+            leaf_field=None):
         """
         Instantiate a CellSet from an h5ad file
 
@@ -92,6 +110,9 @@ class CellSet(object):
             a list of columns in cell_metadata that are to be treated
             as numerical value whose statistics are to be grouped
             along the discrete fields
+        leaf_field:
+            the (optional) discrete_field to be interpreted as the
+            "leaf level" of the taxonomy
         """
         cell_metadata = anndata_utils.read_df_from_h5ad(
             h5ad_path,
@@ -100,7 +121,8 @@ class CellSet(object):
         return cls(
             cell_metadata=cell_metadata,
             discrete_fields=discrete_fields,
-            continuous_fields=continuous_fields)
+            continuous_fields=continuous_fields,
+            leaf_field=leaf_field)
 
     @property
     def n_cells(self):
@@ -108,6 +130,14 @@ class CellSet(object):
         Total number of cells in this CellSet
         """
         return self._n_cells
+
+    @property
+    def leaf_type(self):
+        """
+        The type_field that is to be interpreted as the
+        leaf of the taxonomy
+        """
+        return self._leaf_type
 
     def n_cells_in_type(self, type_field, type_value):
         """
@@ -228,3 +258,35 @@ class CellSet(object):
             parent_value = self._child_to_parent[type_field][parent_field][type_value]
             result[parent_field] = parent_value
         return result
+
+    def _create_parent_to_leaves(self):
+        # just need dict that takes a parent_field, parent_value and gives
+        # a list of leaves
+        self._parent_to_leaves = dict()
+        for leaf_value in self.type_value_list(self.leaf_type):
+            parentage = self.parent_annotations(
+                type_field=self.leaf_type,
+                type_value=leaf_value)
+            for parent_field in parentage:
+                if parent_field not in self._parent_to_leaves:
+                    self._parent_to_leaves[parent_field] = dict()
+                parent_value = parentage[parent_field]
+                if parent_value not in self._parent_to_leaves[parent_field]:
+                    self._parent_to_leaves[parent_field][parent_value] = []
+                self._parent_to_leaves[parent_field][parent_value].append(leaf_value)
+
+        # validate that, if a type_field is in parent_to_leaves, all of
+        # its values are also present
+        for type_field in self.type_field_list():
+            if type_field not in self._parent_to_leaves:
+                continue
+            for type_value in self.type_value_list(type_field):
+                assert type_value in self._parent_to_leaves[type_field]
+
+    def parent_to_leaves(self, type_field, type_value):
+        if type_field not in self._parent_to_leaves:
+            return []
+        if type_value not in self._parent_to_leaves[type_field]:
+            return []
+        return copy.deepcopy(self._parent_to_leaves[type_field][type_value])
+        

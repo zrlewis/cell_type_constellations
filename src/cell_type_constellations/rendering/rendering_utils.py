@@ -13,6 +13,8 @@ from cell_type_constellations.rendering.continuous_color_map import (
     get_colorbar_code
 )
 
+import cell_type_constellations.rendering.hull_rendering as hull_rendering
+
 
 class CannotColorByError(Exception):
     pass
@@ -23,12 +25,25 @@ def render_svg(
         color_map,
         color_by,
         centroid_list,
-        connection_list=None):
+        connection_list=None,
+        hull_list=None,
+        fill_hulls=False):
 
     if connection_list is not None:
         connection_code = render_connection_list(connection_list)
     else:
         connection_code = ''
+
+    hull_code = ""
+    if hull_list is not None:
+        for hull in hull_list:
+            hull_code += hull_rendering.render_hull(
+                hull=hull,
+                color=color_map[hull.type_field][hull.type_value],
+                type_field=hull.type_field,
+                type_value=hull.type_value,
+                fill=fill_hulls
+            )
 
     (centroid_code,
      fov) = render_centroid_list(
@@ -40,6 +55,7 @@ def render_svg(
     code = get_svg_header(fov)
     code += connection_code
     code += centroid_code
+    code += hull_code
     code += "</svg>\n"
     return code
 

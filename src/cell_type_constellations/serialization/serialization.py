@@ -26,8 +26,10 @@ from cell_type_constellations.visual_elements.fov import (
     FieldOfView
 )
 
+import cell_type_constellations.utils.coord_utils as coord_utils
 import cell_type_constellations.visual_elements.centroid as centroid
 import cell_type_constellations.visual_elements.connection as connection
+import cell_type_constellations.hulls.creation as hull_creation
 
 
 def serialize_from_h5ad(
@@ -36,6 +38,7 @@ def serialize_from_h5ad(
         connection_coords_list,
         discrete_fields,
         continuous_fields,
+        leaf_field,
         dst_path,
         tmp_dir,
         clobber=False,
@@ -56,6 +59,7 @@ def serialize_from_h5ad(
             connection_coords_list=connection_coords_list,
             discrete_fields=discrete_fields,
             continuous_fields=continuous_fields,
+            leaf_field=leaf_field,
             dst_path=dst_path,
             tmp_dir=tmp_dir,
             k_nn=k_nn,
@@ -75,6 +79,7 @@ def _serialize_from_h5ad(
         connection_coords_list,
         discrete_fields,
         continuous_fields,
+        leaf_field,
         dst_path,
         tmp_dir,
         k_nn,
@@ -100,7 +105,8 @@ def _serialize_from_h5ad(
     cell_set = CellSet.from_h5ad(
         h5ad_path=h5ad_path,
         discrete_fields=discrete_fields,
-        continuous_fields=continuous_fields
+        continuous_fields=continuous_fields,
+        leaf_field=leaf_field
     )
 
     # create a placeholder color map for discrete fields
@@ -196,5 +202,19 @@ def _serialize_from_h5ad(
                 group_path=f'{type_field}/connections/{connection_coords}',
                 connection_list=connection_list
             )
+
+    visualization_coord_array = coord_utils.get_coords_from_h5ad(
+        h5ad_path=h5ad_path,
+        coord_key=visualization_coords
+    )
+
+    hull_creation.create_and_serialize_all_hulls(
+        cell_set=cell_set,
+        visualization_coords=visualization_coord_array,
+        fov=fov,
+        dst_path=dst_path,
+        n_processors=n_processors,
+        tmp_dir=tmp_dir
+    )
 
     print(f'SUCCESFULLY WROTE {dst_path}')
