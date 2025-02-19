@@ -27,7 +27,6 @@ def create_and_serialize_all_hulls(
         fov,
         dst_path,
         n_processors=4,
-        clobber=False,
         tmp_dir=None):
     """
     Write create a list of PixelSpaceHulls and write them to an
@@ -59,7 +58,7 @@ def create_and_serialize_all_hulls(
             fov=fov,
             dst_path=dst_path,
             n_processors=n_processors,
-            tmp_dir=tmp_dir,
+            tmp_dir=tmp_dir
         )
     finally:
         _clean_up(tmp_dir)
