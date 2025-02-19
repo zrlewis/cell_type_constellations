@@ -46,6 +46,7 @@ class CellSet(object):
         )
 
         self._type_field_list = copy.deepcopy(discrete_fields)
+        self._continuous_field_list = copy.deepcopy(continuous_fields)
 
         if leaf_field is not None:
             if leaf_field not in self._type_field_list:
@@ -160,6 +161,12 @@ class CellSet(object):
         List of valid type fields
         """
         return self._type_field_list
+
+    def continuous_field_list(self):
+        """
+        List of valid continuous fields
+        """
+        return self._continuous_field_list
 
     def type_value_list(self, type_field):
         """

@@ -122,7 +122,20 @@ def _serialize_from_h5ad(
         }
         discrete_color_map[type_field] = type_color_map
 
-    conn_to_path = dict()
+    fov = FieldOfView.from_h5ad(
+        h5ad_path=h5ad_path,
+        coord_key=visualization_coords,
+        fov_height=fov_height,
+        max_radius=max_radius,
+        min_radius=min_radius
+    )
+
+    visualization_coord_array = coord_utils.get_coords_from_h5ad(
+        h5ad_path=h5ad_path,
+        coord_key=visualization_coords
+    )
+
+    connection_coords_to_mm_path = dict()
 
     for connection_coords in connection_coords_list:
         print(f'===creating mixture matrices for {connection_coords}')
@@ -143,15 +156,7 @@ def _serialize_from_h5ad(
             chunk_size=1000000
         )
 
-        conn_to_path[connection_coords] = mixture_matrix_path
-
-    fov = FieldOfView.from_h5ad(
-        h5ad_path=h5ad_path,
-        coord_key=visualization_coords,
-        fov_height=fov_height,
-        max_radius=max_radius,
-        min_radius=min_radius
-    )
+        connection_coords_to_mm_path[connection_coords] = mixture_matrix_path
 
     centroid_lookup = centroid.pixel_centroid_lookup_from_h5ad(
         h5ad_path=h5ad_path,
@@ -159,6 +164,55 @@ def _serialize_from_h5ad(
         coord_key=visualization_coords,
         fov=fov
     )
+
+    serialize_data(
+        cell_set=cell_set,
+        fov=fov,
+        discrete_color_map=discrete_color_map,
+        centroid_lookup=centroid_lookup,
+        visualization_coord_array=visualization_coord_array,
+        connection_coords_to_mm_path=connection_coords_to_mm_path,
+        dst_path=dst_path,
+        n_processors=n_processors,
+        tmp_dir=tmp_dir
+    )
+
+
+def serialize_data(
+        cell_set,
+        fov,
+        discrete_color_map,
+        centroid_lookup,
+        visualization_coord_array,
+        connection_coords_to_mm_path,
+        dst_path,
+        n_processors,
+        tmp_dir):
+    """
+    Parameters
+    ----------
+    cell_set:
+        a CellSet
+    fov:
+        a FieldOfView
+    discrete_color_map:
+        dict mapping [type_field][type_value] -> color hex
+    centroid_lookup:
+        dict mapping [type_field][type_value] -> PixelSpaceCentroids
+    visualization_coord_array:
+        (n_cells, 2) array of embedding coords for visualization
+    connection_coords_to_mm_path:
+        dict mapping key of connection coordinates to mixture matrix hdf5 file
+    dst_path:
+        path to HDF5 file to be written
+    n_processors:
+        number of independent worker process to spin up
+    tmp_dir:
+        directory where scratch files can be written
+    """
+
+    discrete_fields = cell_set.type_field_list()
+    continuous_fields = cell_set.continuous_field_list()
 
     fov.to_hdf5(
         hdf5_path=dst_path,
@@ -186,11 +240,11 @@ def _serialize_from_h5ad(
             centroid_list=list(centroid_lookup[type_field].values())
         )
 
-        for connection_coords in conn_to_path:
+        for connection_coords in connection_coords_to_mm_path:
             print(f'======serializing {connection_coords} connections')
             connection_list = connection.get_connection_list(
                 pixel_centroid_lookup=centroid_lookup,
-                mixture_matrix_file_path=conn_to_path[connection_coords],
+                mixture_matrix_file_path=connection_coords_to_mm_path[connection_coords],
                 type_field=type_field
             )
 
@@ -202,11 +256,6 @@ def _serialize_from_h5ad(
                 group_path=f'{type_field}/connections/{connection_coords}',
                 connection_list=connection_list
             )
-
-    visualization_coord_array = coord_utils.get_coords_from_h5ad(
-        h5ad_path=h5ad_path,
-        coord_key=visualization_coords
-    )
 
     hull_creation.create_and_serialize_all_hulls(
         cell_set=cell_set,
