@@ -5,6 +5,138 @@ import scipy
 import cell_type_constellations.utils.geometry_utils as geometry_utils
 
 
+def merge_hulls(
+        cell_set,
+        visualization_coords,
+        type_field,
+        type_value,
+        leaf_hull_path):
+
+    leaf_list = cell_set.parent_to_leaves(
+        type_field=type_field,
+        type_value=type_value
+    )
+
+    if len(leaf_list) == 0:
+        return []
+
+    raw_hull_list = []
+    with h5py.File(leaf_hull_path, 'r', swmr=True) as src:
+        for leaf_value in leaf_list:
+            if leaf_value not in src:
+                continue
+            leaf_grp = src[leaf_value]
+            for idx in src[leaf_value].keys():
+                raw_hull_list.append(
+                    scipy.spatial.ConvexHull(
+                        src[leaf_value][idx][()]
+                    )
+                )
+
+    raw_hull_list = winnow_hull_list(
+        raw_hull_list,
+        cutoff_quantile=0.01
+    )
+
+    raw_hull_list = [
+        {'hull': hull}
+        for hull in raw_hull_list
+    ]
+
+    data = get_pixellized_test_pts_from_type(
+        cell_set=cell_set,
+        visualization_coords=visualization_coords,
+        type_field=type_field,
+        type_value=type_value
+    )
+
+    test_pts = data['test_pts']
+    test_pt_validity = data['test_pt_validity']
+
+    keep_going = True
+    final_pass = False
+    min_overlap = 0.9
+    min_f1 = 0.0
+    nn_cutoff = 2
+    while keep_going:
+        centroid_array = np.array([
+            _get_hull_centroid(h['hull']) for h in raw_hull_list
+        ])
+
+        area_array = np.array([
+            h['hull'].volume for h in raw_hull_list
+        ])
+
+        dsq_array = geometry_utils.pairwise_distance_sq(centroid_array)
+        if not final_pass:
+            n_cols = nn_cutoff+1
+            median_dsq = np.quantile(dsq_array[:, :n_cols], 0.25)
+
+        mergers = dict()
+        been_merged = set()
+        skip_anyway = set()
+        idx_list = np.argsort(area_array)[-1::-1]
+        for i0 in idx_list:
+
+            if i0 in been_merged or i0 in skip_anyway:
+                continue
+
+            sorted_i1 = np.argsort(dsq_array[i0, :])
+            if not final_pass:
+                sorted_i1 = sorted_i1[:nn_cutoff+1]
+            for i1 in sorted_i1:
+                if i1 == i0:
+                    continue
+
+                if i1 in been_merged or i1 in skip_anyway:
+                    continue
+
+                if not final_pass:
+                    if dsq_array[i0, i1] > median_dsq:
+                        continue
+
+                new_hull = evaluate_merger(
+                    raw_hull_list[i0],
+                    raw_hull_list[i1],
+                    test_pts=test_pts,
+                    test_pt_validity=test_pt_validity,
+                    min_overlap=min_overlap,
+                    min_f1=min_f1)
+
+                if new_hull is not None:
+                    mergers[i0] = new_hull
+                    been_merged.add(i0)
+                    been_merged.add(i1)
+
+                    if final_pass:
+                        # do not further consider hulls
+                        # who would have been nearest neighbors
+                        # of this hull
+                        for alt_i1 in sorted_i1[:nn_cutoff+1]:
+                            skip_anyway.add(alt_i1)
+
+                    break
+
+        if len(mergers) == 0:
+            if final_pass:
+                return [h['hull'] for h in raw_hull_list]
+            else:
+                final_pass = True
+                min_overlap = 1.1
+                min_f1 = 0.99
+
+        new_hull_list = []
+        for ii in range(len(idx_list)):
+            if ii not in been_merged:
+                new_hull_list.append(raw_hull_list[ii])
+            elif ii in mergers:
+                new_hull_list.append(mergers[ii])
+        raw_hull_list = new_hull_list
+        if len(raw_hull_list) == 1:
+            return [h['hull'] for h in raw_hull_list]
+
+
+
 def get_pixellized_test_pts_from_type(
         cell_set,
         visualization_coords,
@@ -151,137 +283,6 @@ def get_test_pts_from_type(
         'test_pts': test_pts,
         'test_pt_validity': test_pt_validity
     }
-
-
-def merge_hulls(
-        cell_set,
-        visualization_coords,
-        type_field,
-        type_value,
-        leaf_hull_path):
-
-    leaf_list = cell_set.parent_to_leaves(
-        type_field=type_field,
-        type_value=type_value
-    )
-
-    if len(leaf_list) == 0:
-        return []
-
-    raw_hull_list = []
-    with h5py.File(leaf_hull_path, 'r', swmr=True) as src:
-        for leaf_value in leaf_list:
-            if leaf_value not in src:
-                continue
-            leaf_grp = src[leaf_value]
-            for idx in src[leaf_value].keys():
-                raw_hull_list.append(
-                    scipy.spatial.ConvexHull(
-                        src[leaf_value][idx][()]
-                    )
-                )
-
-    raw_hull_list = winnow_hull_list(
-        raw_hull_list,
-        cutoff_quantile=0.01
-    )
-
-    raw_hull_list = [
-        {'hull': hull}
-        for hull in raw_hull_list
-    ]
-
-    data = get_pixellized_test_pts_from_type(
-        cell_set=cell_set,
-        visualization_coords=visualization_coords,
-        type_field=type_field,
-        type_value=type_value
-    )
-
-    test_pts = data['test_pts']
-    test_pt_validity = data['test_pt_validity']
-
-    keep_going = True
-    final_pass = False
-    min_overlap = 0.9
-    min_f1 = 0.0
-    nn_cutoff = 2
-    while keep_going:
-        centroid_array = np.array([
-            _get_hull_centroid(h['hull']) for h in raw_hull_list
-        ])
-
-        area_array = np.array([
-            h['hull'].volume for h in raw_hull_list
-        ])
-
-        dsq_array = geometry_utils.pairwise_distance_sq(centroid_array)
-        if not final_pass:
-            n_cols = nn_cutoff+1
-            median_dsq = np.quantile(dsq_array[:, :n_cols], 0.25)
-
-        mergers = dict()
-        been_merged = set()
-        skip_anyway = set()
-        idx_list = np.argsort(area_array)[-1::-1]
-        for i0 in idx_list:
-
-            if i0 in been_merged or i0 in skip_anyway:
-                continue
-
-            sorted_i1 = np.argsort(dsq_array[i0, :])
-            if not final_pass:
-                sorted_i1 = sorted_i1[:nn_cutoff+1]
-            for i1 in sorted_i1:
-                if i1 == i0:
-                    continue
-
-                if i1 in been_merged or i1 in skip_anyway:
-                    continue
-
-                if not final_pass:
-                    if dsq_array[i0, i1] > median_dsq:
-                        continue
-
-                new_hull = evaluate_merger(
-                    raw_hull_list[i0],
-                    raw_hull_list[i1],
-                    test_pts=test_pts,
-                    test_pt_validity=test_pt_validity,
-                    min_overlap=min_overlap,
-                    min_f1=min_f1)
-
-                if new_hull is not None:
-                    mergers[i0] = new_hull
-                    been_merged.add(i0)
-                    been_merged.add(i1)
-
-                    if final_pass:
-                        # do not further consider hulls
-                        # who would have been nearest neighbors
-                        # of this hull
-                        for alt_i1 in sorted_i1[:nn_cutoff+1]:
-                            skip_anyway.add(alt_i1)
-
-                    break
-
-        if len(mergers) == 0:
-            if final_pass:
-                return [h['hull'] for h in raw_hull_list]
-            else:
-                final_pass = True
-                min_overlap = 1.1
-                min_f1 = 0.99
-
-        new_hull_list = []
-        for ii in range(len(idx_list)):
-            if ii not in been_merged:
-                new_hull_list.append(raw_hull_list[ii])
-            elif ii in mergers:
-                new_hull_list.append(mergers[ii])
-        raw_hull_list = new_hull_list
-        if len(raw_hull_list) == 1:
-            return [h['hull'] for h in raw_hull_list]
 
 
 def _get_hull_centroid(hull):
