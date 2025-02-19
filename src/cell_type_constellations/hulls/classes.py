@@ -56,6 +56,99 @@ class BareHull(object):
         self._i_segments = i_segments
 
 
+
+class PixelSpaceHull(object):
+    """
+    A class for storing a hull in a state that can be rendered into
+    an SVG
+    """
+
+    def __init__(
+            self,
+            path_points):
+        """
+        Parameters
+        ----------
+        path_points:
+            A list.
+            Each element is a numpy array representing a single sub-hull
+            in the full hull. The array contains the points and Bezier
+            control points representing that sub-hull's curve in the order
+            [src0, ctrl0.0, dst0, ctrl0.1, src1, ctrl1.0, dst1, ctrl1.1...]
+
+            These points are in pixel space
+        """
+        self._path_points = path_points
+
+    def __getitem__(self, idx):
+        return self._path_points[idx]
+
+    @property
+    def n_sub_hulls(self):
+        return len(self._path_points)
+
+    @classmethod
+    def from_bare_hull_list(
+            cls,
+            bare_hull_list,
+            fov):
+
+        compound_path_points = []
+        for bare_hull in bare_hull_list:
+            path_points = path_points_from_bare_hull(bare_hull)
+            path_points = fov.transform_to_pixel_coordinates(path_points)
+            compound_path_points.append(path_points)
+
+        return cls(path_points=compound_path_points)
+
+    def to_hdf5(
+            self,
+            hdf5_path,
+            group_path):
+
+        with h5py.File(hdf5_path, 'a') as dst:
+            if group_path in dst:
+                raise RuntimeError(
+                    f"{group_path} already exists in "
+                    f"{hdf5_path}; unclear how to proceed"
+                )
+
+            dst_grp = dst.create_group(group_path)
+
+            for idx in range(self.n_sub_hulls):
+                dst_grp.create_dataset(
+                    str(idx),
+                    data=self[idx]
+                )
+
+    @classmethod
+    def from_hdf5(
+            cls,
+            hdf5_path,
+            group_path):
+
+        with h5py.File(hdf5_path, 'r') as src:
+            result = cls.from_hdf5_handle(
+                hdf5_handle=src,
+                group_path=group_path
+            )
+        return result
+
+    @classmethod
+    def from_hdf5_handle(
+            cls,
+            hdf5_handle,
+            group_path):
+
+        src_grp = hdf5_handle[group_path]
+        compound_path_points = []
+        for key in src_grp.keys():
+            compound_path_points.append(
+                src_grp[key][()]
+            )
+        return cls(path_points=compound_path_points)
+
+
 def path_points_from_bare_hull(bare_hull):
 
     points = []
