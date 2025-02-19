@@ -275,6 +275,14 @@ class CellSet(object):
                     self._parent_to_leaves[parent_field][parent_value] = []
                 self._parent_to_leaves[parent_field][parent_value].append(leaf_value)
 
+        # validate that, if a type_field is in parent_to_leaves, all of
+        # its values are also present
+        for type_field in self.type_field_list():
+            if type_field not in self._parent_to_leaves:
+                continue
+            for type_value in self.type_value_list(type_field):
+                assert type_value in self._parent_to_leaves[type_field]
+
     def parent_to_leaves(self, type_field, type_value):
         if type_field not in self._parent_to_leaves:
             return []

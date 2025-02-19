@@ -107,19 +107,27 @@ class PixelSpaceHull(object):
             group_path):
 
         with h5py.File(hdf5_path, 'a') as dst:
-            if group_path in dst:
-                raise RuntimeError(
-                    f"{group_path} already exists in "
-                    f"{hdf5_path}; unclear how to proceed"
-                )
+            self.to_hdf5_handle(
+                hdf5_handle=dst,
+                group_path=group_path)
 
-            dst_grp = dst.create_group(group_path)
+    def to_hdf5_handle(
+            self,
+            hdf5_handle,
+            group_path):
 
-            for idx in range(self.n_sub_hulls):
-                dst_grp.create_dataset(
-                    str(idx),
-                    data=self[idx]
-                )
+        if group_path in hdf5_handle:
+            raise RuntimeError(
+                f"{group_path} already exists in "
+                "HDF5 file; unclear how to proceed"
+            )
+
+        dst_grp = hdf5_handle.create_group(group_path)
+        for idx in range(self.n_sub_hulls):
+            dst_grp.create_dataset(
+                str(idx),
+                data=self[idx]
+            )
 
     @classmethod
     def from_hdf5(

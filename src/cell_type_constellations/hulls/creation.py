@@ -1,9 +1,241 @@
+import h5py
+import multiprocessing
 import numpy as np
+import pathlib
 import scipy
+import tempfile
+import time
+
+from cell_type_mapper.utils.utils import (
+    mkstemp_clean,
+    _clean_up
+)
+
+from cell_type_mapper.utils.multiprocessing_utils import (
+    winnow_process_list
+)
 
 import cell_type_constellations.utils.geometry_utils as geometry_utils
 import cell_type_constellations.hulls.classes as hull_classes
+import cell_type_constellations.hulls.leaf_utils as leaf_utils
 import cell_type_constellations.hulls.merger_utils as merger_utils
+
+
+def create_and_serialize_all_hulls(
+        cell_set,
+        visualization_coords,
+        fov,
+        dst_path,
+        n_processors=4,
+        clobber=False,
+        tmp_dir=None):
+    """
+    Write create a list of PixelSpaceHulls and write them to an
+    HDF5 file.
+
+    Parameters
+    ----------
+    cell_set:
+        the CellSet defining the taxonomy
+    visualization_coords:
+        the (n_cells, 2) array of coordinates defining the
+        visualization
+    fov:
+        the FieldOfView defining the visualization
+    dst_path:
+        path to the HDF5 file where output will be written
+    n_processors:
+        number of independent worker processes to spin up
+    clobber:
+        a boolean. If False and dst_path already exists, crach.
+        If True, overwrite.
+    tmp_dir:
+        path to directory where scratch files can be written
+    """
+    tmp_dir = tempfile.mkdtemp(
+        dir=tmp_dir,
+        prefix='hull_scratch_')
+    try:
+        _create_and_serialize_all_hulls(
+            cell_set=cell_set,
+            visualization_coords=visualization_coords,
+            fov=fov,
+            dst_path=dst_path,
+            n_processors=n_processors,
+            tmp_dir=tmp_dir,
+            clobber=clobber
+        )
+    finally:
+        _clean_up(tmp_dir)
+
+def create_and_serialize_all_hulls(
+        cell_set,
+        visualization_coords,
+        fov,
+        dst_path,
+        n_processors,
+        clobber,
+        tmp_dir):
+
+    t0 = time.time()
+    dst_path = pathlib.Path(dst_path)
+    if dst_path.exists():
+        if not dst_path.is_file():
+            raise RuntimeError(
+                f"{dst_path} exists but is not a file"
+            )
+        if clobber:
+            dst_path.unlink()
+        else:
+            raise RuntimeError(
+                f"{dst_path} exists; run with clobber=True "
+                "to overwrite"
+            )
+
+    leaf_hull_path = mkstemp_clean(
+        dir=tmp_dir,
+        prefix='leaf_hull_cache_',
+        suffix='.h5'
+    )
+
+    leaf_utils.get_all_leaf_hulls(
+        cell_set=cell_set,
+        visualization_coords=visualization_coords,
+        dst_path=leaf_hull_path,
+        clobber=True
+    )
+
+    print("=======CREATED LEAF HULL CACHE=======")
+
+    # assemble an array of valid type_field, type_value pairs
+    # along with an array of how many cells are associated
+    # with each pair, so we can try to distribute the work
+    # evenly
+
+    type_pair_list = []
+    n_cells_list = []
+    for type_field in cell_set.type_field_list():
+        for type_value in cell_set.type_value_list(type_field):
+            leaves = cell_set.parent_to_leaves(
+                type_field,
+                type_value
+            )
+            if len(leaves) == 0:
+                continue
+            type_pair_list.append((type_field, type_value))
+            n_cells_list.append(cell_set.n_cells_in_type(
+                                    type_field=type_field,
+                                    type_value=type_value)
+            )
+
+    sorted_idx = np.argsort(n_cells_list)[-1::-1]
+    sub_lists = []
+    for ii in range(2*n_processors):
+        sub_lists.append([])
+
+    for ii, idx in enumerate(sorted_idx):
+        i_sub = ii % len(sub_lists)
+        sub_lists[i_sub].append(type_pair_list[idx])
+
+    process_list = []
+    mgr = multiprocessing.Manager()
+    lock = mgr.Lock()
+
+    print("=======STARTING HULL SERIALIZATION=======")
+    for type_field_value_list in sub_lists:
+        p = multiprocessing.Process(
+            target=create_and_serialize_pixel_hull_list,
+            kwargs={
+                'cell_set': cell_set,
+                'visualization_coords': visualization_coords,
+                'fov': fov,
+                'type_field_value_list': type_field_value_list,
+                'leaf_hull_path': leaf_hull_path,
+                'dst_path': dst_path,
+                'lock': lock
+            }
+        )
+        p.start()
+        process_list.append(p)
+        while len(process_list) >= n_processors:
+            process_list = winnow_process_list(process_list)
+
+    while len(process_list) > 0:
+        process_list = winnow_process_list(process_list)
+
+    dur = (time.time()-t0)/60.0
+    print(f'=======WROTE HULLS TO {dst_path} in {dur:.2e} minutes=======')
+
+
+
+def create_and_serialize_pixel_hull_list(
+        cell_set,
+        visualization_coords,
+        fov,
+        type_field_value_list,
+        leaf_hull_path,
+        dst_path,
+        lock):
+    """
+    Write create a list of PixelSpaceHulls and write them to an
+    HDF5 file.
+
+    Parameters
+    ----------
+    cell_set:
+        the CellSet defining the taxonomy
+    visualization_coords:
+        the (n_cells, 2) array of coordinates defining the
+        visualization
+    fov:
+        the FieldOfView defining the visualization
+    type_field_value_list:
+        list of (type_field, type_value) pairs indicating which
+        hulls to create and write
+    leaf_hull_path:
+        path to the HDF5 file containing the leaf hulls
+        for this CellSet, visualization_coords pair
+    dst_path:
+        path to the HDF5 file where output will be written
+    lock:
+        a multiprocessing Lock to prevent multiple workers
+        from writing to dst_path at once
+    """
+    t0 = time.time()
+    hull_list = []
+    for pair in type_field_value_list:
+        type_field = pair[0]
+        type_value = pair[1]
+        bare_hull_list = load_single_hull(
+                cell_set=cell_set,
+                visualization_coords=visualization_coords,
+                type_field=type_field,
+                type_value=type_value,
+                leaf_hull_path=leaf_hull_path
+        )
+
+        hull_list.append(
+            hull_classes.PixelSpaceHull.from_bare_hull_list(
+                bare_hull_list=bare_hull_list,
+                fov=fov
+            )
+        )
+
+    with lock:
+        with h5py.File(dst_path, 'a') as dst:
+            for pair, pixel_space_hull in zip(type_field_value_list,
+                                              hull_list):
+                type_field = pair[0]
+                type_value = pair[1]
+                group_path = f'hulls/{type_field}/{type_value}'
+                pixel_space_hull.to_hdf5_handle(
+                    hdf5_handle=dst,
+                    group_path=group_path
+                )
+
+    dur = (time.time()-t0)/60.0
+    n = len(type_field_value_list)
+    print(f'    wrote {n} hulls in {dur:.2e} minutes')
 
 
 def load_single_hull(
