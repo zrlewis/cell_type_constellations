@@ -46,7 +46,7 @@ def get_all_leaf_hulls(
         the minimum number of points a sub-hull must contain to
         be valid
     clobber:
-        a boolean. If False and dst_path exists, crach. If True,
+        a boolean. If False and dst_path exists, crash. If True,
         overwrite.
 
     Returns
