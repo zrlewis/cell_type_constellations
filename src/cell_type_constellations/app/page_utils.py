@@ -6,6 +6,7 @@ import pathlib
 import cell_type_constellations.app.html_utils as html_utils
 import cell_type_constellations.visual_elements.centroid as centroid
 import cell_type_constellations.visual_elements.connection as connection
+import cell_type_constellations.hulls.classes as hull_classes
 import cell_type_constellations.visual_elements.fov as fov_utils
 import cell_type_constellations.rendering.rendering_utils as rendering_utils
 
@@ -18,20 +19,10 @@ def get_constellation_plot_page(
         color_by,
         fill_hulls):
 
-    print(
-    f"""
-    loading with
-    hdf5: {hdf5_path}
-    centroid_level: {centroid_level}
-    hull_level: {hull_level}
-    connection_coords: {connection_coords}
-    color_by: {color_by}
-    fill_hulls: {fill_hulls}
-    """
-    )
-
     if hull_level == 'NA':
         hull_level = None
+
+    hull_list = None
     hull_level_list = []
 
     with h5py.File(hdf5_path, 'r') as src:
@@ -64,13 +55,32 @@ def get_constellation_plot_page(
             k for k in src[f'{discrete_field_list[0]}/connections'].keys()
         ]
 
+        if 'hulls' in src.keys():
+            hull_level_list = list(src['hulls'].keys())
+            if hull_level is not None:
+                hull_list = []
+                for type_value in src['hulls'][hull_level].keys():
+                    hull = hull_classes.PixelSpaceHull.from_hdf5_handle(
+                            hdf5_handle=src,
+                            group_path=f'hulls/{hull_level}/{type_value}'
+                        )
+
+                    # somewhat irresponsible patching of hull
+                    # to contain type_field and type_value
+                    hull.type_field = hull_level
+                    hull.type_value = type_value
+
+                    hull_list.append(hull)
+
     try:
         html = rendering_utils.render_svg(
            fov=fov,
            color_map=discrete_color_map,
            color_by=color_by,
            centroid_list=centroid_list,
-           connection_list=connection_list)
+           connection_list=connection_list,
+           hull_list=hull_list,
+           fill_hulls=fill_hulls)
     except rendering_utils.CannotColorByError:
         html = f"""
         <p>
