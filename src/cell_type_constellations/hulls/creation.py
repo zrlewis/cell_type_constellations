@@ -45,10 +45,7 @@ def create_and_serialize_all_hulls(
     dst_path:
         path to the HDF5 file where output will be written
     n_processors:
-        number of independent worker processes to spin up
-    clobber:
-        a boolean. If False and dst_path already exists, crach.
-        If True, overwrite.
+        number of independent worker processes to spin up.
     tmp_dir:
         path to directory where scratch files can be written
     """
@@ -63,7 +60,6 @@ def create_and_serialize_all_hulls(
             dst_path=dst_path,
             n_processors=n_processors,
             tmp_dir=tmp_dir,
-            clobber=clobber
         )
     finally:
         _clean_up(tmp_dir)
@@ -74,23 +70,10 @@ def create_and_serialize_all_hulls(
         fov,
         dst_path,
         n_processors,
-        clobber,
         tmp_dir):
 
     t0 = time.time()
     dst_path = pathlib.Path(dst_path)
-    if dst_path.exists():
-        if not dst_path.is_file():
-            raise RuntimeError(
-                f"{dst_path} exists but is not a file"
-            )
-        if clobber:
-            dst_path.unlink()
-        else:
-            raise RuntimeError(
-                f"{dst_path} exists; run with clobber=True "
-                "to overwrite"
-            )
 
     leaf_hull_path = mkstemp_clean(
         dir=tmp_dir,
