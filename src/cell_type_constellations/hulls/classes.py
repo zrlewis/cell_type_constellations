@@ -7,6 +7,8 @@ class BareHull(object):
     """
     Take a counterclockwise path of points. Store this as a boundary.
     Expose vertices and points as if it were a scipy ConvexHull
+
+    Can be used when merging hulls, so it is not necessarily convex.
     """
     def __init__(
             self,
