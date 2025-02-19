@@ -1,512 +1,299 @@
 """
-This module defines a classes that provide access to sets of cells
-(as opposed to cell type taxonomies). A valid class must inherit from the
-CellSetAccessMixin in order to provide the access pattern expected by
-other parts of the codebase. A valid class must also define an __init__
-that
-
-- sets self._visualization_coords to contain the 2-dimensional coordinates
-in which the constellation plot will be visualized
-
-- sets self._connection_coords to contain the coordinates against which
-connectivity between nodes of the constellation plot will be calculated
-
-- sets self._cluster_aliases to an (n_cells,) array indicating
-the cluster alias to which each cell is assigned
-
-- sets self._color_by_columns either to None (there are no aggregate
-statistics associated with this CellSet) or to a dict mapping
-the aggregate statistic columns from obs to (n_cells,) arrays of the
-per-cell value associated with those statistics.
-
-- calls super().__init__() to invoke the __init__ of CellSetAccessMixin
+This module will define the class CellSet, which associates cells
+with arrays of metadata fields/annotations for purposes of determining
+different node and edge arrangements in the constellation plot
 """
-import anndata
-import h5py
-import multiprocessing
+
+import copy
 import numpy as np
-import pandas as pd
-import scipy.spatial
-import time
-import tempfile
 
-from cell_type_constellations.utils.data import (
-    mkstemp_clean,
-    _clean_up
-)
-
-from cell_type_constellations.utils.multiprocessing_utils import (
-    winnow_process_list
-)
+import cell_type_mapper.utils.anndata_utils as anndata_utils
+import cell_type_constellations.cells.tree_utils as tree_utils
 
 
-class CellSetAccessMixin(object):
-
-    def __init__(self):
-
-        if self._visualization_coords.shape[1] != 2:
-            raise RuntimeError(
-                "visualization_coords must be 2-dimensional; "
-                f"yours are {self._visualization_coords.shape[1]} "
-                "dimensional"
-            )
-
-        n_vis = self._visualization_coords.shape[0]
-        n_conn = self._connection_coords.shape[0]
-        n_alias = self._cluster_aliases.shape[0]
-        if n_vis != n_conn:
-            raise RuntimeError(
-                f"visualization_coords have {n_vis} points; "
-                f"connection_coords have {n_conn} points; "
-                "must be equal"
-            )
-        if n_vis != n_alias:
-            raise RuntimeError(
-                f"visualization_coords have {n_vis} points; "
-                f"there are {n_alias} cluster aliases; "
-                "must be equal"
-            )
-
-        self._neighbor_cache = dict()
-
-        self.kd_tree = scipy.spatial.cKDTree(
-            data=self._connection_coords
-        )
-
-    @property
-    def cluster_aliases(self):
-        """
-        The (n_cells,) array of cluster alias values
-        """
-        return np.copy(self._cluster_aliases)
-
-    @property
-    def visualization_coords(self):
-        """
-        The (n_cells, 2) array of coordinates in which the
-        constellation plot will be visualized
-        """
-        return np.copy(self._visualization_coords)
-
-    @property
-    def connection_coords(self):
-        """
-        The (n_cells, N) array of coordinates in which connection
-        strength between nodes will be calculated
-        """
-        return np.copy(self._connection_coords)
-
-    @property
-    def color_by_columns(self):
-        """
-        The list of aggregate statistics carried by this
-        CellSet (could be None)
-        """
-        return self._color_by_columns
-
-    def create_neighbor_cache(
-            self,
-            k_nn,
-            n_processors=4,
-            tmp_dir=None):
-        """
-        Cache an (n_cells, k_nn) array storing, for each
-        cell in this CellSet, the indexes of its k_nn nearest
-        neighbors in connection coordinates.
-        """
-
-        if k_nn in self._neighbor_cache:
-            return
-
-        cache = create_neighbor_cache(
-            tree=self.kd_tree,
-            pts=self._connection_coords,
-            k_nn=k_nn,
-            n_processors=n_processors,
-            tmp_dir=tmp_dir
-        )
-        self._neighbor_cache[k_nn] = cache
-
-    def get_connection_nn(self, query_data, k_nn):
-        """
-        Return the indexes of the k_nn nearest neighbor (in
-        connection_coordinates) cells of the cells specified
-        in query_data
-
-        Parameters
-        ----------
-        query_data:
-            a (n_query, N) array of points, where N is the
-            dimensionality of the connection_coordinate space
-        k_nn:
-            the number of nearest neighbors to find for each
-            cell in query_data
-
-        Returns
-        -------
-        A (n_query, k_nn) array of ints indicating which cells
-        (indexed, for instance, in self.cluster_aliases) are the
-        nearest neighbors of the query data.
-        """
-        results = self.kd_tree.query(
-            x=query_data,
-            k=k_nn)
-        return results[1]
-
-    def get_connection_nn_from_mask(self, query_mask, k_nn):
-        """
-        Return the indexes of the k_nn nearest neighbor (in
-        connection_coordinates) cells of cells within this
-        CellSet specified by query_mask
-
-        Parameters
-        ----------
-        query_mask:
-            A (n_cells,) array of booleans marked True for
-            every cell whose neighbors we want
-        k_nn:
-            The number of nearest neighbors to find for each
-            cell
-
-        Returns
-        -------
-        A (n_true, k_nn) array of ints indicating the nearest
-        neighbors for each of the cells marked True in
-        query_mask
-        """
-        if k_nn in self._neighbor_cache:
-            query_idx = np.where(query_mask)[0]
-            return self._neighbor_cache[k_nn][query_idx, :]
-        else:
-            return self.get_connection_nn(
-                query_data=self._connection_coords[query_mask, :],
-                k_nn=k_nn)
-
-    def mask_from_alias_array(self, alias_array):
-        """
-        For an array of alias values, assemble and return
-        a (n_cells, ) array of booleans marked True for each
-        cell in this CellSet that is a member of one of the aliases
-        in alias_array
-        """
-        mask = np.zeros(self._cluster_aliases.shape, dtype=bool)
-        for alias in alias_array:
-            mask[self._cluster_aliases == alias] = True
-        if mask.sum() == 0:
-            msg = f"alias array {alias_array} has no cells"
-            raise RuntimeError(msg)
-        return mask
-
-    def centroid_from_alias_array(self, alias_array):
-        """
-        For an array of alias values, assemble and return
-        the visualizaton coordinates of a candidate centroid
-        of the collection of all cells assigned to any of those
-        aliases.
-
-        The centroid is chosen to be the coordinates of the
-        cell nearest the median location in 2D space of the
-        collection of cells being considered.
-        """
-        mask = self.mask_from_alias_array(alias_array)
-        pts = self._visualization_coords[mask, :]
-        median_pt = np.median(pts, axis=0)
-        ddsq = ((median_pt-pts)**2).sum(axis=1)
-        nn_idx = np.argmin(ddsq)
-        return pts[nn_idx, :]
-
-    def stat_lookup_from_alias_array(self, alias_array):
-        """
-        For an array of alias values, assemble and return
-        a dict of aggregate statistics representing all
-        of the cells annotated to belong to one of those
-        aliases.
-
-        The returned dict will look something like
-        {
-            'statA': {
-                'mean': 0.1,
-                'variance': 0.02
-            },
-            'statB': {
-                'mean': 0.4,
-                'variance': 0.03
-            },
-            ...
-        }
-
-        """
-        if self.color_by_columns is None:
-            raise RuntimeError("_color_by_columns is None")
-
-        mask = self.mask_from_alias_array(alias_array)
-        result = dict()
-        for col_key in self.color_by_columns:
-            values = self.color_by_columns[col_key][mask]
-            this = {
-                'mean': np.mean(values),
-                'variance': np.var(values, ddof=1)
-            }
-            result[col_key] = this
-
-        return result
-
-    def n_cells_from_alias_array(self, alias_array):
-        """
-        For an array of alias values, return the number of
-        cells in this CellSet annotated to belong to one
-        of those aliases.
-        """
-        mask = np.zeros(self._cluster_aliases.shape, dtype=bool)
-        for alias in alias_array:
-            mask[self._cluster_aliases == alias] = True
-        return int(mask.sum())
-
-
-class CellSet(CellSetAccessMixin):
-    """
-    Define a CellSet based solely on a cell_metadata.csv file
-    """
+class CellSet(object):
 
     def __init__(
             self,
-            cell_metadata_path):
+            cell_metadata,
+            discrete_fields,
+            continuous_fields,
+            leaf_field=None):
+        """
+        Parameters
+        ----------
+        cell_metadata:
+            a pandas DataFrame of the metadata and annotations
+            associated with each cell (obs of an h5ad file)
+        discrete_fields:
+            a list of columns in cell_metadata by which the cells
+            are to be discretely clustered (i.e. the "taxonomic types")
+        continuous_fields:
+            a list of columns in cell_metadata that are to be treated
+            as numerical value whose statistics are to be grouped
+            along the discrete fields
+        leaf_field:
+            the (optional) discrete_field to be interpreted as the
+            "leaf level" of the taxonomy
+        """
 
-        (self._cluster_aliases,
-         umap_coords) = _get_umap_coords(cell_metadata_path)
+        # infer child-to-parent relationships, i.e. relationships
+        # between discrete_fields where the value in one (the child)
+        # necessarily implies the value in another (the parent)
+        self._child_to_parent = tree_utils.infer_tree(
+            cell_metadata=cell_metadata,
+            discrete_fields=discrete_fields
+        )
 
-        self._visualization_coords = umap_coords
-        self._connection_coords = umap_coords
-        self._color_by_columns = None
+        self._type_field_list = copy.deepcopy(discrete_fields)
+        self._continuous_field_list = copy.deepcopy(continuous_fields)
 
-        super().__init__()
+        if leaf_field is not None:
+            if leaf_field not in self._type_field_list:
+                raise RuntimeError(
+                    f"Leaf field {leaf_field} is not in your "
+                    "list of discrete_fields"
+                )
+        self._leaf_type = leaf_field
+
+        self._n_cells = len(cell_metadata)
+
+        # map values in discrete_fields to the indexes of cells
+        # that belong to those values
+        self._type_masks = dict()
+        self._statistics = dict()
+        self._idx_to_types = dict()
+        self._n_cells_lookup = dict()
+        for col in discrete_fields:
+            self._type_masks[col] = dict()
+            self._statistics[col] = dict()
+            self._idx_to_types[col] = cell_metadata[col].values
+            self._n_cells_lookup[col] = dict()
+
+            unq_value_list = np.unique(cell_metadata[col].values)
+            for unq in unq_value_list:
+                idx = np.where(cell_metadata[col].values == unq)[0]
+                self._n_cells_lookup[col][unq] = len(idx)
+                self._type_masks[col][unq] = idx
+                self._statistics[col][unq] = dict()
+                for stat_col in continuous_fields:
+                    stats = {
+                        'mean': np.mean(
+                            cell_metadata[stat_col].values[idx]),
+                        'var': np.var(
+                            cell_metadata[stat_col].values[idx],
+                            ddof=1)
+                    }
+                    self._statistics[col][unq][stat_col] = stats
+
+        if self.leaf_type is not None:
+            self._create_parent_to_leaves()
 
 
-class CellSetFromH5ad(CellSetAccessMixin):
-    """
-    Define a CellSet from an h5ad file.
+    @classmethod
+    def from_h5ad(
+            cls,
+            h5ad_path,
+            discrete_fields,
+            continuous_fields,
+            leaf_field=None):
+        """
+        Instantiate a CellSet from an h5ad file
 
-    Parameters
-    ----------
+        Parameters
+        ----------
         h5ad_path:
             path to the h5ad file
-        visualization_coord_key:
-            the field in obsm from which visualization
-            coordinates will be read (these are the coordinates
-            in which the constellation plot will be visualized)
-        connection_coord_key:
-            the field in obsm from which connection coordinates
-            will be read (these are the coordinates which will
-            be used to calculate the strength of connections
-            between nodes in the cell type taxonomy)
-        cluster_alias_key:
-            the column in obs where cluster aliases are stored
-            (assumed to be integers)
-        color_by_columns:
-            optional list of columns in obs that will be gathered
-            as aggregate statistics over cell types.
-    """
-
-    def __init__(
-            self,
+        discrete_fields:
+            a list of columns in cell_metadata by which the cells
+            are to be discretely clustered (i.e. the "taxonomic types")
+        continuous_fields:
+            a list of columns in cell_metadata that are to be treated
+            as numerical value whose statistics are to be grouped
+            along the discrete fields
+        leaf_field:
+            the (optional) discrete_field to be interpreted as the
+            "leaf level" of the taxonomy
+        """
+        cell_metadata = anndata_utils.read_df_from_h5ad(
             h5ad_path,
-            visualization_coord_key,
-            connection_coord_key,
-            cluster_alias_key,
-            color_by_columns=None):
-
-        self._visualization_coords = _get_coords_from_h5ad(
-            h5ad_path=h5ad_path,
-            coord_key=visualization_coord_key
+            df_name='obs'
         )
+        return cls(
+            cell_metadata=cell_metadata,
+            discrete_fields=discrete_fields,
+            continuous_fields=continuous_fields,
+            leaf_field=leaf_field)
 
-        self._connection_coords = _get_coords_from_h5ad(
-            h5ad_path=h5ad_path,
-            coord_key=connection_coord_key
-        )
+    @property
+    def n_cells(self):
+        """
+        Total number of cells in this CellSet
+        """
+        return self._n_cells
 
-        src = anndata.read_h5ad(h5ad_path, backed='r')
-        self._cluster_aliases = src.obs[cluster_alias_key].values.astype(int)
+    @property
+    def leaf_type(self):
+        """
+        The type_field that is to be interpreted as the
+        leaf of the taxonomy
+        """
+        return self._leaf_type
 
-        self._color_by_columns = None
-        if color_by_columns is not None:
-            self._color_by_columns = dict()
-            for col in color_by_columns:
-                self._color_by_columns[col] = src.obs[col].values
+    def n_cells_in_type(self, type_field, type_value):
+        """
+        Number of cells assigned to the (type_field, type_value)
+        pair
+        """
+        if type_field not in self._type_masks:
+            raise RuntimeError(
+                f"No cell types associated with field {type_field}"
+            )
+        lookup = self._n_cells_lookup[type_field]
+        if type_value not in lookup:
+            raise RuntimeError(
+                f"{type_value} not a valid value for field {type_field}"
+            )
+        return lookup[type_value]
 
-        src.file.close()
-        del src
+    def type_field_list(self):
+        """
+        List of valid type fields
+        """
+        return self._type_field_list
 
-        super().__init__()
+    def continuous_field_list(self):
+        """
+        List of valid continuous fields
+        """
+        return self._continuous_field_list
 
+    def type_value_list(self, type_field):
+        """
+        Return the list of 'types' derived from a discrete
+        field in the cell metadata
+        """
+        if type_field not in self._type_masks:
+            raise RuntimeError(
+                f"No cell types associated with field {type_field}"
+            )
+        result = sorted(self._type_masks[type_field])
+        return result
 
-def _get_umap_coords(cell_metadata_path):
-    """
-    Read in a cell_metadata.csv file.
+    def type_mask(self, type_field, type_value):
+        """
+        Return the array of cell indices (i.e. the rows of obs)
+        associated with a specific value in a specific field
+        of the cell_metadata
+        """
+        if type_field not in self._type_masks:
+            raise RuntimeError(
+                f"No cell types associated with field {type_field}"
+            )
+        lookup = self._type_masks[type_field]
+        if type_value not in lookup:
+            raise RuntimeError(
+                f"{type_value} not a valid value for field {type_field}"
+            )
+        return lookup[type_value]
 
-    Return an array of cluster_aliases and an array
-    of UMAP coordinates representing the cells in that
-    file.
-    """
+    def type_value_from_idx(self, type_field, idx_array):
+        """
+        Given a type_field and an array of integers,
+        return the type_values associated by the cells at those
+        integers.
+        """
+        if type_field not in self._type_masks:
+            raise RuntimeError(
+                f"No cell types associated with field {type_field}"
+            )
+        return self._idx_to_types[type_field][idx_array]
 
-    cell_metadata = pd.read_csv(cell_metadata_path)
-    umap_coords = np.array(
-        [cell_metadata.x.values,
-         cell_metadata.y.values]).transpose()
-    cluster_aliases = np.array(
-        [int(a) for a in cell_metadata.cluster_alias.values])
-    return cluster_aliases, umap_coords
+    def stat_field_list(self, type_field, type_value):
+        """
+        Return the list of valid stat fields for a given
+        type_filed, type_value pair
+        """
+        if type_field not in self._statistics:
+            raise RuntimeError(
+                f"No cell types associated with field {type_field}"
+            )
+        lookup = self._statistics[type_field]
+        if type_value not in lookup:
+            raise RuntimeError(
+                f"{type_value} not a valid value for field {type_field}"
+            )
+        return sorted(lookup[type_value].keys())
 
+    def stats(self, type_field, type_value, stat_field):
+        """
+        Return the stats dict for a specific set of
+            (type_field,
+             type_value,
+             stat_field)
+        """
+        if type_field not in self._statistics:
+            raise RuntimeError(
+                f"No cell types associated with field {type_field}"
+            )
+        lookup = self._statistics[type_field]
+        if type_value not in lookup:
+            raise RuntimeError(
+                f"{type_value} not a valid value for field {type_field}"
+            )
+        if stat_field not in lookup[type_value]:
+            raise RuntimeError(
+                f"{stat_field} not a valid statistics field"
+            )
+        return lookup[type_value][stat_field]
 
-def _get_coords_from_h5ad(
-        h5ad_path,
-        coord_key):
-    """
-    Extract the a set of coordinates from obsm in and h5ad file
+    def parent_annotations(self, type_field, type_value):
+        """
+        Return a dict mapping type_field: type_value for any
+        "parents" of the specified (type_field, type_value) pair
+        (where by "parents" we mean "other types that are precisely
+        implied by the specified type).
 
-    Parameters
-    ----------
-    h5ad_path:
-        the path to the h5ad file
-    coord_key:
-        the key (within obsm) of the coordinate array being extracted
+        This dict will includ the type_field:type_value mapping
+        for self (the specified taxon) so that we can consistently
+        encode labels for the centroids.
+        """
+        result = {type_field: type_value}
+        if type_field not in self._child_to_parent:
+            return result
+        for parent_field in self._child_to_parent[type_field]:
+            parent_value = self._child_to_parent[type_field][parent_field][type_value]
+            result[parent_field] = parent_value
+        return result
 
-    Returns
-    -------
-    coords:
-        a np.ndarray of (cell, n_coords) coordinates
-    """
-    src = anndata.read_h5ad(h5ad_path, backed='r')
-    obsm = src.obsm
-    if coord_key not in obsm.keys():
-        raise KeyError(f'key {coord_key} not in obsm')
-    coords = obsm[coord_key]
-    src.file.close()
-    del src
+    def _create_parent_to_leaves(self):
+        # just need dict that takes a parent_field, parent_value and gives
+        # a list of leaves
+        self._parent_to_leaves = dict()
+        for leaf_value in self.type_value_list(self.leaf_type):
+            parentage = self.parent_annotations(
+                type_field=self.leaf_type,
+                type_value=leaf_value)
+            for parent_field in parentage:
+                if parent_field not in self._parent_to_leaves:
+                    self._parent_to_leaves[parent_field] = dict()
+                parent_value = parentage[parent_field]
+                if parent_value not in self._parent_to_leaves[parent_field]:
+                    self._parent_to_leaves[parent_field][parent_value] = []
+                self._parent_to_leaves[parent_field][parent_value].append(leaf_value)
 
-    if isinstance(coords, pd.DataFrame):
-        coords = coords.to_numpy()
+        # validate that, if a type_field is in parent_to_leaves, all of
+        # its values are also present
+        for type_field in self.type_field_list():
+            if type_field not in self._parent_to_leaves:
+                continue
+            for type_value in self.type_value_list(type_field):
+                assert type_value in self._parent_to_leaves[type_field]
 
-    return coords
-
-
-def create_neighbor_cache(
-        tree,
-        pts,
-        k_nn,
-        n_processors=4,
-        tmp_dir=None):
-    """
-    Create and return an (n_cells, k_nn) array storing, for each
-    cell in this CellSet, the indexes of its k_nn nearest
-    neighbors in a specified coordinate system.
-
-    Parameters
-    ----------
-    tree:
-        a scipy.spatial.cKDTree already created
-        with the candidate neighbor points
-    pts:
-        an array, each row of which is a point
-        whose neighbors we want to find
-    k_nn:
-        an int. The number of nearest neighbors to
-        find per point
-    n_processors:
-        the number of independent worker processes
-        to spin up
-    tmp_dir:
-        path to a directory where scratch files can be written
-
-    Returns
-    -------
-    A (pts.shape[0], k_nn) array of integers indicating the indexes
-    (relative to the array of points loaded into tree) of the k_nn
-    nearest neighbors of each point in pts
-    """
-
-    tmp_dir = tempfile.mkdtemp(dir=tmp_dir)
-    try:
-        result = _create_neighbor_cache(
-            tree=tree,
-            pts=pts,
-            k_nn=k_nn,
-            n_processors=n_processors,
-            tmp_dir=tmp_dir
-        )
-    finally:
-        _clean_up(tmp_dir)
-    return result
-
-
-def _create_neighbor_cache(
-        tree,
-        pts,
-        k_nn,
-        n_processors,
-        tmp_dir):
-
-    n_col = pts.shape[1]
-    n_per_max = (2*1024**3)//n_col
-
-    n_per = np.round(pts.shape[0]/n_processors).astype(int)
-    n_per = min(n_per, n_per_max)
-
-    print(f'=======CREATING NEIGHBOR CACHE batch size {n_per}=======')
-
-    sub_dataset_list = []
-    process_list = []
-
-    i0 = 0
-
-    while i0 < pts.shape[0]:
-        i1 = min(pts.shape[0], i0+n_per)
-        if len(process_list) == (n_processors-1):
-            i1 = pts.shape[0]
-        sub_pts = pts[i0:i1, :]
-        tmp_path = mkstemp_clean(
-            dir=tmp_dir,
-            suffix='.h5'
-        )
-        p = multiprocessing.Process(
-            target=_create_neighbor_cache_worker,
-            kwargs={
-                'tree': tree,
-                'pts': sub_pts,
-                'k_nn': k_nn,
-                'dst_path': tmp_path
-            }
-        )
-        p.start()
-        process_list.append(p)
-        sub_dataset_list.append((i0, i1, tmp_path))
-        i0 = i1
-        while len(process_list) >= n_processors:
-            process_list = winnow_process_list(process_list)
-
-    while len(process_list) > 0:
-        process_list = winnow_process_list(process_list)
-
-    result = np.zeros((pts.shape[0], k_nn), dtype=int)
-    for dataset in sub_dataset_list:
-        with h5py.File(dataset[2], 'r') as src:
-            i0 = dataset[0]
-            i1 = dataset[1]
-            result[i0:i1, :] = src['neighbors'][()]
-    return result
-
-
-def _create_neighbor_cache_worker(
-        tree,
-        pts,
-        k_nn,
-        dst_path):
-    t0 = time.time()
-    neighbors = tree.query(pts, k=k_nn)
-    with h5py.File(dst_path, 'w') as dst:
-        dst.create_dataset('neighbors', data=neighbors[1])
-    dur = (time.time() - t0)/60.0
-    n = pts.shape[0]
-    print(
-        '=======FINISHED NEIGHBOR BATCH OF SIZE '
-        f'{n} in {dur:.2e} minutes=======')
+    def parent_to_leaves(self, type_field, type_value):
+        if type_field not in self._parent_to_leaves:
+            return []
+        if type_value not in self._parent_to_leaves[type_field]:
+            return []
+        return copy.deepcopy(self._parent_to_leaves[type_field][type_value])
+        

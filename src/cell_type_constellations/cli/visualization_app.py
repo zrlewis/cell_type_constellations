@@ -4,10 +4,7 @@ import pathlib
 
 import cell_type_constellations
 
-from cell_type_constellations.app.utils.page_utils import (
-    get_constellation_plot_page,
-    get_constellation_plot_config
-)
+import cell_type_constellations.app.page_utils as page_utils
 
 
 def main():
@@ -48,7 +45,7 @@ class Visualizer(object):
                 f"Data dir {self.data_dir} is not a dir"
             )
 
-        self.constellation_plot_config = get_constellation_plot_config(
+        self.constellation_plot_config = page_utils.get_constellation_plot_config(
             self.data_dir
         )
 
@@ -74,6 +71,7 @@ class Visualizer(object):
             centroid_level=None,
             color_by=None,
             hull_level=None,
+            connection_coords=None,
             default=False,
             fill_hulls='false'):
 
@@ -89,16 +87,17 @@ class Visualizer(object):
             centroid_level = config['centroid_level']
             color_by = config['color_by']
             hull_level = config['hull_level']
+            connection_coords = config['connection_coords']
 
         base_url = None
 
-        html = get_constellation_plot_page(
+        html = page_utils.get_constellation_plot_page(
                 hdf5_path=hdf5_path,
                 centroid_level=centroid_level,
                 hull_level=hull_level,
-                base_url=base_url,
                 color_by=color_by,
-                fill_hulls=fill_hulls)
+                fill_hulls=fill_hulls,
+                connection_coords=connection_coords)
 
         return html
 
