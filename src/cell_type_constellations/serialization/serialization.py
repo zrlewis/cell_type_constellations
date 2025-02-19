@@ -40,13 +40,64 @@ def serialize_from_h5ad(
         continuous_fields,
         leaf_field,
         dst_path,
-        tmp_dir,
+        tmp_dir=None,
         clobber=False,
         k_nn=15,
         n_processors=4,
         fov_height=1080,
         max_radius=35,
         min_radius=5):
+    """
+    Instantiate and serialize all of the data needed for an interactive
+    constellation plot from a single h5ad file.
+
+    Parameters
+    ----------
+    h5ad_path:
+        path to the h5ad file
+    visualization_coords:
+        a str. The key in obsm where the 2D embedding coordinates
+        used for the visualization of the data will be
+    connection_coords_list:
+        a list of str. Each one is a key in obsm pointing to
+        embedding coordinates which will be used to assess whether or
+        not two nodes in the constellation plot are connected (can
+        be more than 2D, but greater than 2D embeddings can take
+        ~ an hour to process)
+    discrete_fields:
+        a list of str. The columns in obs that refer to discrete
+        cell types (these will be nodes in the constellation plot)
+    continuous_fields:
+        a list of str. The columns in obs corresponding to continuous
+        numerical values by which the nodes in the constellation plot
+        can be colored
+    leaf_field:
+        a str. Must be one of discrete_fields. This is the field that
+        is considered the leaf level of the taxonomy
+    dst_path:
+        path to the HDF5 file where the data will be serialized
+    tmp_dir:
+        path to a directory where scratch files may be written
+    clobber:
+        a boolean. If False and dst_path exists, crash. If True,
+        overwrite
+    k_nn:
+        an int. The number of nearest neighbors to find for each
+        cell when assessing the connectedness of nodes in the
+        constellation plot
+    n_processors:
+        a int. The number of independent worker processes to spin
+        up at a time.
+    fov_height:
+        the height in pixels of the field of view (width will be
+        calculated to preserve the aspect ratio of visualization_coords)
+    max_radius:
+        the maximum radius in pixels that a node in the constellation
+        plot can have (approximately)
+    min_radius:
+        the minimum radius in pixels that a node in the constellation
+        plot can have.
+    """
 
     tmp_dir = tempfile.mkdtemp(
         dir=tmp_dir,
