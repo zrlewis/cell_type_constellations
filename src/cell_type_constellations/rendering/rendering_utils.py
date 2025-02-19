@@ -53,9 +53,9 @@ def render_svg(
         fov=fov)
 
     code = get_svg_header(fov)
+    code += hull_code
     code += connection_code
     code += centroid_code
-    code += hull_code
     code += "</svg>\n"
     return code
 
