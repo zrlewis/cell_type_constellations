@@ -56,7 +56,11 @@ def get_constellation_plot_page(
         ]
 
         if 'hulls' in src.keys():
-            hull_level_list = list(src['hulls'].keys())
+            hull_level_list = [
+                level
+                for level in discrete_field_list
+                if level in src['hulls'].keys()
+            ]
             if hull_level is not None:
                 hull_list = []
                 for type_value in src['hulls'][hull_level].keys():
