@@ -85,6 +85,10 @@ class CellSet(object):
                     }
                     self._statistics[col][unq][stat_col] = stats
 
+        if self.leaf_type is not None:
+            self._create_parent_to_leaves()
+
+
     @classmethod
     def from_h5ad(
             cls,
@@ -254,3 +258,27 @@ class CellSet(object):
             parent_value = self._child_to_parent[type_field][parent_field][type_value]
             result[parent_field] = parent_value
         return result
+
+    def _create_parent_to_leaves(self):
+        # just need dict that takes a parent_field, parent_value and gives
+        # a list of leaves
+        self._parent_to_leaves = dict()
+        for leaf_value in self.type_value_list(self.leaf_type):
+            parentage = self.parent_annotations(
+                type_field=self.leaf_type,
+                type_value=leaf_value)
+            for parent_field in parentage:
+                if parent_field not in self._parent_to_leaves:
+                    self._parent_to_leaves[parent_field] = dict()
+                parent_value = parentage[parent_field]
+                if parent_value not in self._parent_to_leaves[parent_field]:
+                    self._parent_to_leaves[parent_field][parent_value] = []
+                self._parent_to_leaves[parent_field][parent_value].append(leaf_value)
+
+    def parent_to_leaves(self, type_field, type_value):
+        if type_field not in self._parent_to_leaves:
+            return []
+        if type_value not in self._parent_to_leaves[type_field]:
+            return []
+        return copy.deepcopy(self._parent_to_leaves[type_field][type_value])
+        
