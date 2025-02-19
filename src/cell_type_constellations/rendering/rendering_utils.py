@@ -34,8 +34,8 @@ def render_svg(
     else:
         connection_code = ''
 
+    hull_code = ""
     if hull_list is not None:
-        hull_code = ""
         for hull in hull_list:
             hull_code += hull_rendering.render_hull(
                 hull=hull,
