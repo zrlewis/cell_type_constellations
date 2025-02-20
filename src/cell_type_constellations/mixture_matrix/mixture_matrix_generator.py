@@ -29,6 +29,13 @@ def create_mixture_matrices_from_h5ad(
         clobber=False,
         chunk_size=100000):
     """
+    Find the mixture matrices needed to assess the connectivity
+    of nodes in a constellation plot. Store the results in an
+    HDF5 file.
+
+    Data for the mixture matrices is taken from a single
+    h5ad file.
+
     Parameters
     ----------
     cell_set:
@@ -145,9 +152,15 @@ def create_mixture_matrices(
         are saved in the h5ad file at dst_path
     """
 
-    chunk_size = min(
-        chunk_size,
-        np.ceil(cell_set.n_cells/n_processors).astype(int)
+    n_dim = kd_tree.data.shape[1]
+    factor = np.ceil(n_dim/2).astype(int)
+
+    chunk_size = max(
+        5000,
+        min(
+            chunk_size,
+            np.ceil(cell_set.n_cells/(factor*n_processors)).astype(int)
+        )
     )
 
     dst_path = pathlib.Path(dst_path)

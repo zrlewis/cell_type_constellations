@@ -1,6 +1,7 @@
 import h5py
 import multiprocessing
 import numpy as np
+import os
 import pathlib
 import scipy
 import tempfile
@@ -29,7 +30,7 @@ def create_and_serialize_all_hulls(
         n_processors=4,
         tmp_dir=None):
     """
-    Write create a list of PixelSpaceHulls and write them to an
+    Instantiate a list of PixelSpaceHulls and write them to an
     HDF5 file.
 
     Parameters
@@ -48,6 +49,9 @@ def create_and_serialize_all_hulls(
     tmp_dir:
         path to directory where scratch files can be written
     """
+
+    print('=======CREATING HULLS=======')
+
     tmp_dir = tempfile.mkdtemp(
         dir=tmp_dir,
         prefix='hull_scratch_')
@@ -63,7 +67,7 @@ def create_and_serialize_all_hulls(
     finally:
         _clean_up(tmp_dir)
 
-def create_and_serialize_all_hulls(
+def _create_and_serialize_all_hulls(
         cell_set,
         visualization_coords,
         fov,
@@ -217,7 +221,10 @@ def create_and_serialize_pixel_hull_list(
 
     dur = (time.time()-t0)/60.0
     n = len(type_field_value_list)
-    print(f'    wrote {n} hulls in {dur:.2e} minutes')
+    print(
+        f'    worker process {os.getpid()} wrote '
+        f'{n} hulls in {dur:.2e} minutes'
+    )
 
 
 def load_single_hull(

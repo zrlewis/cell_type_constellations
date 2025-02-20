@@ -291,6 +291,10 @@ class CellSet(object):
                 assert type_value in self._parent_to_leaves[type_field]
 
     def parent_to_leaves(self, type_field, type_value):
+        if self.leaf_type is None:
+            raise RuntimeError(
+                "You have not specified a leaf_type for this CellSet"
+            )
         if type_field not in self._parent_to_leaves:
             return []
         if type_value not in self._parent_to_leaves[type_field]:

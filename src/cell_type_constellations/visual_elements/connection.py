@@ -578,7 +578,6 @@ def get_bezier_control_points(
             mask[1+2*i_conn] = True
             if displacement > 1.0e-3:
                 n_tot += 1
-        print(f'adj {n_adj} of {n_tot}')
 
     return background[2*n_conn:, :]
 

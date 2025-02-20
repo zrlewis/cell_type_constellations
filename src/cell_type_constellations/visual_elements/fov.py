@@ -79,12 +79,15 @@ class FieldOfView(object):
             hdf5_path,
             group_path):
         """
+        Read a previously serialized FieldOfView from a group
+        in an HDF5 file.
+
         Parameters
         ----------
         hdf5_path:
             path to the HDF5 path from which to read this FieldOfView
         group_path:
-            specifiation of group in HDF5 file from which to read this
+            specification of group in HDF5 file from which to read this
             FieldOfView
         """
         with h5py.File(hdf5_path, 'r') as src:
@@ -121,6 +124,9 @@ class FieldOfView(object):
             max_radius,
             min_radius):
         """
+        Instantiate a FieldOfView from data stored in a single
+        h5ad file.
+
         Parameters
         ----------
         h5ad_path:
@@ -155,6 +161,9 @@ class FieldOfView(object):
             max_radius,
             min_radius):
         """
+        Instantiate a FieldOfView from a numpy array
+        of visualization embedding coordinates
+
         Parameters
         ----------
         coords:
@@ -195,6 +204,10 @@ class FieldOfView(object):
            max_radius,
            min_radius):
         """
+        Instantiate a FieldOfView from a numpy array
+        containing the min/max values of a set of visualization
+        embedding coordinates.
+
         Parameters
         ----------
         embedding_bounds:

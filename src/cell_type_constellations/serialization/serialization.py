@@ -284,7 +284,7 @@ def serialize_data(
         )
 
     for type_field in centroid_lookup:
-        print(f'===serializing {type_field}===')
+        print(f'===serializing {type_field} connections===')
         centroid.write_pixel_centroids_to_hdf5(
             hdf5_path=dst_path,
             group_path=f'{type_field}/centroids',
