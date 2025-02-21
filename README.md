@@ -32,25 +32,17 @@ import cell_type_mapper
 
 ## Generating the visualization data
 
-There is a simple command line tool to create the HDF5 file containing
-data for the constellation plot visualizations, it can be run like
+The example script
+```
+examples/serialization_example.py
+```
+shows how to call a function that reads data from a single h5ad file
+and creates an HDF5 file that can be used to create an interactive
+constellation plot. The arguments of the function called in that script
+are defined in its docstring. See
 
 ```
-python -m cell_type_constellations.cli.serialize_svg_data_from_h5ad \
---taxonomy_name HY-EA-stat-test \
---h5ad_path /path/to/HY_v1.h5ad \
---hierarchy class_label subclass_label supertype_label cluster_id_label \
---color_by_columns 'Attack-M vs Control-M' 'Sexual-M vs Control-M' \
---visualization_coords X_umap \
---connection_coords X_umap \
---tmp_dir /my/scratch/dir \
---dst_path /path/to/desired/output.h5
-````
-
-To see the definitions of each of these command line parameters, run
-
-```
-python -m cell_type_constellations.cli.serialize_svg_data_from_h5ad --help
+src/cell_type_constellations/serialization/serialization.py
 ```
 
 ## Visualizing the results

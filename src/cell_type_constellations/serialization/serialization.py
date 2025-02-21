@@ -73,7 +73,9 @@ def serialize_from_h5ad(
         can be colored
     leaf_field:
         a str. Must be one of discrete_fields. This is the field that
-        is considered the leaf level of the taxonomy
+        is considered the leaf level of the taxonomy. This is used
+        for constructing the hulls (the contours around discrete_fields
+        in visualization space).
     dst_path:
         path to the HDF5 file where the data will be serialized
     tmp_dir:
