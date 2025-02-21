@@ -33,6 +33,7 @@ def main():
         discrete_fields=discrete_fields,
         continuous_fields=continuous_fields,
         leaf_field='cluster_id_label',
+        discrete_color_map=None,
         dst_path=dst_path,
         tmp_dir='scratch',
         clobber=True

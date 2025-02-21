@@ -40,6 +40,7 @@ def serialize_from_h5ad(
         continuous_fields,
         leaf_field,
         dst_path,
+        discrete_color_map=None,
         tmp_dir=None,
         clobber=False,
         k_nn=15,
@@ -78,6 +79,10 @@ def serialize_from_h5ad(
         in visualization space).
     dst_path:
         path to the HDF5 file where the data will be serialized
+    discrete_color_map:
+        an optional dict mapping discrete_fields to hexadecimal color
+        representations. If this is None, a cartoon colormap will
+        be created. See notes below.
     tmp_dir:
         path to a directory where scratch files may be written
     clobber:
@@ -99,6 +104,31 @@ def serialize_from_h5ad(
     min_radius:
         the minimum radius in pixels that a node in the constellation
         plot can have.
+
+    Notes
+    -----
+    discrete_color_map is structured like
+    {
+        type_field_1: {
+            type_value_1: color1,
+            type_value_2: color2,
+            type_value_3: color3,
+            ...
+        },
+        type_field_2: {
+            type_value4: color4,
+            type_value5: color5,
+            ...
+        },
+        ...
+
+    }
+
+    where the type_fields are the values in discrete_fields and
+    type_values are the values that those fields can take.
+
+    All type_field, type_value pairs in the h5ad file must be
+    represented in the color map.
     """
 
     tmp_dir = tempfile.mkdtemp(
@@ -114,6 +144,7 @@ def serialize_from_h5ad(
             continuous_fields=continuous_fields,
             leaf_field=leaf_field,
             dst_path=dst_path,
+            discrete_color_map=discrete_color_map,
             tmp_dir=tmp_dir,
             k_nn=k_nn,
             n_processors=n_processors,
@@ -134,6 +165,7 @@ def _serialize_from_h5ad(
         continuous_fields,
         leaf_field,
         dst_path,
+        discrete_color_map,
         tmp_dir,
         k_nn,
         n_processors,
@@ -162,18 +194,24 @@ def _serialize_from_h5ad(
         leaf_field=leaf_field
     )
 
-    # create a placeholder color map for discrete fields
-    # (until we can figure out a consistent way to encode
-    # colors associated with discrete_fields)
-    discrete_color_map = dict()
-    for type_field in cell_set.type_field_list():
-        n_values = len(cell_set.type_value_list(type_field))
-        mpl_map = matplotlib.colormaps['viridis']
-        type_color_map = {
-            v: matplotlib.colors.rgb2hex(mpl_map(ii/n_values))
-            for ii, v in enumerate(cell_set.type_value_list(type_field))
-        }
-        discrete_color_map[type_field] = type_color_map
+    if discrete_color_map is None:
+        # create a placeholder color map for discrete fields
+        # (until we can figure out a consistent way to encode
+        # colors associated with discrete_fields)
+        discrete_color_map = dict()
+        for type_field in cell_set.type_field_list():
+            n_values = len(cell_set.type_value_list(type_field))
+            mpl_map = matplotlib.colormaps['viridis']
+            type_color_map = {
+                v: matplotlib.colors.rgb2hex(mpl_map(ii/n_values))
+                for ii, v in enumerate(cell_set.type_value_list(type_field))
+            }
+            discrete_color_map[type_field] = type_color_map
+
+    _validate_discrete_color_map(
+        cell_set=cell_set,
+        color_map=discrete_color_map
+    )
 
     fov = FieldOfView.from_h5ad(
         h5ad_path=h5ad_path,
@@ -322,3 +360,29 @@ def serialize_data(
     )
 
     print(f'SUCCESFULLY WROTE {dst_path}')
+
+
+def _validate_discrete_color_map(color_map, cell_set):
+    """
+    Validate that all type_field, type_value pairs
+    in the cell_set are represented in the color_map
+    """
+    missing_pairs = []
+    for type_field in cell_set.type_field_list():
+        if type_field not in color_map:
+            missing_pairs.append((type_field, '*'))
+            continue
+        for type_value in cell_set.type_value_list(type_field):
+            if type_value not in color_map[type_field]:
+                missing_pairs.append((type_field, type_value))
+
+    if len(missing_pairs) == 0:
+        return
+
+    msg = (
+        "The following type_field, type_value pairs "
+        "were missing from your discrete_color_map:\n"
+    )
+    for pair in missing_pairs:
+        msg += f"{pair}\n"
+    raise RuntimeError(msg)
