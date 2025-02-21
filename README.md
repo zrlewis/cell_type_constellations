@@ -50,8 +50,8 @@ src/cell_type_constellations/serialization/serialization.py
 This tool comes with a simple web-like app that will allow you to
 visualize and configure your constellation plots in any web browser.
 The app works by scanning the `app_data/` directory of this repository
-and loading any `.h5` files (created by the `serialize_svg_data_from_h5ad`
-step above) for visualization. Just copy all of the constellation plot data
+and loading any `.h5` files (created by the serialization example
+above) for visualization. Just copy all of the constellation plot data
 files you want to be able to visualize into that `app_data/` directory and run
 ```
 bash run_visualization.sh
