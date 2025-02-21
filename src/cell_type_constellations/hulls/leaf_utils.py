@@ -8,17 +8,14 @@ import multiprocessing
 import numpy as np
 import pathlib
 import scipy
-import tempfile
 import time
 
-from cell_type_mapper.utils.multiprocessing_utils import(
+from cell_type_mapper.utils.multiprocessing_utils import (
     winnow_process_list
 )
 
 
 import cell_type_constellations.hulls.leaf_splitter as leaf_splitter
-
-
 
 
 def get_all_leaf_hulls(
@@ -74,7 +71,8 @@ def get_all_leaf_hulls(
     sub_lists = []
     for ii in range(n_processors):
         sub_lists.append([])
-    for ii, leaf_value in enumerate(cell_set.type_value_list(cell_set.leaf_type)):
+    for ii, leaf_value in enumerate(
+            cell_set.type_value_list(cell_set.leaf_type)):
         idx = ii % n_processors
         sub_lists[idx].append(leaf_value)
 

@@ -45,8 +45,10 @@ class Visualizer(object):
                 f"Data dir {self.data_dir} is not a dir"
             )
 
-        self.constellation_plot_config = page_utils.get_constellation_plot_config(
-            self.data_dir
+        self.constellation_plot_config = (
+            page_utils.get_constellation_plot_config(
+                self.data_dir
+            )
         )
 
     @cherrypy.expose
@@ -88,8 +90,6 @@ class Visualizer(object):
             color_by = config['color_by']
             hull_level = config['hull_level']
             connection_coords = config['connection_coords']
-
-        base_url = None
 
         html = page_utils.get_constellation_plot_page(
                 hdf5_path=hdf5_path,

@@ -4,7 +4,7 @@ from cell_type_constellations.visual_elements.centroid import (
    PixelSpaceCentroid
 )
 
-from cell_type_constellations.visual_elements.connection import(
+from cell_type_constellations.visual_elements.connection import (
     PixelSpaceConnection
 )
 
@@ -58,7 +58,6 @@ def render_svg(
     code += centroid_code
     code += "</svg>\n"
     return code
-
 
 
 def get_svg_header(fov):

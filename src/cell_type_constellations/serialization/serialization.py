@@ -150,7 +150,7 @@ def _serialize_from_h5ad(
             dst_path.unlink()
         else:
             raise RuntimeError(
-                f"{dst_pat} exists; run with clobber=True to overwrite"
+                f"{dst_path} exists; run with clobber=True to overwrite"
             )
 
     cell_set = CellSet.from_h5ad(
@@ -269,7 +269,7 @@ def serialize_data(
         hdf5_path=dst_path,
         group_path='fov')
 
-    with h5py.File(dst_path, 'a' ) as dst:
+    with h5py.File(dst_path, 'a') as dst:
         dst.create_dataset(
             'discrete_fields',
             data=json.dumps(discrete_fields).encode('utf-8')
@@ -295,7 +295,9 @@ def serialize_data(
             print(f'======serializing {connection_coords} connections')
             connection_list = connection.get_connection_list(
                 pixel_centroid_lookup=centroid_lookup,
-                mixture_matrix_file_path=connection_coords_to_mm_path[connection_coords],
+                mixture_matrix_file_path=(
+                    connection_coords_to_mm_path[connection_coords]
+                ),
                 type_field=type_field
             )
 

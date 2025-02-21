@@ -12,7 +12,6 @@ import cell_type_constellations.utils.coord_utils as coord_utils
 
 class FieldOfView(object):
 
-
     def __init__(
             self,
             embedding_to_pixel,
@@ -328,7 +327,6 @@ class FieldOfView(object):
             np.ones(embedding_coords.shape[0])])
         raw = np.dot(self.embedding_to_pixel, input3d).transpose()
         return raw[:, :-1]
-
 
     def get_pixel_radii(self, n_cells_array, n_cells_max):
         """

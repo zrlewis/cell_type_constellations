@@ -89,7 +89,6 @@ class CellSet(object):
         if self.leaf_type is not None:
             self._create_parent_to_leaves()
 
-
     @classmethod
     def from_h5ad(
             cls,
@@ -262,7 +261,9 @@ class CellSet(object):
         if type_field not in self._child_to_parent:
             return result
         for parent_field in self._child_to_parent[type_field]:
-            parent_value = self._child_to_parent[type_field][parent_field][type_value]
+            parent_value = (
+                self._child_to_parent[type_field][parent_field][type_value]
+            )
             result[parent_field] = parent_value
         return result
 
@@ -280,7 +281,9 @@ class CellSet(object):
                 parent_value = parentage[parent_field]
                 if parent_value not in self._parent_to_leaves[parent_field]:
                     self._parent_to_leaves[parent_field][parent_value] = []
-                self._parent_to_leaves[parent_field][parent_value].append(leaf_value)
+                self._parent_to_leaves[parent_field][parent_value].append(
+                    leaf_value
+                )
 
         # validate that, if a type_field is in parent_to_leaves, all of
         # its values are also present
@@ -300,4 +303,3 @@ class CellSet(object):
         if type_value not in self._parent_to_leaves[type_field]:
             return []
         return copy.deepcopy(self._parent_to_leaves[type_field][type_value])
-        

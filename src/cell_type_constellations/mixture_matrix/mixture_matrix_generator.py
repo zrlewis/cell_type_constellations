@@ -245,7 +245,8 @@ def _create_mixture_matrices(
                 dtype=int
             )
             row_key = np.array(
-                [val.encode('utf-8') for val in cell_set.type_value_list(type_field)]
+                [val.encode('utf-8')
+                 for val in cell_set.type_value_list(type_field)]
             )
             grp.create_dataset(
                 'row_key',
@@ -264,7 +265,9 @@ def _create_mixture_matrices(
                         row_key_reference[type_field]
                     )
 
-                    dst[type_field]['mixture_matrix'][:, :] += src[type_field]['mixture_matrix'][()]
+                    dst[type_field]['mixture_matrix'][:, :] += (
+                        src[type_field]['mixture_matrix'][()]
+                    )
 
 
 def _create_sub_mixture_matrix(
@@ -275,7 +278,7 @@ def _create_sub_mixture_matrix(
         dst_path):
 
     t0 = time.time()
-    matrix_lookup = dict()   
+    matrix_lookup = dict()
     for type_field in cell_set.type_field_list():
         type_value_list = cell_set.type_value_list(type_field)
         n_value = len(type_value_list)
@@ -294,7 +297,7 @@ def _create_sub_mixture_matrix(
 
         type_value_list = cell_set.type_value_list(type_field)
         type_value_to_idx = {
-            v:ii for ii, v in enumerate(type_value_list)
+            v: ii for ii, v in enumerate(type_value_list)
         }
         rowcol_lookup[type_field] = np.array(
             [val.encode('utf-8') for val in type_value_list]
@@ -306,7 +309,7 @@ def _create_sub_mixture_matrix(
 
         row_idx_array = np.array(
             [type_value_to_idx[v] for v in row_values]
-        )        
+        )
 
         for ii, row_idx in enumerate(row_idx_array):
 
@@ -318,7 +321,7 @@ def _create_sub_mixture_matrix(
             col_idx_array = np.array(
                 [type_value_to_idx[v] for v in col_values]
             )
-            
+
             unq_arr, ct_arr = np.unique(col_idx_array, return_counts=True)
             matrix_lookup[type_field][row_idx, unq_arr] += ct_arr
 

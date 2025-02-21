@@ -26,10 +26,10 @@ def merge_hulls(
             if leaf_value not in src:
                 continue
             leaf_grp = src[leaf_value]
-            for idx in src[leaf_value].keys():
+            for idx in leaf_grp.keys():
                 raw_hull_list.append(
                     scipy.spatial.ConvexHull(
-                        src[leaf_value][idx][()]
+                        leaf_grp[idx][()]
                     )
                 )
 
@@ -136,7 +136,6 @@ def merge_hulls(
             return [h['hull'] for h in raw_hull_list]
 
 
-
 def get_pixellized_test_pts_from_type(
         cell_set,
         visualization_coords,
@@ -233,7 +232,6 @@ def get_pixellized_test_pts_from_type(
         'test_pts': test_pts,
         'test_pt_validity': test_pt_validity
     }
-
 
 
 def get_test_pts_from_type(

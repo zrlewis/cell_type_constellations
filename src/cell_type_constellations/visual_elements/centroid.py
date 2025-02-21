@@ -6,7 +6,6 @@ a node in the constellation plot
 
 import h5py
 import json
-import matplotlib
 import numpy as np
 
 import cell_type_constellations.utils.coord_utils as coord_utils
@@ -67,7 +66,8 @@ def pixel_centroid_lookup_from_h5ad(
     n_cells_max = None
     for type_field in embedding_lookup:
         n = max(
-            [centroid.n_cells for centroid in embedding_lookup[type_field].values()]
+            [centroid.n_cells
+             for centroid in embedding_lookup[type_field].values()]
         )
         if n_cells_max is None or n > n_cells_max:
             n_cells_max = n
@@ -77,10 +77,12 @@ def pixel_centroid_lookup_from_h5ad(
         pixel_lookup[type_field] = dict()
         for type_value in embedding_lookup[type_field]:
             embedding_centroid = embedding_lookup[type_field][type_value]
-            pixel_lookup[type_field][type_value] = PixelSpaceCentroid.from_embedding_centroid(
-                embedding_centroid=embedding_centroid,
-                fov=fov,
-                n_cells_max=n_cells_max
+            pixel_lookup[type_field][type_value] = (
+                PixelSpaceCentroid.from_embedding_centroid(
+                    embedding_centroid=embedding_centroid,
+                    fov=fov,
+                    n_cells_max=n_cells_max
+                )
             )
 
     print('=======SUCCESSFULLY CREATED CENTROIDS=======')
@@ -94,7 +96,7 @@ def embedding_centroid_lookup_from_h5ad(
     """
     Instantiate a lookup table of EmbeddingSpaceCentroids from a
     cell set and an embedding array stored in an h5ad file
-    
+
     Parameters
     ----------
     cell_set:
@@ -223,6 +225,7 @@ def embedding_centroid_for_type(
     )
 
     return result
+
 
 def write_pixel_centroids_to_hdf5(
         hdf5_path,
@@ -463,7 +466,7 @@ class PixelSpaceCentroid(object):
                 f"{embedding_centroid.center_pt} -> {center_pt}"
             )
         radius = fov.get_pixel_radii(
-            n_cells_array= np.array([embedding_centroid.n_cells]),
+            n_cells_array=np.array([embedding_centroid.n_cells]),
             n_cells_max=n_cells_max
         )
         return cls(

@@ -44,8 +44,6 @@ def infer_tree(
     }
     """
 
-    invalid_child_parent_pairs = set()
-
     child_to_parent = dict()
     for i0 in range(len(discrete_fields)):
         field0 = discrete_fields[i0]

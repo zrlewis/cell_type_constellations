@@ -17,6 +17,7 @@ from cell_type_constellations.visual_elements.centroid import (
     PixelSpaceCentroid
 )
 
+
 def get_connection_list(
         pixel_centroid_lookup,
         mixture_matrix_file_path,
@@ -450,8 +451,12 @@ class Connection(object):
             max_connection_ratio=max_connection_ratio)
 
         points = self._rendering_corners
+
+        # this will trigger if one end of a connection is a point
+        # (not sure what, if anything, I want to do about this
+        # case)
         if geometry_utils.do_intersect([points[0], points[1]],
-                        [points[2], points[3]]):
+                                       [points[2], points[3]]):
             print(f'huh {self.src.label} {self.dst.label}')
 
     def set_bezier_control_points(self, thermal_control):

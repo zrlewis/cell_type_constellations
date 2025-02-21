@@ -1,4 +1,3 @@
-import copy
 import h5py
 import json
 import pathlib

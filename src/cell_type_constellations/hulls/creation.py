@@ -67,6 +67,7 @@ def create_and_serialize_all_hulls(
     finally:
         _clean_up(tmp_dir)
 
+
 def _create_and_serialize_all_hulls(
         cell_set,
         visualization_coords,
@@ -111,8 +112,7 @@ def _create_and_serialize_all_hulls(
             type_pair_list.append((type_field, type_value))
             n_cells_list.append(cell_set.n_cells_in_type(
                                     type_field=type_field,
-                                    type_value=type_value)
-            )
+                                    type_value=type_value))
 
     sorted_idx = np.argsort(n_cells_list)[-1::-1]
     sub_lists = []
@@ -151,7 +151,6 @@ def _create_and_serialize_all_hulls(
 
     dur = (time.time()-t0)/60.0
     print(f'=======WROTE HULLS TO {dst_path} in {dur:.2e} minutes=======')
-
 
 
 def create_and_serialize_pixel_hull_list(
@@ -453,7 +452,6 @@ def _are_segments_identical(seg0, seg1):
         if not this_identical:
             return False
     return True
-
 
 
 def _are_bare_hulls_identical(b0, b1):

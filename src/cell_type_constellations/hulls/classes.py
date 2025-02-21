@@ -1,6 +1,5 @@
 import h5py
 import numpy as np
-from scipy.spatial import ConvexHull
 
 import cell_type_constellations.utils.geometry_utils as geometry_utils
 
@@ -54,7 +53,6 @@ class BareHull(object):
         i_segments.append([self.points.shape[0]-1, 0])
         self._segments = segments
         self._i_segments = i_segments
-
 
 
 class PixelSpaceHull(object):
