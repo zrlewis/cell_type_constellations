@@ -97,7 +97,13 @@ def render_centroid_list(
     return centroid_code, fov
 
 
-def render_centroid(centroid, color_map, color_by):
+def render_centroid(
+        centroid,
+        color_map,
+        color_by,
+        show_label=True):
+
+    fontsize = 7
 
     is_stats = False
     if isinstance(color_map, ContinuousColorMap):
@@ -142,6 +148,21 @@ def render_centroid(centroid, color_map, color_by):
     result += """        </title>\n"""
 
     result += "    </a>\n"
+
+    if show_label:
+        short_label = centroid.label.split(':')[-1]
+        first_param = short_label.split('_')[0]
+        try:
+            display_label = int(first_param)
+        except Exception:
+            display_label = short_label
+        label_code = f"""
+        <text x="{centroid.pixel_x}px" y="{centroid.pixel_y}"
+        font-size="{fontsize}">
+        {display_label}
+        </text>\n
+        """
+        result += label_code
 
     return result
 
