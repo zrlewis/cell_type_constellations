@@ -27,7 +27,8 @@ def render_svg(
         centroid_list,
         connection_list=None,
         hull_list=None,
-        fill_hulls=False):
+        fill_hulls=False,
+        show_centroid_labels=True):
 
     if connection_list is not None:
         connection_code = render_connection_list(connection_list)
@@ -50,7 +51,8 @@ def render_svg(
         centroid_list=centroid_list,
         color_map=color_map,
         color_by=color_by,
-        fov=fov)
+        fov=fov,
+        show_label=show_centroid_labels)
 
     code = get_svg_header(fov)
     code += hull_code
@@ -72,7 +74,8 @@ def render_centroid_list(
         centroid_list,
         color_map,
         color_by,
-        fov):
+        fov,
+        show_label=True):
     """
     Returns the SVG code for the centroids and fov
     (in case fov needs to be updated to accommodate
@@ -92,12 +95,19 @@ def render_centroid_list(
         centroid_code += render_centroid(
             centroid=el,
             color_map=color_map,
-            color_by=color_by)
+            color_by=color_by,
+            show_label=show_label)
 
     return centroid_code, fov
 
 
-def render_centroid(centroid, color_map, color_by):
+def render_centroid(
+        centroid,
+        color_map,
+        color_by,
+        show_label=True):
+
+    fontsize = 10
 
     is_stats = False
     if isinstance(color_map, ContinuousColorMap):
@@ -142,6 +152,22 @@ def render_centroid(centroid, color_map, color_by):
     result += """        </title>\n"""
 
     result += "    </a>\n"
+
+    if show_label:
+        short_label = centroid.label.split(':')[-1]
+        first_param = short_label.split('_')[0]
+        try:
+            display_label = int(first_param)
+        except Exception:
+            display_label = short_label
+        label_code = f"""
+        <text x="{centroid.pixel_x}px" y="{centroid.pixel_y}"
+        font-size="{fontsize}" stroke="#DDDDDD"
+        fill="#000000" stroke-width="0.3px">
+        {display_label}
+        </text>\n
+        """
+        result += label_code
 
     return result
 

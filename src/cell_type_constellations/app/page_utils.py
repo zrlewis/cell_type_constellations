@@ -13,6 +13,7 @@ import cell_type_constellations.rendering.rendering_utils as rendering_utils
 def get_constellation_plot_page(
         hdf5_path,
         centroid_level,
+        show_centroid_labels,
         hull_level,
         connection_coords,
         color_by,
@@ -83,7 +84,8 @@ def get_constellation_plot_page(
            centroid_list=centroid_list,
            connection_list=connection_list,
            hull_list=hull_list,
-           fill_hulls=fill_hulls)
+           fill_hulls=fill_hulls,
+           show_centroid_labels=show_centroid_labels)
     except rendering_utils.CannotColorByError:
         html = f"""
         <p>
@@ -98,6 +100,7 @@ def get_constellation_plot_page(
         taxonomy_name=taxonomy_name,
         centroid_level=centroid_level,
         color_by=color_by,
+        show_centroid_labels=show_centroid_labels,
         hull_level=hull_level,
         connection_coords=connection_coords,
         fill_hulls=fill_hulls,
@@ -112,6 +115,7 @@ def get_constellation_plot_page(
 def get_constellation_control_code(
         taxonomy_name,
         centroid_level,
+        show_centroid_labels,
         hull_level,
         color_by,
         connection_coords,
@@ -141,7 +145,7 @@ def get_constellation_control_code(
     html = ""
 
     html += html_utils.html_front_matter_n_columns(
-        n_columns=5)
+        n_columns=6)
 
     html += """<form action="constellation_plot" method="GET">\n"""
     html += f"""<input type="hidden" value="{taxonomy_name}" name="taxonomy_name">\n"""  # noqa: E501
@@ -153,9 +157,11 @@ def get_constellation_control_code(
 
         default_value = default_lookup[field_id]
 
+        button_name = field_id.replace('_', ' ')
+
         html += """<div class="column">"""
         html += f"""<fieldset id="{field_id}">\n"""
-        html += f"""<label for="{field_id}">{field_id.replace('_', ' ')}</label><br>"""  # noqa: E501
+        html += f"""<label for="{field_id}">{button_name}</label><br>"""  # noqa: E501
 
         button_values = level_list_lookup[field_id]
 
@@ -179,24 +185,32 @@ def get_constellation_control_code(
 
         html += """</div>\n"""
 
-    html += """<div class="column">"""
-    html += """<fieldset id="fill_hulls">\n"""
-    html += """<label for="fill_hulls">fill hulls</label><br>"""
-    html += """<input type="radio" name="fill_hulls" id="true" value="true" """  # noqa: E501
-    if fill_hulls:
-        html += """checked="checked" """
-    html += ">"
-    html += """
-    <label for="true">True</label><br>
-    """
-    html += """<input type="radio" name="fill_hulls" id="false" value="false" """  # noqa: E501
-    if not fill_hulls:
-        html += """checked="checked" """
-    html += ">"
-    html += """
-    <label for="false">False</label><br>
-    """
-    html += """</fieldset></div>\n"""
+    for field_id, current in (("fill_hulls", fill_hulls),
+                              ("show_centroid_labels", show_centroid_labels)):
+
+        button_name = field_id.replace("_", " ")
+        if field_id == "show_centroid_labels":
+            button_name = "show labels"
+
+        html += """<div class="column">"""
+        html += f"""<fieldset id="{field_id}">\n"""
+        html += f"""<label for="{field_id}">{button_name}</label><br>"""
+        html += f"""<input type="radio" name="{field_id}" id="true" value="true" """  # noqa: E501
+        if current:
+            html += """checked="checked" """
+        html += ">"
+        html += """
+        <label for="true">True</label><br>
+        """
+        html += f"""<input type="radio" name="{field_id}" id="false" value="false" """  # noqa: E501
+        if not current:
+            html += """checked="checked" """
+        html += ">"
+        html += """
+        <label for="false">False</label><br>
+        """
+
+        html += """</fieldset></div>\n"""
 
     html += """
     </form>
