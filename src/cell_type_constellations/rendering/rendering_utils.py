@@ -103,7 +103,7 @@ def render_centroid(
         color_by,
         show_label=True):
 
-    fontsize = 7
+    fontsize = 10
 
     is_stats = False
     if isinstance(color_map, ContinuousColorMap):
@@ -158,7 +158,8 @@ def render_centroid(
             display_label = short_label
         label_code = f"""
         <text x="{centroid.pixel_x}px" y="{centroid.pixel_y}"
-        font-size="{fontsize}">
+        font-size="{fontsize}" stroke="#DDDDDD"
+        fill="#000000" stroke-width="0.3px">
         {display_label}
         </text>\n
         """
