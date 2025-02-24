@@ -27,7 +27,8 @@ def render_svg(
         centroid_list,
         connection_list=None,
         hull_list=None,
-        fill_hulls=False):
+        fill_hulls=False,
+        show_centroid_labels=True):
 
     if connection_list is not None:
         connection_code = render_connection_list(connection_list)
@@ -50,7 +51,8 @@ def render_svg(
         centroid_list=centroid_list,
         color_map=color_map,
         color_by=color_by,
-        fov=fov)
+        fov=fov,
+        show_label=show_centroid_labels)
 
     code = get_svg_header(fov)
     code += hull_code
@@ -72,7 +74,8 @@ def render_centroid_list(
         centroid_list,
         color_map,
         color_by,
-        fov):
+        fov,
+        show_label=True):
     """
     Returns the SVG code for the centroids and fov
     (in case fov needs to be updated to accommodate
@@ -92,7 +95,8 @@ def render_centroid_list(
         centroid_code += render_centroid(
             centroid=el,
             color_map=color_map,
-            color_by=color_by)
+            color_by=color_by,
+            show_label=show_label)
 
     return centroid_code, fov
 

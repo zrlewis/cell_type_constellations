@@ -75,12 +75,18 @@ class Visualizer(object):
             hull_level=None,
             connection_coords=None,
             default=False,
-            fill_hulls='false'):
+            fill_hulls='false',
+            show_centroid_labels='true'):
 
         if fill_hulls == 'true':
             fill_hulls = True
         else:
             fill_hulls = False
+
+        if show_centroid_labels == 'true':
+            show_centroid_labels = True
+        else:
+            show_centroid_labels = False
 
         config = self.constellation_plot_config[taxonomy_name]
 
@@ -97,7 +103,8 @@ class Visualizer(object):
                 hull_level=hull_level,
                 color_by=color_by,
                 fill_hulls=fill_hulls,
-                connection_coords=connection_coords)
+                connection_coords=connection_coords,
+                show_centroid_labels=show_centroid_labels)
 
         return html
 
