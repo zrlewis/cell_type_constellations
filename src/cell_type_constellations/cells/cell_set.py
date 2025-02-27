@@ -74,6 +74,10 @@ class CellSet(object):
             for unq in unq_value_list:
                 idx = np.where(cell_metadata[col].values == unq)[0]
                 self._n_cells_lookup[col][unq] = len(idx)
+                if len(idx) >= 2:
+                    ddof = 1
+                else:
+                    ddof = 0
                 self._type_masks[col][unq] = idx
                 self._statistics[col][unq] = dict()
                 for stat_col in continuous_fields:
@@ -82,7 +86,7 @@ class CellSet(object):
                             cell_metadata[stat_col].values[idx]),
                         'var': np.var(
                             cell_metadata[stat_col].values[idx],
-                            ddof=1)
+                            ddof=ddof)
                     }
                     self._statistics[col][unq][stat_col] = stats
 
@@ -118,6 +122,11 @@ class CellSet(object):
             h5ad_path,
             df_name='obs'
         )
+
+        # make sure all discrete fields are recorded as strings
+        for col in discrete_fields:
+            cell_metadata[col] = cell_metadata[col].astype(str)
+
         return cls(
             cell_metadata=cell_metadata,
             discrete_fields=discrete_fields,

@@ -33,6 +33,9 @@ def merge_hulls(
                     )
                 )
 
+    if len(raw_hull_list) == 0:
+        return []
+
     raw_hull_list = winnow_hull_list(
         raw_hull_list,
         cutoff_quantile=0.01
@@ -402,6 +405,7 @@ def winnow_hull_list(
     Return list of ConvexHulls that just contain vertices.
     """
 
+    assert len(hull_list) > 0
     density_list = []
     for hull in hull_list:
         density_list += [density_from_hull(hull)]*hull.points.shape[0]
