@@ -256,7 +256,7 @@ def get_constellation_plot_config(
             this = {
                 'path': file_path,
                 'centroid_level': discrete_fields[-2],
-                'color_by': discrete_fields[0],
+                'color_by': discrete_fields[-2],
                 'hull_level': None,
                 'connection_coords': connection_coords
             }
