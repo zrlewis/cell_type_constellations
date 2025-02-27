@@ -122,6 +122,11 @@ class CellSet(object):
             h5ad_path,
             df_name='obs'
         )
+
+        # make sure all discrete fields are recorded as strings
+        for col in discrete_fields:
+            cell_metadata[col] = cell_metadata[col].astype(str)
+
         return cls(
             cell_metadata=cell_metadata,
             discrete_fields=discrete_fields,
