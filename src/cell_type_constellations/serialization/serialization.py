@@ -43,7 +43,7 @@ def serialize_from_h5ad(
         discrete_color_map=None,
         tmp_dir=None,
         clobber=False,
-        k_nn=15,
+        k_nn=15, # number of nearest neighbors. Default is 15
         n_processors=4,
         fov_height=1080,
         max_radius=35,

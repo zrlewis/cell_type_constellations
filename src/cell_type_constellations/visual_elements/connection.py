@@ -16,7 +16,10 @@ import cell_type_constellations.utils.connection_utils as connection_utils
 from cell_type_constellations.visual_elements.centroid import (
     PixelSpaceCentroid
 )
+import logging
 
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
 
 def get_connection_list(
         pixel_centroid_lookup,
@@ -55,16 +58,24 @@ def get_connection_list(
         pixel_centroid_lookup[type_field][val]
         for val in type_value_list
     ]
+    logging.debug(f"centroid_list: {centroid_list}")
+    logging.debug(f"type_value_list: {type_value_list}")
 
     n_cells_array = np.array(
         [centroid.n_cells for centroid in centroid_list]
     )
+    # Log the inputs to choose_connections for debugging
+    logging.debug(f"mixture_matrix: {mixture_matrix}")
+    logging.debug(f"n_cells_array: {n_cells_array}")
+    logging.debug(f"k_nn: {k_nn}")
 
     valid_connections = connection_utils.choose_connections(
         mixture_matrix=mixture_matrix,
         n_cells=n_cells_array,
         k_nn=k_nn
     )
+    # Log the contents of valid_connections for debugging
+    logging.debug(f"valid_connections: {valid_connections}")
 
     # make sure each pair is unique, regardless of order
     loaded_connections = set()
@@ -141,6 +152,7 @@ def write_pixel_connections_to_hdf5(
                 "helps."
             )
 
+
     with h5py.File(hdf5_path, 'a') as dst:
         if group_path in dst:
             raise RuntimeError(
@@ -148,6 +160,10 @@ def write_pixel_connections_to_hdf5(
                 "unclear how to proceed."
             )
         dst_grp = dst.create_group(group_path)
+        # Log the dst_grp of connection_list for debugging
+        logging.debug(f"dst_grp: {dst_grp}")
+        # Log the contents of connection_list for debugging
+        logging.debug(f"connection_list: {connection_list}")
 
         dst_grp.create_dataset(
             "bezier_control_points",
