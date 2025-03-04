@@ -1,1 +1,4 @@
 scratch/*
+src/cell_type_constellations/__pycache__/*.pyc
+src/cell_type_constellations/*/*.pyc
+src/cell_type_constellations/hulls/__pycache__/*.pyc
