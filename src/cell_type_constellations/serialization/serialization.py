@@ -131,6 +131,8 @@ def serialize_from_h5ad(
     represented in the color map.
     """
 
+    print(f'===k_nn set to: {k_nn}')
+
     tmp_dir = tempfile.mkdtemp(
         dir=tmp_dir,
         prefix='constellation_serialization_'
